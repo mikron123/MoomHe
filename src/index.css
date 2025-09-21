@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-family: 'Segoe UI', 'Tahoma', 'Arial', sans-serif;
+    direction: rtl;
+    background-color: #F4F4F4;
+    color: #333333;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-accent hover:bg-primary-600 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200;
+  }
+  
+  .btn-secondary {
+    @apply bg-white hover:bg-gray-50 text-text font-medium py-2 px-4 rounded-lg transition-colors duration-200 border border-gray-200;
+  }
+  
+  .card {
+    @apply bg-white rounded-xl shadow-lg border border-gray-100;
+  }
+  
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
