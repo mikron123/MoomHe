@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Upload, Plus, Palette, RotateCcw, Download, Settings, Home, TreePine, Car, Heart, Hammer, Sparkles, Package, User, Share2, Palette as FreeStyle, Type, Loader2 } from 'lucide-react'
-import { model, fileToGenerativePart, urlToFile, signInUser, createOrUpdateUser, saveImageToHistory, loadUserHistory, saveUploadToUserUploads, loadUserUploads, auth } from './firebase.js'
+import { model, fileToGenerativePart, urlToFile, signInUser, createOrUpdateUser, saveImageToHistory, saveUploadToHistory, loadUserHistory, loadUserHistoryPaginated, auth } from './firebase.js'
 import { onAuthStateChanged } from 'firebase/auth'
 
 function App() {
@@ -11,11 +11,9 @@ function App() {
   const [showColorPalette, setShowColorPalette] = useState(false)
   const [showAnglePanel, setShowAnglePanel] = useState(false)
   const [imageHistory, setImageHistory] = useState([])
-  const [userUploads, setUserUploads] = useState([])
   const [currentUser, setCurrentUser] = useState(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
-  const [isLoadingUploads, setIsLoadingUploads] = useState(false)
   const [showImageModal, setShowImageModal] = useState(false)
   const [detectedObjects, setDetectedObjects] = useState([])
   const [isLoadingObjects, setIsLoadingObjects] = useState(false)
@@ -26,8 +24,20 @@ function App() {
   const [objectImage, setObjectImage] = useState(null)
   const [objectImageFile, setObjectImageFile] = useState(null)
   const [showMobileDropdown, setShowMobileDropdown] = useState(false)
+  const [historyPage, setHistoryPage] = useState(1)
+  const [hasMoreHistory, setHasMoreHistory] = useState(true)
+  const [isLoadingMoreHistory, setIsLoadingMoreHistory] = useState(false)
+  const [showAuthModal, setShowAuthModal] = useState(false)
+  const [showLogoutModal, setShowLogoutModal] = useState(false)
+  const [authMode, setAuthMode] = useState('signup') // 'login' or 'signup'
+  const [email, setEmail] = useState('')
+  const [confirmEmail, setConfirmEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [isLoadingAuth, setIsLoadingAuth] = useState(false)
+  const [isResettingPassword, setIsResettingPassword] = useState(false)
   const fileInputRef = useRef(null)
   const objectInputRef = useRef(null)
+  const historyScrollRef = useRef(null)
 
   // Authentication and history loading
   useEffect(() => {
@@ -39,20 +49,15 @@ function App() {
         // Create or update user record
         await createOrUpdateUser(user)
         
-        // Load user history and uploads
+        // Load user history
         setIsLoadingHistory(true)
-        setIsLoadingUploads(true)
         
         try {
-          const [history, uploads] = await Promise.all([
-            loadUserHistory(user.uid),
-            loadUserUploads(user.uid)
-          ])
-          setImageHistory(history)
-          setUserUploads(uploads)
+          const historyResult = await loadUserHistoryPaginated(user.uid, 1, 5)
+          setImageHistory(historyResult.history)
+          setHasMoreHistory(historyResult.hasMore)
         } finally {
           setIsLoadingHistory(false)
-          setIsLoadingUploads(false)
         }
       } else {
         // Sign in anonymously
@@ -70,20 +75,15 @@ function App() {
     return () => unsubscribe()
   }, [])
 
-  // Detect objects when main image changes
-  useEffect(() => {
-    if (mainImage && !isProcessing) {
-      detectObjects(mainImage)
-    }
-  }, [mainImage, isProcessing])
+  // Note: Object detection is now only triggered manually via refresh button or image uploads
 
   const categories = [
     'עיצוב פנים וחוץ',
     'גינות ומרפסות',
+    'רכבים ודו גלגלי',
     'איפור וטיפוח',
     'הצגת מוצר ופרסום',
-    'תמונות פרופיל ותדמית',
-    'רכבים ודו גלגלי',
+    'פרופיל ותדמית',
     'קעקועים',
   ]
 
@@ -92,91 +92,91 @@ function App() {
     'גינות ומרפסות': TreePine,
     'איפור וטיפוח': Sparkles,
     'הצגת מוצר ופרסום': Package,
-    'תמונות פרופיל ותדמית': User,
+    'פרופיל ותדמית': User,
     'רכבים ודו גלגלי': Car,
     'קעקועים': Heart
   }
 
   const categoryDefaultImages = {
-    'עיצוב פנים וחוץ': 'https://images.unsplash.com/photo-1631679706909-1844bbd07221?w=1280&h=720&fit=crop&crop=center',
-    'גינות ומרפסות': 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=1280&h=720&fit=crop&crop=center',
-    'איפור וטיפוח': 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=1280&h=720&fit=crop&crop=center',
-    'הצגת מוצר ופרסום': 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1280&h=720&fit=crop&crop=center',
-    'תמונות פרופיל ותדמית': 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=1280&h=720&fit=crop&crop=center',
-    'רכבים ודו גלגלי': 'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=1280&h=720&fit=crop&crop=center',
-    'קעקועים': 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=1280&h=720&fit=crop&crop=center'
+    'עיצוב פנים וחוץ': '/assets/design_img.jpg',
+    'גינות ומרפסות': '/assets/balcony_img.png',
+    'איפור וטיפוח': '/assets/makeup_img.jpg',
+    'הצגת מוצר ופרסום': '/assets/product_img.jpg',
+    'פרופיל ותדמית': '/assets/profile_img.jpg',
+    'רכבים ודו גלגלי': '/assets/car_img.jpg',
+    'קעקועים': '/assets/tattoo_img.jpg'
   }
 
   const categoryActionButtons = {
     'עיצוב פנים וחוץ': [
       { name: 'שנה צבע קיר', action: () => setShowColorPalette(!showColorPalette), icon: Palette },
       { name: 'זווית', action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
-      { name: 'תאורה', action: () => handleAIEdit("Enhance the lighting in this image"), icon: Settings },
-      { name: 'הוסף ריהוט', action: () => handleAIEdit("Add modern furniture to this room"), icon: Plus },
-      { name: 'בצע תיקונים', action: () => handleAIEdit("edit and fix all the damages"), icon: Settings }
+      { name: 'תאורה', action: () => handleActionButton('תאורה', "Enhance the lighting in this image"), icon: Settings },
+      { name: 'הוסף ריהוט', action: () => handleActionButton('הוסף ריהוט', "Add modern furniture to this room"), icon: Plus },
+      { name: 'בצע תיקונים', action: () => handleActionButton('בצע תיקונים', "edit and fix all the damages"), icon: Settings }
     ],
     'גינות ומרפסות': [
       { name: 'שנה צבע קיר', action: () => setShowColorPalette(!showColorPalette), icon: Palette },
       { name: 'זווית', action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
-      { name: 'הוסף צמחים', action: () => handleAIEdit("Add beautiful plants and flowers to this garden"), icon: TreePine },
-      { name: 'שיפור תאורה', action: () => handleAIEdit("Enhance the outdoor lighting"), icon: Settings },
-      { name: 'בצע תיקונים', action: () => handleAIEdit("edit and fix all the damages"), icon: Settings }
+      { name: 'הוסף צמחים', action: () => handleActionButton('הוסף צמחים', "Add beautiful plants and flowers to this garden"), icon: TreePine },
+      { name: 'שיפור תאורה', action: () => handleActionButton('שיפור תאורה', "Enhance the outdoor lighting"), icon: Settings },
+      { name: 'בצע תיקונים', action: () => handleActionButton('בצע תיקונים', "edit and fix all the damages"), icon: Settings }
     ],
     'רכבים ודו גלגלי': [
       { name: 'שנה צבע', action: () => setShowColorPalette(!showColorPalette), icon: Palette },
       { name: 'זווית', action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
-      { name: 'שיפור תאורה', action: () => handleAIEdit("Enhance the lighting and reflections on this vehicle"), icon: Settings },
-      { name: 'הוסף אביזרים', action: () => handleAIEdit("Add accessories and modifications to this vehicle"), icon: Plus },
-      { name: 'בצע תיקונים', action: () => handleAIEdit("edit and fix all the damages"), icon: Settings }
+      { name: 'שיפור תאורה', action: () => handleActionButton('שיפור תאורה', "Enhance the lighting and reflections on this vehicle"), icon: Settings },
+      { name: 'הוסף אביזרים', action: () => handleActionButton('הוסף אביזרים', "Add accessories and modifications to this vehicle"), icon: Plus },
+      { name: 'בצע תיקונים', action: () => handleActionButton('בצע תיקונים', "edit and fix all the damages"), icon: Settings }
     ],
     'קעקועים': [
       { name: 'שנה צבע', action: () => setShowColorPalette(!showColorPalette), icon: Palette },
       { name: 'זווית', action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
-      { name: 'שיפור תאורה', action: () => handleAIEdit("Enhance the lighting to show the tattoo details"), icon: Settings },
-      { name: 'הוסף פרטים', action: () => handleAIEdit("Add more details and shading to this tattoo"), icon: Plus },
-      { name: 'בצע תיקונים', action: () => handleAIEdit("edit and fix all the damages"), icon: Settings }
+      { name: 'שיפור תאורה', action: () => handleActionButton('שיפור תאורה', "Enhance the lighting to show the tattoo details"), icon: Settings },
+      { name: 'הוסף פרטים', action: () => handleActionButton('הוסף פרטים', "Add more details and shading to this tattoo"), icon: Plus },
+      { name: 'בצע תיקונים', action: () => handleActionButton('בצע תיקונים', "edit and fix all the damages"), icon: Settings }
     ],
     'נגרות ועץ': [
       { name: 'שנה צבע', action: () => setShowColorPalette(!showColorPalette), icon: Palette },
       { name: 'זווית', action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
-      { name: 'שיפור תאורה', action: () => handleAIEdit("Enhance the lighting to show wood grain details"), icon: Settings },
-      { name: 'הוסף פרטים', action: () => handleAIEdit("Add more woodworking details and textures"), icon: Plus },
-      { name: 'בצע תיקונים', action: () => handleAIEdit("edit and fix all the damages"), icon: Settings }
+      { name: 'שיפור תאורה', action: () => handleActionButton('שיפור תאורה', "Enhance the lighting to show wood grain details"), icon: Settings },
+      { name: 'הוסף פרטים', action: () => handleActionButton('הוסף פרטים', "Add more woodworking details and textures"), icon: Plus },
+      { name: 'בצע תיקונים', action: () => handleActionButton('בצע תיקונים', "edit and fix all the damages"), icon: Settings }
     ],
     'איפור וטיפוח': [
       { name: 'שנה צבע', action: () => setShowColorPalette(!showColorPalette), icon: Palette },
       { name: 'זווית', action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
-      { name: 'שיפור תאורה', action: () => handleAIEdit("Enhance the lighting for better makeup visibility"), icon: Settings },
-      { name: 'הוסף איפור', action: () => handleAIEdit("Add more makeup and beauty enhancements"), icon: Sparkles },
-      { name: 'בצע תיקונים', action: () => handleAIEdit("edit and fix all the damages"), icon: Settings }
+      { name: 'שיפור תאורה', action: () => handleActionButton('שיפור תאורה', "Enhance the lighting for better makeup visibility"), icon: Settings },
+      { name: 'הוסף איפור', action: () => handleActionButton('הוסף איפור', "Add more makeup and beauty enhancements"), icon: Sparkles },
+      { name: 'בצע תיקונים', action: () => handleActionButton('בצע תיקונים', "edit and fix all the damages"), icon: Settings }
     ],
     'מוצרים': [
       { name: 'שנה צבע', action: () => setShowColorPalette(!showColorPalette), icon: Palette },
       { name: 'זווית', action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
-      { name: 'שיפור תאורה', action: () => handleAIEdit("Enhance the product lighting and presentation"), icon: Settings },
-      { name: 'הוסף פרטים', action: () => handleAIEdit("Add product details and features"), icon: Plus },
-      { name: 'בצע תיקונים', action: () => handleAIEdit("edit and fix all the damages"), icon: Settings }
+      { name: 'שיפור תאורה', action: () => handleActionButton('שיפור תאורה', "Enhance the product lighting and presentation"), icon: Settings },
+      { name: 'הוסף פרטים', action: () => handleActionButton('הוסף פרטים', "Add product details and features"), icon: Plus },
+      { name: 'בצע תיקונים', action: () => handleActionButton('בצע תיקונים', "edit and fix all the damages"), icon: Settings }
     ],
     'תמונות פרופיל': [
       { name: 'שנה צבע', action: () => setShowColorPalette(!showColorPalette), icon: Palette },
       { name: 'זווית', action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
-      { name: 'שיפור תאורה', action: () => handleAIEdit("Enhance the portrait lighting"), icon: Settings },
-      { name: 'הוסף רקע', action: () => handleAIEdit("Add a professional background"), icon: Plus },
-      { name: 'בצע תיקונים', action: () => handleAIEdit("edit and fix all the damages"), icon: Settings }
+      { name: 'שיפור תאורה', action: () => handleActionButton('שיפור תאורה', "Enhance the portrait lighting"), icon: Settings },
+      { name: 'הוסף רקע', action: () => handleActionButton('הוסף רקע', "Add a professional background"), icon: Plus },
+      { name: 'בצע תיקונים', action: () => handleActionButton('בצע תיקונים', "edit and fix all the damages"), icon: Settings }
     ],
     'סושיאל': [
       { name: 'שנה צבע', action: () => setShowColorPalette(!showColorPalette), icon: Palette },
       { name: 'זווית', action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
-      { name: 'שיפור תאורה', action: () => handleAIEdit("Enhance the social media lighting"), icon: Settings },
-      { name: 'הוסף אפקטים', action: () => handleAIEdit("Add social media effects and filters"), icon: Sparkles },
-      { name: 'בצע תיקונים', action: () => handleAIEdit("edit and fix all the damages"), icon: Settings }
+      { name: 'שיפור תאורה', action: () => handleActionButton('שיפור תאורה', "Enhance the social media lighting"), icon: Settings },
+      { name: 'הוסף אפקטים', action: () => handleActionButton('הוסף אפקטים', "Add social media effects and filters"), icon: Sparkles },
+      { name: 'בצע תיקונים', action: () => handleActionButton('בצע תיקונים', "edit and fix all the damages"), icon: Settings }
     ],
     'סגנון חופשי': [
       { name: 'שנה צבע', action: () => setShowColorPalette(!showColorPalette), icon: Palette },
       { name: 'זווית', action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
-      { name: 'שיפור תאורה', action: () => handleAIEdit("Enhance the lighting in this image"), icon: Settings },
-      { name: 'הוסף אלמנטים', action: () => handleAIEdit("Add creative elements to this image"), icon: Plus },
-      { name: 'בצע תיקונים', action: () => handleAIEdit("edit and fix all the damages"), icon: Settings }
+      { name: 'שיפור תאורה', action: () => handleActionButton('שיפור תאורה', "Enhance the lighting in this image"), icon: Settings },
+      { name: 'הוסף אלמנטים', action: () => handleActionButton('הוסף אלמנטים', "Add creative elements to this image"), icon: Plus },
+      { name: 'בצע תיקונים', action: () => handleActionButton('בצע תיקונים', "edit and fix all the damages"), icon: Settings }
     ]
   }
 
@@ -189,25 +189,27 @@ function App() {
         setMainImage(e.target.result) // Display uploaded image on main stage
         setImageAspectRatio(16/9) // Reset to default until new image loads
         
+        // Detect objects for uploaded image (desktop only)
+        const isMobile = window.innerWidth < 1024
+        if (!isMobile) {
+          detectObjects(e.target.result)
+        }
+        
         // Save to Firebase if user is authenticated
         if (isAuthenticated && currentUser) {
-          setIsLoadingUploads(true)
+          setIsLoadingHistory(true)
           try {
-            const uploadData = {
-              id: Date.now().toString(),
-              file: file,
-              timestamp: formatTimestamp(new Date())
-            }
+            await saveUploadToHistory(currentUser.uid, file, `Uploaded: ${file.name}`)
             
-            await saveUploadToUserUploads(currentUser.uid, uploadData)
-            
-            // Reload uploads from Firebase to get the updated list
-            const updatedUploads = await loadUserUploads(currentUser.uid)
-            setUserUploads(updatedUploads)
+            // Reload history from Firebase to get the updated list
+            const historyResult = await loadUserHistoryPaginated(currentUser.uid, 1, 5)
+            setImageHistory(historyResult.history)
+            setHistoryPage(1)
+            setHasMoreHistory(historyResult.hasMore)
           } catch (error) {
             console.error('Failed to save upload to Firebase:', error)
           } finally {
-            setIsLoadingUploads(false)
+            setIsLoadingHistory(false)
           }
         }
       }
@@ -265,16 +267,19 @@ function App() {
     if (defaultImage) {
       setMainImage(defaultImage)
       setImageAspectRatio(16/9) // Reset to default until new image loads
-      // Detect objects for the new default image
-      detectObjects(defaultImage)
+      // Detect objects for the new default image (desktop only)
+      const isMobile = window.innerWidth < 1024
+      if (!isMobile) {
+        detectObjects(defaultImage)
+      }
     }
   }
 
   const handleGalleryImageClick = (imageUrl) => {
     setMainImage(imageUrl)
     setImageAspectRatio(16/9) // Reset to default until new image loads
-    // Detect objects for the new gallery image
-    detectObjects(imageUrl)
+    // Clear objects when selecting gallery image
+    setDetectedObjects([])
   }
 
   const handleHistoryImageClick = (historyEntry) => {
@@ -282,17 +287,10 @@ function App() {
     const imageUrl = historyEntry.storageUrl || historyEntry.imageUrl
     setMainImage(imageUrl)
     setImageAspectRatio(16/9) // Reset to default until new image loads
-    // Detect objects for the history image
-    detectObjects(imageUrl)
+    // Clear objects when selecting history image
+    setDetectedObjects([])
   }
 
-  const handleUploadImageClick = (uploadEntry) => {
-    // Use storageUrl from Firebase
-    setMainImage(uploadEntry.storageUrl)
-    setImageAspectRatio(16/9) // Reset to default until new image loads
-    // Detect objects for the uploaded image
-    detectObjects(uploadEntry.storageUrl)
-  }
 
   const handleMainImageClick = () => {
     if (!isProcessing) {
@@ -327,6 +325,192 @@ function App() {
     setObjectImageFile(null)
     if (objectInputRef.current) {
       objectInputRef.current.value = ''
+    }
+  }
+
+  const handleAuthSubmit = async (e) => {
+    e.preventDefault()
+    if (!email || !password) return
+    
+    // Validate email confirmation for signup
+    if (authMode === 'signup' && email !== confirmEmail) {
+      alert('כתובות האימייל אינן תואמות. נסה שוב.')
+      return
+    }
+    
+    setIsLoadingAuth(true)
+    try {
+      if (authMode === 'signup') {
+        // Check if user is currently anonymous
+        const isAnonymous = currentUser && currentUser.isAnonymous
+        
+        if (isAnonymous) {
+          // Link anonymous account to email/password account
+          const { linkWithCredential, EmailAuthProvider } = await import('firebase/auth')
+          const credential = EmailAuthProvider.credential(email, password)
+          
+          try {
+            // Try to link the anonymous account
+            const userCredential = await linkWithCredential(currentUser, credential)
+            await createOrUpdateUser(userCredential.user)
+            alert('החשבון נוצר בהצלחה! כל הנתונים שלך נשמרו.')
+          } catch (linkError) {
+            if (linkError.code === 'auth/email-already-in-use') {
+              // Email already exists, create new account and migrate data
+              const { createUserWithEmailAndPassword } = await import('firebase/auth')
+              const newUserCredential = await createUserWithEmailAndPassword(auth, email, password)
+              
+              // Migrate data from anonymous user to new user
+              await migrateUserData(currentUser.uid, newUserCredential.user.uid)
+              
+              await createOrUpdateUser(newUserCredential.user)
+              alert('החשבון נוצר בהצלחה! כל הנתונים שלך הועברו לחשבון החדש.')
+            } else {
+              throw linkError
+            }
+          }
+        } else {
+          // Create new account normally
+          const { createUserWithEmailAndPassword } = await import('firebase/auth')
+          const userCredential = await createUserWithEmailAndPassword(auth, email, password)
+          await createOrUpdateUser(userCredential.user)
+          alert('החשבון נוצר בהצלחה!')
+        }
+      } else {
+        // Sign in existing user
+        const { signInWithEmailAndPassword } = await import('firebase/auth')
+        const userCredential = await signInWithEmailAndPassword(auth, email, password)
+        await createOrUpdateUser(userCredential.user)
+        alert('התחברת בהצלחה!')
+      }
+      
+      // Close modal and reset form
+      setShowAuthModal(false)
+      setEmail('')
+      setConfirmEmail('')
+      setPassword('')
+      setAuthMode('signup')
+    } catch (error) {
+      console.error('Authentication error:', error)
+      if (error.code === 'auth/email-already-in-use') {
+        alert('כתובת האימייל כבר בשימוש. נסה להתחבר במקום.')
+        setAuthMode('login')
+      } else if (error.code === 'auth/user-not-found') {
+        alert('משתמש לא נמצא. נסה ליצור חשבון חדש.')
+        setAuthMode('signup')
+      } else if (error.code === 'auth/wrong-password') {
+        alert('סיסמה שגויה. נסה שוב.')
+      } else if (error.code === 'auth/weak-password') {
+        alert('הסיסמה חלשה מדי. השתמש בסיסמה של לפחות 6 תווים.')
+      } else {
+        alert('שגיאה בהתחברות. נסה שוב.')
+      }
+    } finally {
+      setIsLoadingAuth(false)
+    }
+  }
+
+  const handlePasswordReset = async () => {
+    if (!email) {
+      alert('אנא הזן כתובת אימייל תחילה.')
+      return
+    }
+    
+    setIsResettingPassword(true)
+    try {
+      const { sendPasswordResetEmail } = await import('firebase/auth')
+      await sendPasswordResetEmail(auth, email)
+      alert('נשלח אימייל לאיפוס סיסמה לכתובת שלך.')
+    } catch (error) {
+      console.error('Password reset error:', error)
+      if (error.code === 'auth/user-not-found') {
+        alert('כתובת האימייל לא נמצאה במערכת.')
+      } else {
+        alert('שגיאה בשליחת אימייל איפוס. נסה שוב.')
+      }
+    } finally {
+      setIsResettingPassword(false)
+    }
+  }
+
+  const migrateUserData = async (fromUid, toUid) => {
+    try {
+      // Import Firestore functions
+      const { collection, query, where, getDocs, doc, setDoc, deleteDoc } = await import('firebase/firestore')
+      const { db } = await import('./firebase.js')
+      
+      // Migrate user history
+      const historyRef = collection(db, 'userHistory')
+      const historyQuery = query(historyRef, where('userId', '==', fromUid))
+      const historySnapshot = await getDocs(historyQuery)
+      
+      const historyPromises = []
+      historySnapshot.forEach((docSnapshot) => {
+        const data = docSnapshot.data()
+        // Update userId to new UID
+        data.userId = toUid
+        // Create new document with new UID
+        const newDocRef = doc(collection(db, 'userHistory'))
+        historyPromises.push(setDoc(newDocRef, data))
+        // Delete old document
+        historyPromises.push(deleteDoc(docSnapshot.ref))
+      })
+      
+      await Promise.all(historyPromises)
+      console.log(`Migrated ${historySnapshot.size} history entries from ${fromUid} to ${toUid}`)
+      
+      // Reload user history after migration
+      if (isAuthenticated) {
+        const historyResult = await loadUserHistoryPaginated(toUid, 1, 5)
+        setImageHistory(historyResult.history)
+        setHistoryPage(1)
+        setHasMoreHistory(historyResult.hasMore)
+      }
+      
+    } catch (error) {
+      console.error('Error migrating user data:', error)
+      // Don't throw error to prevent blocking the auth flow
+      // User will still get their account, just without migrated data
+    }
+  }
+
+  const handleLogout = async () => {
+    try {
+      const { signOut } = await import('firebase/auth')
+      await signOut(auth)
+      // Clear local state
+      setImageHistory([])
+      setDetectedObjects([])
+      setCurrentUser(null)
+      setIsAuthenticated(false)
+      setShowLogoutModal(false)
+      // Refresh the page to reset the app state
+      window.location.reload()
+    } catch (error) {
+      console.error('Logout error:', error)
+      alert('שגיאה בהתנתקות. נסה שוב.')
+    }
+  }
+
+  const loadMoreHistory = async () => {
+    if (!isAuthenticated || !currentUser || isLoadingMoreHistory || !hasMoreHistory) return
+    
+    setIsLoadingMoreHistory(true)
+    try {
+      const nextPage = historyPage + 1
+      const result = await loadUserHistoryPaginated(currentUser.uid, nextPage, 5)
+      
+      if (result.history.length > 0) {
+        setImageHistory(prev => [...prev, ...result.history])
+        setHistoryPage(nextPage)
+        setHasMoreHistory(result.hasMore)
+      } else {
+        setHasMoreHistory(false)
+      }
+    } catch (error) {
+      console.error('Failed to load more history:', error)
+    } finally {
+      setIsLoadingMoreHistory(false)
     }
   }
 
@@ -385,17 +569,21 @@ function App() {
     setIsProcessing(true)
     try {
       // Translate Hebrew prompt to English
-      const translationPrompt = `Translate this Hebrew text to English: "${customPrompt}"`
+      const translationPrompt = `Translate this Hebrew text to English. Output only the English translation, no explanations: ${customPrompt}`
+      console.log('🔄 Translation prompt:', translationPrompt)
       const translationResult = await model.generateContent([translationPrompt])
       const englishPrompt = translationResult.response.text().trim()
+      console.log('✅ Translated prompt:', englishPrompt)
       
       // Build final prompt
       let finalPrompt = englishPrompt
       if (selectedObject) {
         // Translate selected object to English if needed
-        const objectTranslationPrompt = `Translate this Hebrew text to English: "${selectedObject}"`
+        const objectTranslationPrompt = `Translate this Hebrew text to English. Output only the English translation, no explanations: ${selectedObject}`
+        console.log('🔄 Object translation prompt:', objectTranslationPrompt)
         const objectTranslationResult = await model.generateContent([objectTranslationPrompt])
         const englishObject = objectTranslationResult.response.text().trim()
+        console.log('✅ Translated object:', englishObject)
         
         finalPrompt = `edit the ${englishObject} ${englishPrompt}`
       }
@@ -404,6 +592,8 @@ function App() {
       if (objectImageFile) {
         finalPrompt = `Using the provided object image, ${finalPrompt}`
       }
+      
+      console.log('🎯 Final prompt for AI:', finalPrompt)
       
       // Execute the AI edit
       await handleAIEdit(finalPrompt)
@@ -453,9 +643,9 @@ function App() {
           imagePart = await fileToGenerativePart(imageFile)
         } catch (error) {
           console.error('Failed to process Firebase Storage URL:', error)
-          setDetectedObjects([])
-          setIsLoadingObjects(false)
-          return
+        setDetectedObjects([])
+        setIsLoadingObjects(false)
+        return
         }
       } else {
         // For other URLs, try the original method
@@ -713,7 +903,10 @@ function App() {
 
   const handleColorSelect = (color) => {
     setShowColorPalette(false)
-    handleAIEdit(`Change the color of all the walls in the room to color ${color.ral}`)
+    const prompt = `Change the color of all the walls in the room to color ${color.ral}`
+    console.log('🎨 Color Selection - Prompt being sent:', prompt)
+    console.log('🎨 Selected color:', color.ral, color.name)
+    handleAIEdit(prompt)
   }
 
   const angleOptions = [
@@ -727,7 +920,15 @@ function App() {
 
   const handleAngleSelect = (angle) => {
     setShowAnglePanel(false)
+    console.log('📐 Angle Selection - Prompt being sent:', angle.prompt)
+    console.log('📐 Selected angle:', angle.name, angle.value)
     handleAIEdit(angle.prompt)
+  }
+
+  const handleActionButton = (actionName, prompt) => {
+    console.log('⚡ Action Button - Prompt being sent:', prompt)
+    console.log('⚡ Action name:', actionName)
+    handleAIEdit(prompt)
   }
 
   const handleAIEdit = async (prompt) => {
@@ -735,6 +936,11 @@ function App() {
     
     setIsProcessing(true)
     try {
+      // Debug: Log the prompt being sent to AI
+      console.log('🎨 AI Image Alteration - Prompt being sent:', prompt)
+      console.log('📸 Main image URL:', mainImage)
+      console.log('🖼️ Object image available:', !!objectImageFile)
+      
       // Convert current image to file
       const imageFile = await urlToFile(mainImage)
       const imagePart = await fileToGenerativePart(imageFile)
@@ -746,7 +952,10 @@ function App() {
       if (objectImageFile) {
         const objectImagePart = await fileToGenerativePart(objectImageFile)
         content.push(objectImagePart)
+        console.log('🔗 Object image added to content array')
       }
+      
+      console.log('📦 Content array prepared with', content.length, 'items')
       
       // Generate AI-edited image
       const result = await model.generateContent(content)
@@ -759,7 +968,6 @@ function App() {
         
         // Add to history
         const historyEntry = {
-          id: Date.now().toString(),
           imageUrl: imageDataUrl,
           prompt: prompt,
           timestamp: formatTimestamp(new Date())
@@ -770,19 +978,33 @@ function App() {
           setIsLoadingHistory(true)
           try {
             await saveImageToHistory(currentUser.uid, historyEntry)
-            // Reload history from Firebase to get the updated list
-            const updatedHistory = await loadUserHistory(currentUser.uid)
-            setImageHistory(updatedHistory)
+            // Reload first page of history from Firebase to get the updated list
+            const historyResult = await loadUserHistoryPaginated(currentUser.uid, 1, 5)
+            setImageHistory(historyResult.history)
+            setHistoryPage(1)
+            setHasMoreHistory(historyResult.hasMore)
           } catch (error) {
             console.error('Failed to save to Firebase, using local storage:', error)
             // Fallback to local state if Firebase fails
-            setImageHistory(prev => [historyEntry, ...prev])
+            const localHistoryEntry = {
+              id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              ...historyEntry
+            }
+            setImageHistory(prev => [localHistoryEntry, ...prev])
+            setHistoryPage(1)
+            setHasMoreHistory(true)
           } finally {
             setIsLoadingHistory(false)
           }
         } else {
           // Fallback to local state if not authenticated
-          setImageHistory(prev => [historyEntry, ...prev])
+          const localHistoryEntry = {
+            id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            ...historyEntry
+          }
+          setImageHistory(prev => [localHistoryEntry, ...prev])
+          setHistoryPage(1)
+          setHasMoreHistory(true)
         }
         
         setMainImage(imageDataUrl)
@@ -830,20 +1052,66 @@ function App() {
               <span className="mr-2 text-sm text-gray-500">פלטפורמת עיצוב למקצוענים</span>
             </div>
             <div className="flex items-center space-x-4">
-              <button className="btn-secondary flex items-center" disabled={isProcessing}>
-                <User className="w-4 h-4 ml-2" />
-                פרופיל
+              <button 
+                className="bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 rounded-full flex items-center gap-2 px-4 py-2 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed" 
+                disabled={isProcessing}
+                onClick={() => {
+                  if (currentUser && !currentUser.isAnonymous) {
+                    setShowLogoutModal(true)
+                  } else {
+                    setShowAuthModal(true)
+                  }
+                }}
+              >
+                {currentUser && !currentUser.isAnonymous ? (
+                  <>
+                    <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                      <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <span className="text-sm">{currentUser.email}</span>
+                  </>
+                ) : (
+                  <>
+                    <User className="w-5 h-5" />
+                    התחבר
+                  </>
+                )}
               </button>
             </div>
           </div>
-
+          
           {/* Mobile Layout */}
           <div className="md:hidden relative py-3">
             {/* Left: Profile Button */}
             <div className="absolute top-3 left-0">
-              <button className="btn-secondary flex items-center" disabled={isProcessing}>
-                <User className="w-4 h-4 ml-2" />
-                פרופיל
+              <button 
+                className="bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 rounded-full flex items-center gap-2 px-3 py-2 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm" 
+                disabled={isProcessing}
+                onClick={() => {
+                  if (currentUser && !currentUser.isAnonymous) {
+                    setShowLogoutModal(true)
+                  } else {
+                    setShowAuthModal(true)
+                  }
+                }}
+              >
+                {currentUser && !currentUser.isAnonymous ? (
+                  <>
+                    <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+                      <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <span className="text-xs">{currentUser.email}</span>
+                  </>
+                ) : (
+                  <>
+                    <User className="w-4 h-4" />
+                    התחבר
+                  </>
+                )}
               </button>
             </div>
             
@@ -869,11 +1137,11 @@ function App() {
                 {/* Dropdown Menu */}
                 {showMobileDropdown && (
                   <div className="absolute top-full right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-50 max-h-80 overflow-y-auto">
-                    {categories.map((category) => {
-                      const IconComponent = categoryIcons[category]
-                      return (
-                        <button
-                          key={category}
+            {categories.map((category) => {
+              const IconComponent = categoryIcons[category]
+              return (
+                <button
+                  key={category}
                           onClick={() => {
                             handleCategorySelect(category)
                             setShowMobileDropdown(false)
@@ -922,8 +1190,8 @@ function App() {
         {/* Mobile Layout */}
         <div className="block lg:hidden">
           {/* Main Stage - Primary on Mobile */}
-          <div className="mb-6">
-            <div className="card p-4">
+          <div className="mb-6 -mt-4">
+            <div className="bg-white shadow-sm border-b border-gray-200 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-4">
               {/* Main Image Display */}
               <div className="relative mb-4">
                 <div 
@@ -948,15 +1216,16 @@ function App() {
                 <button
                   onClick={handleUploadClick}
                   disabled={isProcessing}
-                  className="absolute top-3 right-3 bg-black/50 hover:bg-black/70 text-white px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-sm"
+                  className="absolute top-3 right-3 bg-blue-500/70 hover:bg-blue-500/90 text-white px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-sm flex items-center gap-1"
                 >
+                  <Upload className="w-3 h-3" />
                   העלה תמונה
                 </button>
                 
                 {/* Circular Loader Overlay */}
                 {isProcessing && (
                   <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-lg">
-                    <div className="relative">
+                <div className="relative">
                       <div className="w-12 h-12 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
                       <div className="absolute inset-0 flex items-center justify-center">
                         <div className="w-6 h-6 border-2 border-white/50 border-b-white rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '0.8s' }}></div>
@@ -965,6 +1234,7 @@ function App() {
                   </div>
                 )}
               </div>
+
 
               {/* Mobile Action Bar */}
               <div className="flex items-center gap-2 mb-4">
@@ -992,18 +1262,39 @@ function App() {
                 </button>
               </div>
 
-              {/* Download Button - Mobile */}
-              <button 
-                onClick={handleDownload}
-                disabled={isProcessing}
-                className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed shadow-lg mb-4"
-              >
-                <Download className="w-4 h-4 ml-2" />
-                הורד תמונה
-              </button>
 
               {/* Mobile Action Buttons - Horizontal Scroll */}
               <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2 mb-4">
+                {/* Object Image Upload - First Button */}
+                <button
+                  onClick={isProcessing ? undefined : handleObjectUploadClick}
+                  disabled={isProcessing}
+                  className="flex-shrink-0 btn-secondary flex items-center text-sm px-3 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {objectImage ? (
+                    <div className="relative w-4 h-4 ml-2">
+                      <img
+                        src={objectImage}
+                        alt="Object to add"
+                        className="w-full h-full object-cover rounded border border-gray-300"
+                  />
+                  <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleRemoveObjectImage()
+                        }}
+                    disabled={isProcessing}
+                        className="absolute -top-1 -right-1 bg-red-500 hover:bg-red-600 text-white rounded-full w-3 h-3 flex items-center justify-center text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                        ×
+                  </button>
+                </div>
+              ) : (
+                    <Plus className="w-4 h-4 ml-2" />
+                  )}
+                  הוסף אובייקט
+                </button>
+                
                 {/* Category-specific action buttons */}
                 {categoryActionButtons[selectedCategory]?.map((button, index) => (
                   <button
@@ -1016,110 +1307,47 @@ function App() {
                     {button.name}
                   </button>
                 ))}
-                
-                {/* Object Image Upload */}
-                <div className="flex-shrink-0 relative">
-                  {objectImage ? (
-                    <div className="relative w-10 h-10">
-                      <img
-                        src={objectImage}
-                        alt="Object to add"
-                        className="w-full h-full object-cover rounded-lg border-2 border-gray-300"
-                      />
-                      <button
-                        onClick={handleRemoveObjectImage}
-                        disabled={isProcessing}
-                        className="absolute -top-1 -right-1 bg-red-500 hover:bg-red-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-xs disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ) : (
-                    <div
-                      onClick={isProcessing ? undefined : handleObjectUploadClick}
-                      className={`w-10 h-10 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center transition-colors duration-200 cursor-pointer hover:border-blue-400 hover:bg-blue-50 ${
-                        isProcessing ? 'opacity-50 cursor-not-allowed' : ''
-                      }`}
-                    >
-                      <Plus className="w-4 h-4 text-gray-400" />
-                    </div>
-                  )}
-                  
-                  <input
-                    ref={objectInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleObjectImageUpload}
-                    className="hidden"
-                  />
                 </div>
-              </div>
+              
+              {/* Hidden file input for object upload */}
+              <input
+                ref={objectInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleObjectImageUpload}
+                className="hidden"
+              />
 
               {selectedObject && (
                 <p className="text-sm text-blue-600 text-center">
                   נבחר: {selectedObject}
                 </p>
               )}
+
+              {/* Download Button - Mobile (Bottom of Main Panel) */}
+              <button 
+                onClick={handleDownload}
+                disabled={isProcessing}
+                className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed shadow-lg mt-4"
+              >
+                <Download className="w-4 h-4 ml-2" />
+                הורד תמונה
+              </button>
             </div>
           </div>
 
           {/* Hidden file input for upload functionality */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleImageUpload}
-            className="hidden"
-          />
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="hidden"
+              />
 
           {/* Mobile Secondary Panels */}
           <div className="space-y-4">
 
-            {/* Objects Panel - Mobile */}
-            <div className="card p-4 relative">
-              <h3 className="text-lg font-semibold text-text mb-3 flex items-center">
-                <Sparkles className="w-5 h-5 ml-2" />
-                אובייקטים
-              </h3>
-              <div className={`transition-opacity duration-300 ${
-                isLoadingObjects ? 'opacity-50' : ''
-              }`}>
-                {detectedObjects.length === 0 ? (
-                  <div className="text-center py-6">
-                    <div className="text-gray-400 mb-2">
-                      <Sparkles className="w-6 h-6 mx-auto" />
-                    </div>
-                    <p className="text-sm text-gray-500">אין אובייקטים זוהו</p>
-                    <p className="text-xs text-gray-400 mt-1">האובייקטים יופיעו כאן</p>
-                  </div>
-                ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {detectedObjects.map((object, index) => (
-                      <button
-                        key={index}
-                        onClick={() => handleObjectSelect(object)}
-                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 ${
-                          selectedObject === object 
-                            ? 'bg-blue-100 text-blue-700 border-2 border-blue-500' 
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border-2 border-transparent'
-                        }`}
-                      >
-                        {object}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-              
-              {/* Loading Overlay for Objects */}
-              {isLoadingObjects && (
-                <div className="absolute inset-0 bg-white/80 backdrop-blur-sm rounded-xl flex items-center justify-center">
-                  <div className="relative">
-                    <div className="w-8 h-8 border-4 border-gray-300 border-t-orange-500 rounded-full animate-spin"></div>
-                  </div>
-                </div>
-              )}
-            </div>
 
             {/* History Panel - Mobile */}
             <div className="card p-4 relative">
@@ -1130,18 +1358,27 @@ function App() {
                 תמונות
               </h3>
               <div className={`transition-opacity duration-300 ${
-                isLoadingHistory ? 'opacity-50' : ''
+                isLoadingHistory || isProcessing ? 'opacity-50 pointer-events-none' : ''
               }`}>
                 {imageHistory.length === 0 ? (
                   <div className="text-center py-6">
                     <div className="text-gray-400 mb-2">
                       <Sparkles className="w-6 h-6 mx-auto" />
-                    </div>
+            </div>
                     <p className="text-sm text-gray-500">אין עריכות עדיין</p>
                     <p className="text-xs text-gray-400 mt-1">התמונות שייווצרו יופיעו כאן</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-3 gap-3 max-h-48 overflow-y-auto scrollbar-hide">
+                  <div 
+                    ref={historyScrollRef}
+                    className="grid grid-cols-3 gap-3 max-h-48 overflow-y-auto scrollbar-hide"
+                    onScroll={(e) => {
+                      const { scrollTop, scrollHeight, clientHeight } = e.target
+                      if (scrollTop + clientHeight >= scrollHeight - 10 && hasMoreHistory && !isLoadingMoreHistory) {
+                        loadMoreHistory()
+                      }
+                    }}
+                  >
                     {imageHistory.map((entry) => (
                       <div
                         key={entry.id}
@@ -1150,7 +1387,7 @@ function App() {
                       >
                         <div className="relative">
                           <img
-                            src={entry.storageUrl || entry.imageUrl}
+                            src={entry.thumbnailUrl || entry.storageUrl || entry.imageUrl}
                             alt="History entry"
                             className="w-full h-20 object-cover rounded-lg group-hover:opacity-80 transition-opacity duration-200"
                           />
@@ -1164,6 +1401,13 @@ function App() {
                         </div>
                       </div>
                     ))}
+                    
+                    {/* Loading more indicator */}
+                    {isLoadingMoreHistory && (
+                      <div className="col-span-3 flex justify-center py-4">
+                        <div className="w-6 h-6 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -1189,7 +1433,7 @@ function App() {
             <div className="card p-4 relative">
               <h3 className="text-lg font-semibold text-text mb-3">תמונות</h3>
               <div className={`transition-opacity duration-300 ${
-                isLoadingHistory ? 'opacity-50' : ''
+                isLoadingHistory || isProcessing ? 'opacity-50 pointer-events-none' : ''
               }`}>
               {imageHistory.length === 0 ? (
                 <div className="text-center py-8">
@@ -1200,7 +1444,15 @@ function App() {
                   <p className="text-xs text-gray-400 mt-1">התמונות שייווצרו יופיעו כאן</p>
                 </div>
               ) : (
-                <div className="space-y-3 max-h-96 overflow-y-auto scrollbar-hide">
+                <div 
+                  className="space-y-3 max-h-96 overflow-y-auto scrollbar-hide"
+                  onScroll={(e) => {
+                    const { scrollTop, scrollHeight, clientHeight } = e.target
+                    if (scrollTop + clientHeight >= scrollHeight - 10 && hasMoreHistory && !isLoadingMoreHistory) {
+                      loadMoreHistory()
+                    }
+                  }}
+                >
                   {imageHistory.map((entry) => (
                     <div
                       key={entry.id}
@@ -1209,7 +1461,7 @@ function App() {
                     >
                       <div className="relative">
                         <img
-                          src={entry.storageUrl || entry.imageUrl}
+                          src={entry.thumbnailUrl || entry.storageUrl || entry.imageUrl}
                           alt="History entry"
                           className="w-full h-24 object-cover rounded-lg group-hover:opacity-80 transition-opacity duration-200"
                         />
@@ -1223,6 +1475,13 @@ function App() {
                       </div>
                     </div>
                   ))}
+                  
+                  {/* Loading more indicator */}
+                  {isLoadingMoreHistory && (
+                    <div className="flex justify-center py-4">
+                      <div className="w-6 h-6 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
+                    </div>
+                  )}
                 </div>
               )}
               </div>
@@ -1256,9 +1515,21 @@ function App() {
             </div>
             
             <div className="card p-4 relative">
-              <h3 className="text-lg font-semibold text-text mb-3">אובייקטים</h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-lg font-semibold text-text">אובייקטים</h3>
+                <button
+                  onClick={() => detectObjects(mainImage)}
+                  disabled={isLoadingObjects || !mainImage || isProcessing}
+                  className="w-8 h-8 bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 rounded-full flex items-center justify-center transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="רענן רשימת אובייקטים"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </button>
+              </div>
               <div className={`transition-opacity duration-300 ${
-                isLoadingObjects ? 'opacity-50' : ''
+                isLoadingObjects || isProcessing ? 'opacity-50 pointer-events-none' : ''
               }`}>
                 {detectedObjects.length === 0 ? (
                   <div className="text-center py-8">
@@ -1320,23 +1591,24 @@ function App() {
                     maxHeight: '70vh' // Prevent extremely tall images
                   }}
                 >
-                  <img
-                    src={mainImage}
-                    alt="Main room design"
-                    onClick={handleMainImageClick}
+                <img
+                  src={mainImage}
+                  alt="Main room design"
+                  onClick={handleMainImageClick}
                     onLoad={handleImageLoad}
                     className={`w-full h-full object-contain rounded-lg transition-all duration-300 cursor-pointer hover:opacity-90 ${
-                      isProcessing ? 'blur-sm cursor-not-allowed' : ''
-                    }`}
-                  />
+                    isProcessing ? 'blur-sm cursor-not-allowed' : ''
+                  }`}
+                />
                 </div>
                 
                 {/* Upload Button Overlay - Desktop */}
                 <button
                   onClick={handleUploadClick}
                   disabled={isProcessing}
-                  className="absolute top-4 right-4 bg-black/50 hover:bg-black/70 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-sm"
+                  className="absolute top-4 right-4 bg-blue-500/70 hover:bg-blue-500/90 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-sm flex items-center gap-2"
                 >
+                  <Upload className="w-4 h-4" />
                   העלה תמונה
                 </button>
                 
@@ -1390,15 +1662,15 @@ function App() {
               <div className="flex flex-wrap gap-4">
                 {/* Category-specific action buttons */}
                 {categoryActionButtons[selectedCategory]?.map((button, index) => (
-                  <button
+                <button 
                     key={index}
                     onClick={button.action}
-                    disabled={isProcessing}
-                    className="btn-secondary flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
+                  disabled={isProcessing}
+                  className="btn-secondary flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+                >
                     <button.icon className="w-4 h-4 ml-2" />
                     {button.name}
-                  </button>
+                </button>
                 ))}
                 
                 {/* Object Image Upload - always available */}
@@ -1410,13 +1682,13 @@ function App() {
                         alt="Object to add"
                         className="w-full h-full object-cover rounded-lg border-2 border-gray-300"
                       />
-                      <button
+                <button 
                         onClick={handleRemoveObjectImage}
-                        disabled={isProcessing}
+                  disabled={isProcessing}
                         className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
+                >
                         ×
-                      </button>
+                </button>
                     </div>
                   ) : (
                     <div
@@ -1440,11 +1712,17 @@ function App() {
                 </div>
               </div>
 
+            </div>
+          </div>
+
+        </div>
+              </div>
+
               {/* Color Palette Modal */}
               {showColorPalette && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                  <div className="bg-white rounded-xl shadow-2xl max-w-6xl w-full mx-4 max-h-[85vh] overflow-hidden">
-                    <div className="p-6">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-xl shadow-2xl w-full mx-4 max-h-[85vh] overflow-hidden max-w-[95vw] md:max-w-6xl">
+            <div className="p-4 md:p-6">
                       <div className="flex justify-between items-center mb-6">
                         <h3 className="text-lg font-semibold text-text">בחר צבע RAL לקיר</h3>
                         <button
@@ -1456,48 +1734,48 @@ function App() {
                         </button>
                       </div>
                       
-                      {/* Color Category Tabs */}
-                      <div className="flex flex-wrap gap-2 mb-6 border-b border-gray-200 pb-4">
-                        {Object.keys(colorPalette).map((category) => (
-                          <button
-                            key={category}
-                            onClick={() => setActiveColorCategory(category)}
-                            disabled={isProcessing}
-                            className={`px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
-                              activeColorCategory === category
-                                ? 'bg-blue-600 text-white shadow-lg'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                            }`}
-                          >
+              {/* Color Category Tabs */}
+              <div className="flex flex-wrap gap-1 md:gap-2 mb-4 md:mb-6 border-b border-gray-200 pb-3 md:pb-4">
+                {Object.keys(colorPalette).map((category) => (
+                  <button
+                    key={category}
+                    onClick={() => setActiveColorCategory(category)}
+                    disabled={isProcessing}
+                    className={`px-2 md:px-4 py-1 md:py-2 rounded-lg font-medium text-xs md:text-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
+                      activeColorCategory === category
+                        ? 'bg-blue-600 text-white shadow-lg'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
                             {category}
-                          </button>
-                        ))}
-                      </div>
-                      
-                      {/* Active Category Colors */}
-                      <div className="max-h-96 overflow-y-auto">
-                        <div className="grid grid-cols-8 gap-3">
-                          {colorPalette[activeColorCategory]?.map((color, index) => (
-                            <button
-                              key={index}
-                              onClick={() => handleColorSelect(color)}
-                              disabled={isProcessing}
-                              className="flex flex-col items-center p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200 border border-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              <div 
-                                className="w-12 h-12 rounded-full border-2 border-gray-300 shadow-sm mb-2"
-                                style={{ backgroundColor: color.hex }}
-                              ></div>
-                              <span className="text-xs text-text font-medium text-center leading-tight">
-                                {color.ral}
-                              </span>
-                              <span className="text-xs text-gray-500 text-center leading-tight mt-1">
-                                {color.name}
-                              </span>
-                            </button>
-                          ))}
+                  </button>
+                ))}
+              </div>
+              
+              {/* Active Category Colors */}
+              <div className="max-h-96 overflow-y-auto">
+                <div className="grid grid-cols-4 md:grid-cols-8 gap-2 md:gap-3">
+                  {colorPalette[activeColorCategory]?.map((color, index) => (
+                              <button
+                                key={index}
+                                onClick={() => handleColorSelect(color)}
+                                disabled={isProcessing}
+                                className="flex flex-col items-center p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200 border border-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                <div 
+                        className="w-12 h-12 rounded-full border-2 border-gray-300 shadow-sm mb-2"
+                                  style={{ backgroundColor: color.hex }}
+                                ></div>
+                                <span className="text-xs text-text font-medium text-center leading-tight">
+                                  {color.ral}
+                                </span>
+                                <span className="text-xs text-gray-500 text-center leading-tight mt-1">
+                                  {color.name}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
                         </div>
-                      </div>
                     </div>
                   </div>
                 </div>
@@ -1505,9 +1783,9 @@ function App() {
 
               {/* Angle Panel Modal */}
               {showAnglePanel && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                  <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[70vh] overflow-y-auto">
-                    <div className="p-6">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-xl shadow-2xl w-full mx-4 max-h-[70vh] overflow-y-auto max-w-[95vw] md:max-w-2xl">
+            <div className="p-4 md:p-6">
                       <div className="flex justify-between items-center mb-6">
                         <h3 className="text-lg font-semibold text-text">בחר זווית ופרספקטיבה</h3>
                         <button
@@ -1519,7 +1797,7 @@ function App() {
                         </button>
                       </div>
                       
-                      <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                         {angleOptions.map((angle, index) => (
                           <button
                             key={index}
@@ -1539,16 +1817,11 @@ function App() {
                   </div>
                 </div>
               )}
-            </div>
-          </div>
-
-        </div>
-      </div>
 
       {/* Image Modal */}
       {showImageModal && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-[60] p-4"
           onClick={handleCloseModal}
         >
           <div className="relative max-w-7xl max-h-full w-full h-full flex items-center justify-center">
@@ -1571,6 +1844,182 @@ function App() {
           </div>
         </div>
       )}
+
+      {/* Logout Modal */}
+      {showLogoutModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-xl shadow-2xl w-full mx-4 max-w-md">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-lg font-semibold text-text">התנתקות</h3>
+                <button
+                  onClick={() => setShowLogoutModal(false)}
+                  className="text-gray-500 hover:text-gray-700 text-xl"
+                >
+                  ×
+                </button>
+              </div>
+              
+              <div className="text-center mb-6">
+                <p className="text-gray-600 mb-4">
+                  האם אתה בטוח שברצונך להתנתק?
+                </p>
+                <p className="text-sm text-gray-500">
+                  {currentUser?.email}
+                </p>
+              </div>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowLogoutModal(false)}
+                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg transition-colors duration-200"
+                >
+                  ביטול
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200"
+                >
+                  התנתק
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Authentication Modal */}
+      {showAuthModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-xl shadow-2xl w-full mx-4 max-w-md">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-lg font-semibold text-text">
+                  {authMode === 'login' ? 'התחברות' : 'יצירת חשבון'}
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowAuthModal(false)
+                    setEmail('')
+                    setConfirmEmail('')
+                    setPassword('')
+                    setAuthMode('signup')
+                  }}
+                  className="text-gray-500 hover:text-gray-700 text-xl"
+                >
+                  ×
+                </button>
+              </div>
+              
+              <form onSubmit={handleAuthSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    כתובת אימייל
+                  </label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="example@email.com"
+                    required
+                  />
+                </div>
+                
+                {authMode === 'signup' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      אישור כתובת אימייל
+                    </label>
+                    <input
+                      type="email"
+                      value={confirmEmail}
+                      onChange={(e) => setConfirmEmail(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="הזן שוב את כתובת האימייל"
+                      required
+                    />
+                  </div>
+                )}
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    סיסמה
+                  </label>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="הזן סיסמה"
+                    required
+                    minLength={6}
+                  />
+                </div>
+                
+                {authMode === 'login' && (
+                  <div className="text-center">
+                    <button
+                      type="button"
+                      onClick={handlePasswordReset}
+                      disabled={isResettingPassword || !email}
+                      className="text-blue-600 hover:text-blue-800 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isResettingPassword ? 'שולח...' : 'שכחת סיסמה?'}
+                    </button>
+                  </div>
+                )}
+                
+                <button
+                  type="submit"
+                  disabled={isLoadingAuth || !email || !password || (authMode === 'signup' && !confirmEmail)}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isLoadingAuth ? 'מעבד...' : (authMode === 'login' ? 'התחבר' : 'צור חשבון')}
+                </button>
+              </form>
+              
+              <div className="mt-4 text-center">
+                <button
+                  onClick={() => setAuthMode(authMode === 'login' ? 'signup' : 'login')}
+                  className="border border-blue-600 text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200"
+                >
+                  {authMode === 'login' ? 'אין לך חשבון? צור חשבון חדש' : 'יש לך חשבון? התחבר'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Footer */}
+      <footer className="bg-gray-50 border-t border-gray-200 py-6 mt-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
+            <div className="text-sm text-gray-500">
+              © 2024 MoomHe. כל הזכויות שמורות.
+            </div>
+            <div className="flex space-x-6 space-x-reverse">
+              <a
+                href="/eula.txt"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-gray-600 hover:text-gray-900 transition-colors duration-200"
+              >
+                הסכם שימוש
+              </a>
+              <a
+                href="/privacy.txt"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-gray-600 hover:text-gray-900 transition-colors duration-200"
+              >
+                מדיניות פרטיות
+              </a>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }

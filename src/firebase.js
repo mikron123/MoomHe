@@ -87,24 +87,68 @@ async function createOrUpdateUser(user) {
 }
 
 // Storage functions
+// Helper function to create thumbnail
+function createThumbnail(imageDataUrl, maxWidth = 200, maxHeight = 200) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      
+      // Calculate thumbnail dimensions
+      let { width, height } = img;
+      if (width > height) {
+        if (width > maxWidth) {
+          height = (height * maxWidth) / width;
+          width = maxWidth;
+        }
+      } else {
+        if (height > maxHeight) {
+          width = (width * maxHeight) / height;
+          height = maxHeight;
+        }
+      }
+      
+      canvas.width = width;
+      canvas.height = height;
+      
+      // Draw thumbnail
+      ctx.drawImage(img, 0, 0, width, height);
+      
+      // Convert to blob
+      canvas.toBlob((blob) => {
+        resolve(blob);
+      }, 'image/jpeg', 0.8);
+    };
+    img.src = imageDataUrl;
+  });
+}
+
 async function uploadImageToStorage(userId, imageDataUrl, prompt) {
   try {
     // Convert data URL to blob
     const response = await fetch(imageDataUrl);
     const blob = await response.blob();
     
+    // Create thumbnail
+    const thumbnailBlob = await createThumbnail(imageDataUrl);
+    
     // Create unique filename
     const timestamp = Date.now();
     const filename = `image_${timestamp}.jpg`;
+    const thumbnailFilename = `thumbnail_${timestamp}.jpg`;
+    
+    // Upload full resolution image
     const storageRef = ref(storage, `userHistory/${userId}/${filename}`);
-    
-    // Upload the file
     const snapshot = await uploadBytes(storageRef, blob);
-    
-    // Get download URL
     const downloadURL = await getDownloadURL(snapshot.ref);
     
-    return { downloadURL, filename, timestamp };
+    // Upload thumbnail
+    const thumbnailRef = ref(storage, `userHistory/${userId}/${thumbnailFilename}`);
+    const thumbnailSnapshot = await uploadBytes(thumbnailRef, thumbnailBlob);
+    const thumbnailURL = await getDownloadURL(thumbnailSnapshot.ref);
+    
+    return { downloadURL, thumbnailURL, filename, thumbnailFilename, timestamp };
   } catch (error) {
     console.error('Error uploading image:', error);
     throw error;
@@ -113,19 +157,33 @@ async function uploadImageToStorage(userId, imageDataUrl, prompt) {
 
 async function uploadImageToUserUploads(userId, file) {
   try {
+    // Convert file to data URL for thumbnail generation
+    const dataUrl = await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.readAsDataURL(file);
+    });
+    
+    // Create thumbnail
+    const thumbnailBlob = await createThumbnail(dataUrl);
+    
     // Create unique filename
     const timestamp = Date.now();
     const fileExtension = file.name.split('.').pop() || 'jpg';
     const filename = `upload_${timestamp}.${fileExtension}`;
-    const storageRef = ref(storage, `userUploads/${userId}/${filename}`);
+    const thumbnailFilename = `upload_thumbnail_${timestamp}.jpg`;
     
-    // Upload the file
+    // Upload full resolution image
+    const storageRef = ref(storage, `userHistory/${userId}/${filename}`);
     const snapshot = await uploadBytes(storageRef, file);
-    
-    // Get download URL
     const downloadURL = await getDownloadURL(snapshot.ref);
     
-    return { downloadURL, filename, timestamp };
+    // Upload thumbnail
+    const thumbnailRef = ref(storage, `userHistory/${userId}/${thumbnailFilename}`);
+    const thumbnailSnapshot = await uploadBytes(thumbnailRef, thumbnailBlob);
+    const thumbnailURL = await getDownloadURL(thumbnailSnapshot.ref);
+    
+    return { downloadURL, thumbnailURL, filename, thumbnailFilename, timestamp };
   } catch (error) {
     console.error('Error uploading user image:', error);
     throw error;
@@ -135,23 +193,62 @@ async function uploadImageToUserUploads(userId, file) {
 // Firestore functions
 async function saveImageToHistory(userId, imageData) {
   try {
-    const { downloadURL, filename, timestamp } = await uploadImageToStorage(userId, imageData.imageUrl, imageData.prompt);
+    const { downloadURL, thumbnailURL, filename, thumbnailFilename, timestamp } = await uploadImageToStorage(userId, imageData.imageUrl, imageData.prompt);
     
     const historyEntry = {
-      id: imageData.id,
       storageUrl: downloadURL,
+      thumbnailUrl: thumbnailURL,
       filename: filename,
+      thumbnailFilename: thumbnailFilename,
       prompt: imageData.prompt,
       timestamp: imageData.timestamp,
       createdAt: new Date(),
-      userId: userId
+      userId: userId,
+      type: 'generated'
     };
     
-    // Store directly under userHistory/{imageUid}/
-    await setDoc(doc(db, 'userHistory', imageData.id), historyEntry);
-    return historyEntry;
+    // Use Firebase auto-generated document ID to ensure uniqueness
+    const docRef = doc(collection(db, 'userHistory'));
+    await setDoc(docRef, historyEntry);
+    
+    // Return the entry with the Firebase-generated ID
+    return {
+      id: docRef.id,
+      ...historyEntry
+    };
   } catch (error) {
     console.error('Error saving image to history:', error);
+    throw error;
+  }
+}
+
+async function saveUploadToHistory(userId, file, prompt = '') {
+  try {
+    const { downloadURL, thumbnailURL, filename, thumbnailFilename, timestamp } = await uploadImageToUserUploads(userId, file);
+    
+    const historyEntry = {
+      storageUrl: downloadURL,
+      thumbnailUrl: thumbnailURL,
+      filename: filename,
+      thumbnailFilename: thumbnailFilename,
+      prompt: prompt || `Uploaded: ${file.name}`,
+      timestamp: new Date().toLocaleString('he-IL'),
+      createdAt: new Date(),
+      userId: userId,
+      type: 'uploaded'
+    };
+    
+    // Use Firebase auto-generated document ID to ensure uniqueness
+    const docRef = doc(collection(db, 'userHistory'));
+    await setDoc(docRef, historyEntry);
+    
+    // Return the entry with the Firebase-generated ID
+    return {
+      id: docRef.id,
+      ...historyEntry
+    };
+  } catch (error) {
+    console.error('Error saving upload to history:', error);
     throw error;
   }
 }
@@ -181,56 +278,37 @@ async function loadUserHistory(userId) {
   }
 }
 
-// User uploads functions
-async function saveUploadToUserUploads(userId, uploadData) {
+async function loadUserHistoryPaginated(userId, page = 1, pageSize = 5) {
   try {
-    const { downloadURL, filename, timestamp } = await uploadImageToUserUploads(userId, uploadData.file);
-    
-    const uploadEntry = {
-      id: uploadData.id,
-      storageUrl: downloadURL,
-      filename: filename,
-      originalName: uploadData.file.name,
-      fileSize: uploadData.file.size,
-      fileType: uploadData.file.type,
-      timestamp: uploadData.timestamp,
-      createdAt: new Date(),
-      userId: userId
-    };
-    
-    // Store directly under userUploads/{uploadUid}/
-    await setDoc(doc(db, 'userUploads', uploadData.id), uploadEntry);
-    return uploadEntry;
-  } catch (error) {
-    console.error('Error saving upload to userUploads:', error);
-    throw error;
-  }
-}
-
-async function loadUserUploads(userId) {
-  try {
-    const uploadsRef = collection(db, 'userUploads');
-    const q = query(uploadsRef, orderBy('createdAt', 'desc'));
+    const historyRef = collection(db, 'userHistory');
+    const q = query(historyRef, orderBy('createdAt', 'desc'));
     const querySnapshot = await getDocs(q);
     
-    const uploads = [];
+    const allHistory = [];
     querySnapshot.forEach((doc) => {
       const data = doc.data();
       // Only include records that belong to the current user
       if (data.userId === userId) {
-        uploads.push({
+        allHistory.push({
           id: doc.id,
           ...data
         });
       }
     });
     
-    return uploads;
+    // Implement pagination manually - only return items for current page
+    const startIndex = (page - 1) * pageSize;
+    const endIndex = page * pageSize;
+    const history = allHistory.slice(startIndex, endIndex);
+    const hasMore = endIndex < allHistory.length;
+    
+    return { history, hasMore };
   } catch (error) {
-    console.error('Error loading user uploads:', error);
-    return [];
+    console.error('Error loading paginated user history:', error);
+    return { history: [], hasMore: false };
   }
 }
+
 
 export { 
   app, 
@@ -244,7 +322,7 @@ export {
   signInUser,
   createOrUpdateUser,
   saveImageToHistory,
+  saveUploadToHistory,
   loadUserHistory,
-  saveUploadToUserUploads,
-  loadUserUploads
+  loadUserHistoryPaginated
 };
