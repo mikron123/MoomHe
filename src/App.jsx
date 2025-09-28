@@ -1,15 +1,20 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Upload, Plus, Palette, RotateCcw, Download, Settings, Home, TreePine, Car, Heart, Hammer, Sparkles, Package, User, Share2, Palette as FreeStyle, Type, Loader2 } from 'lucide-react'
-import { model, fileToGenerativePart, urlToFile, signInUser, createOrUpdateUser, saveImageToHistory, saveUploadToHistory, loadUserHistory, loadUserHistoryPaginated, auth } from './firebase.js'
+import { fileToGenerativePart, urlToFile, signInUser, createOrUpdateUser, saveImageToHistory, saveUploadToHistory, loadUserHistory, loadUserHistoryPaginated, auth, uploadImageForSharing } from './firebase.js'
+import { aiService } from './aiService.js'
 import { onAuthStateChanged } from 'firebase/auth'
 
 function App() {
   const [selectedCategory, setSelectedCategory] = useState('עיצוב פנים וחוץ')
   const [uploadedImage, setUploadedImage] = useState(null)
-  const [mainImage, setMainImage] = useState('https://images.unsplash.com/photo-1631679706909-1844bbd07221?w=1280&h=720&fit=crop&crop=center')
+  const [mainImage, setMainImage] = useState('/assets/design_img.jpg')
   const [isProcessing, setIsProcessing] = useState(false)
   const [showColorPalette, setShowColorPalette] = useState(false)
   const [showAnglePanel, setShowAnglePanel] = useState(false)
+  const [showLightingOptions, setShowLightingOptions] = useState(false)
+  const [showFurnitureOptions, setShowFurnitureOptions] = useState(false)
+  const [showRepairsOptions, setShowRepairsOptions] = useState(false)
+  const [showStyleOptions, setShowStyleOptions] = useState(false)
   const [imageHistory, setImageHistory] = useState([])
   const [currentUser, setCurrentUser] = useState(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -17,7 +22,7 @@ function App() {
   const [showImageModal, setShowImageModal] = useState(false)
   const [detectedObjects, setDetectedObjects] = useState([])
   const [isLoadingObjects, setIsLoadingObjects] = useState(false)
-  const [selectedObject, setSelectedObject] = useState(null)
+  const [currentHistoryId, setCurrentHistoryId] = useState(null)
   const [customPrompt, setCustomPrompt] = useState('')
   const [imageAspectRatio, setImageAspectRatio] = useState(16/9) // Default to 16:9
   const [activeColorCategory, setActiveColorCategory] = useState('אדומים') // Default to reds
@@ -38,6 +43,7 @@ function App() {
   const fileInputRef = useRef(null)
   const objectInputRef = useRef(null)
   const historyScrollRef = useRef(null)
+
 
   // Authentication and history loading
   useEffect(() => {
@@ -75,15 +81,25 @@ function App() {
     return () => unsubscribe()
   }, [])
 
+  // Load default objects for initial category and when switching categories
+  useEffect(() => {
+    const isMobile = window.innerWidth < 1024
+    if (!isMobile) {
+      const defaultObjects = categoryDefaultObjects[selectedCategory] || []
+      setDetectedObjects(defaultObjects)
+      console.log('Loaded default objects for category:', selectedCategory, defaultObjects)
+    }
+  }, [selectedCategory])
+
   // Note: Object detection is now only triggered manually via refresh button or image uploads
 
   const categories = [
     'עיצוב פנים וחוץ',
     'גינות ומרפסות',
     'רכבים ודו גלגלי',
-    'איפור וטיפוח',
-    'הצגת מוצר ופרסום',
     'פרופיל ותדמית',
+    'איפור וטיפוח',
+    'פרסום ומוצרים',
     'קעקועים',
   ]
 
@@ -91,7 +107,7 @@ function App() {
     'עיצוב פנים וחוץ': Home,
     'גינות ומרפסות': TreePine,
     'איפור וטיפוח': Sparkles,
-    'הצגת מוצר ופרסום': Package,
+    'פרסום ומוצרים': Package,
     'פרופיל ותדמית': User,
     'רכבים ודו גלגלי': Car,
     'קעקועים': Heart
@@ -99,84 +115,133 @@ function App() {
 
   const categoryDefaultImages = {
     'עיצוב פנים וחוץ': '/assets/design_img.jpg',
-    'גינות ומרפסות': '/assets/balcony_img.png',
+    'גינות ומרפסות': '/assets/balcony_img.jpg',
     'איפור וטיפוח': '/assets/makeup_img.jpg',
-    'הצגת מוצר ופרסום': '/assets/product_img.jpg',
+    'פרסום ומוצרים': '/assets/product_img.jpg',
     'פרופיל ותדמית': '/assets/profile_img.jpg',
     'רכבים ודו גלגלי': '/assets/car_img.jpg',
     'קעקועים': '/assets/tattoo_img.jpg'
   }
 
-  const categoryActionButtons = {
+  const categoryDefaultObjects = {
     'עיצוב פנים וחוץ': [
-      { name: 'שנה צבע קיר', action: () => setShowColorPalette(!showColorPalette), icon: Palette },
-      { name: 'זווית', action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
-      { name: 'תאורה', action: () => handleActionButton('תאורה', "Enhance the lighting in this image"), icon: Settings },
-      { name: 'הוסף ריהוט', action: () => handleActionButton('הוסף ריהוט', "Add modern furniture to this room"), icon: Plus },
-      { name: 'בצע תיקונים', action: () => handleActionButton('בצע תיקונים', "edit and fix all the damages"), icon: Settings }
+      "קירות בהירים",
+      "ספה אפורה",
+      "כורסא לבנה",
+      "שולחן קפה עגול",
+      "שתי מראות קש",
+      "שטיח בהיר",
+      "אגרטל לבן",
+      "מנורת רצפה",
+      "סלסלת קש",
+      "כריות נוי",
+      "שמיכת נוי",
+      "הדום קש"
     ],
     'גינות ומרפסות': [
-      { name: 'שנה צבע קיר', action: () => setShowColorPalette(!showColorPalette), icon: Palette },
-      { name: 'זווית', action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
-      { name: 'הוסף צמחים', action: () => handleActionButton('הוסף צמחים', "Add beautiful plants and flowers to this garden"), icon: TreePine },
-      { name: 'שיפור תאורה', action: () => handleActionButton('שיפור תאורה', "Enhance the outdoor lighting"), icon: Settings },
-      { name: 'בצע תיקונים', action: () => handleActionButton('בצע תיקונים', "edit and fix all the damages"), icon: Settings }
-    ],
-    'רכבים ודו גלגלי': [
-      { name: 'שנה צבע', action: () => setShowColorPalette(!showColorPalette), icon: Palette },
-      { name: 'זווית', action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
-      { name: 'שיפור תאורה', action: () => handleActionButton('שיפור תאורה', "Enhance the lighting and reflections on this vehicle"), icon: Settings },
-      { name: 'הוסף אביזרים', action: () => handleActionButton('הוסף אביזרים', "Add accessories and modifications to this vehicle"), icon: Plus },
-      { name: 'בצע תיקונים', action: () => handleActionButton('בצע תיקונים', "edit and fix all the damages"), icon: Settings }
-    ],
-    'קעקועים': [
-      { name: 'שנה צבע', action: () => setShowColorPalette(!showColorPalette), icon: Palette },
-      { name: 'זווית', action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
-      { name: 'שיפור תאורה', action: () => handleActionButton('שיפור תאורה', "Enhance the lighting to show the tattoo details"), icon: Settings },
-      { name: 'הוסף פרטים', action: () => handleActionButton('הוסף פרטים', "Add more details and shading to this tattoo"), icon: Plus },
-      { name: 'בצע תיקונים', action: () => handleActionButton('בצע תיקונים', "edit and fix all the damages"), icon: Settings }
-    ],
-    'נגרות ועץ': [
-      { name: 'שנה צבע', action: () => setShowColorPalette(!showColorPalette), icon: Palette },
-      { name: 'זווית', action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
-      { name: 'שיפור תאורה', action: () => handleActionButton('שיפור תאורה', "Enhance the lighting to show wood grain details"), icon: Settings },
-      { name: 'הוסף פרטים', action: () => handleActionButton('הוסף פרטים', "Add more woodworking details and textures"), icon: Plus },
-      { name: 'בצע תיקונים', action: () => handleActionButton('בצע תיקונים', "edit and fix all the damages"), icon: Settings }
+      "קיר בז'",
+      "דק עץ",
+      "עץ קטן",
+      "עץ גדול",
+      "כרית כחולה",
+      "עששית שחורה קטנה",
+      "עששית שחורה גדולה",
+      "שולחן עגול",
+      "קומקום כסף",
+      "סל קש",
+      "חלון גדול",
+      "עציץ קטן"
     ],
     'איפור וטיפוח': [
-      { name: 'שנה צבע', action: () => setShowColorPalette(!showColorPalette), icon: Palette },
-      { name: 'זווית', action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
-      { name: 'שיפור תאורה', action: () => handleActionButton('שיפור תאורה', "Enhance the lighting for better makeup visibility"), icon: Settings },
-      { name: 'הוסף איפור', action: () => handleActionButton('הוסף איפור', "Add more makeup and beauty enhancements"), icon: Sparkles },
-      { name: 'בצע תיקונים', action: () => handleActionButton('בצע תיקונים', "edit and fix all the damages"), icon: Settings }
+      "פנים של אישה",
+      "שיער חום",
+      "כתפיים חשופות",
+      "רקע בהיר"
     ],
-    'מוצרים': [
-      { name: 'שנה צבע', action: () => setShowColorPalette(!showColorPalette), icon: Palette },
-      { name: 'זווית', action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
-      { name: 'שיפור תאורה', action: () => handleActionButton('שיפור תאורה', "Enhance the product lighting and presentation"), icon: Settings },
-      { name: 'הוסף פרטים', action: () => handleActionButton('הוסף פרטים', "Add product details and features"), icon: Plus },
-      { name: 'בצע תיקונים', action: () => handleActionButton('בצע תיקונים', "edit and fix all the damages"), icon: Settings }
+    'פרסום ומוצרים': [
+      "פחית שתייה",
+      "משטח עץ"
     ],
-    'תמונות פרופיל': [
-      { name: 'שנה צבע', action: () => setShowColorPalette(!showColorPalette), icon: Palette },
-      { name: 'זווית', action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
-      { name: 'שיפור תאורה', action: () => handleActionButton('שיפור תאורה', "Enhance the portrait lighting"), icon: Settings },
-      { name: 'הוסף רקע', action: () => handleActionButton('הוסף רקע', "Add a professional background"), icon: Plus },
-      { name: 'בצע תיקונים', action: () => handleActionButton('בצע תיקונים', "edit and fix all the damages"), icon: Settings }
+    'פרופיל ותדמית': [
+      "גבר מזוקן",
+      "שיער אפור",
+      "ז'קט בז'",
+      "חולצה בהירה",
+      "קיר זכוכית"
     ],
-    'סושיאל': [
-      { name: 'שנה צבע', action: () => setShowColorPalette(!showColorPalette), icon: Palette },
-      { name: 'זווית', action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
-      { name: 'שיפור תאורה', action: () => handleActionButton('שיפור תאורה', "Enhance the social media lighting"), icon: Settings },
-      { name: 'הוסף אפקטים', action: () => handleActionButton('הוסף אפקטים', "Add social media effects and filters"), icon: Sparkles },
-      { name: 'בצע תיקונים', action: () => handleActionButton('בצע תיקונים', "edit and fix all the damages"), icon: Settings }
+    'רכבים ודו גלגלי': [
+      "מכונית כתומה",
+      "עצים ירוקים",
+      "שמיים בהירים",
+      "כביש אספלט",
+      "בניינים רחוקים",
+      "עמוד תאורה"
     ],
-    'סגנון חופשי': [
+    'קעקועים': [
+      "אישה צעירה",
+      "רקע לבן",
+      "כתף חשופה",
+      "שיער ג'ינג'י",
+      "שפתיים אדומות"
+    ]
+  }
+
+  const categoryActionButtons = {
+    'עיצוב פנים וחוץ': [
+      { name: 'שינוי טוטאלי', action: () => setShowStyleOptions(!showStyleOptions), icon: FreeStyle },
       { name: 'שנה צבע', action: () => setShowColorPalette(!showColorPalette), icon: Palette },
       { name: 'זווית', action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
-      { name: 'שיפור תאורה', action: () => handleActionButton('שיפור תאורה', "Enhance the lighting in this image"), icon: Settings },
-      { name: 'הוסף אלמנטים', action: () => handleActionButton('הוסף אלמנטים', "Add creative elements to this image"), icon: Plus },
-      { name: 'בצע תיקונים', action: () => handleActionButton('בצע תיקונים', "edit and fix all the damages"), icon: Settings }
+      { name: 'תאורה', action: () => setShowLightingOptions(!showLightingOptions), icon: Settings },
+      { name: 'הוסף ריהוט', action: () => setShowFurnitureOptions(!showFurnitureOptions), icon: Plus },
+      { name: 'תיקונים/נזקים', action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer }
+    ],
+    'גינות ומרפסות': [
+      { name: 'שינוי טוטאלי', action: () => setShowStyleOptions(!showStyleOptions), icon: FreeStyle },
+      { name: 'שנה צבע', action: () => setShowColorPalette(!showColorPalette), icon: Palette },
+      { name: 'זווית', action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
+      { name: 'הוסף צמחים', action: () => addPromptToInput("Add beautiful plants and flowers to this garden"), icon: TreePine },
+      { name: 'שיפור תאורה', action: () => addPromptToInput("Enhance the outdoor lighting"), icon: Settings },
+      { name: 'תיקונים/נזקים', action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer }
+    ],
+    'רכבים ודו גלגלי': [
+      { name: 'שינוי טוטאלי', action: () => setShowStyleOptions(!showStyleOptions), icon: FreeStyle },
+      { name: 'שנה צבע', action: () => setShowColorPalette(!showColorPalette), icon: Palette },
+      { name: 'זווית', action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
+      { name: 'שיפור תאורה', action: () => addPromptToInput("Enhance the lighting and reflections on this vehicle"), icon: Settings },
+      { name: 'הוסף אביזרים', action: () => addPromptToInput("Add accessories and modifications to this vehicle"), icon: Plus },
+      { name: 'תיקונים/נזקים', action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer }
+    ],
+    'קעקועים': [
+      { name: 'שינוי טוטאלי', action: () => setShowStyleOptions(!showStyleOptions), icon: FreeStyle },
+      { name: 'שנה צבע', action: () => setShowColorPalette(!showColorPalette), icon: Palette },
+      { name: 'זווית', action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
+      { name: 'שיפור תאורה', action: () => addPromptToInput("Enhance the lighting to show the tattoo details"), icon: Settings },
+      { name: 'הוסף פרטים', action: () => addPromptToInput("Add more details and shading to this tattoo"), icon: Plus },
+      { name: 'תיקונים/נזקים', action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer }
+    ],
+    'איפור וטיפוח': [
+      { name: 'שינוי טוטאלי', action: () => setShowStyleOptions(!showStyleOptions), icon: FreeStyle },
+      { name: 'שנה צבע', action: () => setShowColorPalette(!showColorPalette), icon: Palette },
+      { name: 'זווית', action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
+      { name: 'שיפור תאורה', action: () => addPromptToInput("Enhance the lighting for better makeup visibility"), icon: Settings },
+      { name: 'הוסף איפור', action: () => addPromptToInput("Add more makeup and beauty enhancements"), icon: Sparkles },
+      { name: 'תיקונים/נזקים', action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer }
+    ],
+    'פרסום ומוצרים': [
+      { name: 'שינוי טוטאלי', action: () => setShowStyleOptions(!showStyleOptions), icon: FreeStyle },
+      { name: 'שנה צבע', action: () => setShowColorPalette(!showColorPalette), icon: Palette },
+      { name: 'זווית', action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
+      { name: 'שיפור תאורה', action: () => addPromptToInput("Enhance the product lighting and presentation"), icon: Settings },
+      { name: 'הוסף פרטים', action: () => addPromptToInput("Add product details and features"), icon: Plus },
+      { name: 'תיקונים/נזקים', action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer }
+    ],
+    'פרופיל ותדמית': [
+      { name: 'שינוי טוטאלי', action: () => setShowStyleOptions(!showStyleOptions), icon: FreeStyle },
+      { name: 'שנה צבע', action: () => setShowColorPalette(!showColorPalette), icon: Palette },
+      { name: 'זווית', action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
+      { name: 'שיפור תאורה', action: () => addPromptToInput("Enhance the portrait lighting"), icon: Settings },
+      { name: 'הוסף רקע', action: () => addPromptToInput("Add a professional background"), icon: Plus },
+      { name: 'תיקונים/נזקים', action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer }
     ]
   }
 
@@ -188,6 +253,7 @@ function App() {
         setUploadedImage(e.target.result)
         setMainImage(e.target.result) // Display uploaded image on main stage
         setImageAspectRatio(16/9) // Reset to default until new image loads
+        setCurrentHistoryId(null) // Clear history ID for new upload
         
         // Detect objects for uploaded image (desktop only)
         const isMobile = window.innerWidth < 1024
@@ -260,6 +326,49 @@ function App() {
     }
   }
 
+  const handleWhatsAppShare = async () => {
+    try {
+      let imageUrl = mainImage
+      
+      // Check if we're on mobile
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+      
+      // Handle data URLs (base64) - upload to temporary Firebase Storage
+      if (imageUrl.startsWith('data:')) {
+        try {
+          // Show loading state
+          setIsProcessing(true)
+          
+          // Upload to temporary Firebase Storage
+          const { downloadURL } = await uploadImageForSharing(currentUser?.uid || 'anonymous', imageUrl)
+          imageUrl = downloadURL
+          
+          console.log('📤 Image uploaded to temporary storage:', downloadURL)
+        } catch (error) {
+          console.error('Error uploading image to Firebase:', error)
+          alert('שגיאה בהעלאת התמונה. נסה שוב.')
+          return
+        } finally {
+          setIsProcessing(false)
+        }
+      }
+      
+      // Now share the image URL (either original or temporary Firebase URL)
+      if (isMobile) {
+        // On mobile, open WhatsApp with the image URL
+        const whatsappUrl = `whatsapp://send?text=צפה בעיצוב שיצרתי עם MoomHe: ${encodeURIComponent(imageUrl)}`
+        window.open(whatsappUrl, '_blank')
+      } else {
+        // On desktop/web, open WhatsApp Web with the image URL
+        const whatsappWebUrl = `https://web.whatsapp.com/send?text=צפה בעיצוב שיצרתי עם MoomHe: ${encodeURIComponent(imageUrl)}`
+        window.open(whatsappWebUrl, '_blank')
+      }
+    } catch (error) {
+      console.error('WhatsApp share failed:', error)
+      alert('שגיאה בשיתוף לוואטסאפ. נסה שוב.')
+    }
+  }
+
   const handleCategorySelect = (category) => {
     setSelectedCategory(category)
     // Change default image based on category
@@ -267,10 +376,14 @@ function App() {
     if (defaultImage) {
       setMainImage(defaultImage)
       setImageAspectRatio(16/9) // Reset to default until new image loads
-      // Detect objects for the new default image (desktop only)
+      setCurrentHistoryId(null) // Clear history ID for default image
+      
+      // Load hardcoded objects for default images (desktop only)
       const isMobile = window.innerWidth < 1024
       if (!isMobile) {
-        detectObjects(defaultImage)
+        const defaultObjects = categoryDefaultObjects[category] || []
+        setDetectedObjects(defaultObjects)
+        console.log('Loaded default objects for category:', category, defaultObjects)
       }
     }
   }
@@ -278,6 +391,7 @@ function App() {
   const handleGalleryImageClick = (imageUrl) => {
     setMainImage(imageUrl)
     setImageAspectRatio(16/9) // Reset to default until new image loads
+    setCurrentHistoryId(null) // Clear history ID for gallery image
     // Clear objects when selecting gallery image
     setDetectedObjects([])
   }
@@ -287,8 +401,43 @@ function App() {
     const imageUrl = historyEntry.storageUrl || historyEntry.imageUrl
     setMainImage(imageUrl)
     setImageAspectRatio(16/9) // Reset to default until new image loads
-    // Clear objects when selecting history image
-    setDetectedObjects([])
+    // Store the history ID for object detection
+    setCurrentHistoryId(historyEntry.id)
+    
+    // Load objects if they exist in the history entry
+    if (historyEntry.objects) {
+      let objectsArray = historyEntry.objects;
+      
+      // Handle array with comma-separated string in first element
+      if (Array.isArray(historyEntry.objects) && historyEntry.objects.length > 0) {
+        const firstElement = historyEntry.objects[0];
+        if (typeof firstElement === 'string' && firstElement.includes(',')) {
+          // Split the first element (comma-separated string) into array
+          objectsArray = firstElement
+            .split(',')
+            .map(obj => obj.trim())
+            .filter(obj => obj.length > 0);
+        }
+      } else if (typeof historyEntry.objects === 'string') {
+        // Handle direct comma-separated string
+        objectsArray = historyEntry.objects
+          .split(',')
+          .map(obj => obj.trim())
+          .filter(obj => obj.length > 0);
+      }
+      
+      if (objectsArray.length > 0) {
+        setDetectedObjects(objectsArray)
+        console.log('Loaded objects from history entry:', objectsArray)
+      } else {
+        setDetectedObjects([])
+        console.log('No valid objects found in history entry')
+      }
+    } else {
+      // Clear objects if no objects field
+      setDetectedObjects([])
+      console.log('No objects field in history entry')
+    }
   }
 
 
@@ -560,47 +709,39 @@ function App() {
   }
 
   const handleObjectSelect = (object) => {
-    setSelectedObject(selectedObject === object ? null : object)
+    addPromptToInput(object)
   }
 
   const handleCustomPromptSubmit = async () => {
     if (!customPrompt.trim()) return
     
+    // Check if user can make requests
+    if (isAuthenticated && currentUser) {
+      const canMakeRequest = await aiService.canMakeRequest(currentUser.uid)
+      if (!canMakeRequest) {
+        alert('הגעת למגבלת הדורות החודשית. נסה שוב בחודש הבא.')
+        return
+      }
+    }
+    
     setIsProcessing(true)
     try {
-      // Translate Hebrew prompt to English
-      const translationPrompt = `Translate this Hebrew text to English. Output only the English translation, no explanations: ${customPrompt}`
-      console.log('🔄 Translation prompt:', translationPrompt)
-      const translationResult = await model.generateContent([translationPrompt])
-      const englishPrompt = translationResult.response.text().trim()
-      console.log('✅ Translated prompt:', englishPrompt)
-      
-      // Build final prompt
-      let finalPrompt = englishPrompt
-      if (selectedObject) {
-        // Translate selected object to English if needed
-        const objectTranslationPrompt = `Translate this Hebrew text to English. Output only the English translation, no explanations: ${selectedObject}`
-        console.log('🔄 Object translation prompt:', objectTranslationPrompt)
-        const objectTranslationResult = await model.generateContent([objectTranslationPrompt])
-        const englishObject = objectTranslationResult.response.text().trim()
-        console.log('✅ Translated object:', englishObject)
-        
-        finalPrompt = `edit the ${englishObject} ${englishPrompt}`
-      }
+      // For now, we'll use the prompt as-is (translation can be handled server-side)
+      const finalPrompt = customPrompt
       
       // If object image is available, modify prompt to include it
+      let promptWithObject = finalPrompt
       if (objectImageFile) {
-        finalPrompt = `Using the provided object image, ${finalPrompt}`
+        promptWithObject = `Using the provided object image, ${finalPrompt}`
       }
       
-      console.log('🎯 Final prompt for AI:', finalPrompt)
+      console.log('🎯 Final prompt for AI:', promptWithObject)
       
-      // Execute the AI edit
-      await handleAIEdit(finalPrompt)
+      // Execute the AI edit using server-side processing
+      await handleAIEdit(promptWithObject)
       
-      // Clear the input and selection
+      // Clear the input
       setCustomPrompt('')
-      setSelectedObject(null)
       
       // Clear object image after processing
       setObjectImage(null)
@@ -619,100 +760,105 @@ function App() {
   const detectObjects = async (imageUrl) => {
     if (!imageUrl) return
     
+    // Only allow object detection on history images
+    if (!currentHistoryId) {
+      alert('אובייקטים יכולים להיות מזוהים רק על תמונות מההיסטוריה. אנא בחר תמונה מההיסטוריה תחילה.')
+      return
+    }
+    
     setIsLoadingObjects(true)
     try {
-      let imagePart
       
-      // Handle different URL types
-      if (imageUrl.startsWith('data:')) {
-        // For data URLs, convert directly
-        const imageFile = await urlToFile(imageUrl)
-        imagePart = await fileToGenerativePart(imageFile)
-      } else if (imageUrl.startsWith('https://firebasestorage.googleapis.com/')) {
-        // For Firebase Storage URLs, fetch the image and convert to file
-        try {
-          const response = await fetch(imageUrl, {
-            mode: 'cors',
-            credentials: 'omit'
-          })
-          if (!response.ok) {
-            throw new Error(`Failed to fetch image: ${response.status}`)
-          }
-          const blob = await response.blob()
-          const imageFile = new File([blob], 'firebase-image.jpg', { type: blob.type })
-          imagePart = await fileToGenerativePart(imageFile)
-        } catch (error) {
-          console.error('Failed to process Firebase Storage URL:', error)
-        setDetectedObjects([])
-        setIsLoadingObjects(false)
-        return
+      // Check if user can make requests
+      if (isAuthenticated && currentUser) {
+        const canMakeRequest = await aiService.canMakeRequest(currentUser.uid)
+        if (!canMakeRequest) {
+          alert('הגעת למגבלת הדורות החודשית. נסה שוב בחודש הבא.')
+          setIsLoadingObjects(false)
+          return
         }
-      } else {
-        // For other URLs, try the original method
-        const imageFile = await urlToFile(imageUrl)
-        imagePart = await fileToGenerativePart(imageFile)
       }
       
-      const prompt = "make a very simple name list of the different objects (2-4 words each) that are in the image. include things like walls/sky etc. write the answer it in a json format only. write the names in Hebrew. if there are 2 similar named objects like \"window\" make it clear which window is which, e.g. \"small window\" and \"big window\""
-      
-      // Generate object detection
-      const result = await model.generateContent([prompt, imagePart])
-      const textResponse = result.response.text()
-      
-      console.log('Raw AI response:', textResponse) // Debug log
-      
-      try {
-        // Clean the response from markdown formatting
-        let cleanResponse = textResponse
-          .replace(/```json\s*/gi, '') // Remove ```json
-          .replace(/```\s*/g, '') // Remove ```
-          .replace(/^objects?:\s*/gmi, '') // Remove "objects:" or "object:" prefix
-          .trim()
-        
-        console.log('Cleaned response:', cleanResponse) // Debug log
-        
-        // Try to parse JSON response
-        const objects = JSON.parse(cleanResponse)
-        console.log('Parsed objects:', objects) // Debug log
-        
-        if (Array.isArray(objects)) {
-          setDetectedObjects(objects)
-        } else {
-          // If it's an object with a list property, extract it
-          const objectList = Object.values(objects).find(Array.isArray)
-          if (objectList) {
-            setDetectedObjects(objectList)
-          } else {
-            // Fallback: split by common delimiters
-            const fallbackObjects = cleanResponse
-              .replace(/[\[\]{}"]/g, '')
-              .split(/[,;\n]/)
-              .map(obj => obj.trim())
-              .filter(obj => obj.length > 0 && !obj.match(/^(json|objects?|```)/i))
-            console.log('Fallback objects:', fallbackObjects) // Debug log
-            setDetectedObjects(fallbackObjects)
-          }
+      // Convert image to data URL if it's a local path
+      let imageDataForServer = imageUrl;
+      if (imageUrl.startsWith('/assets/') || imageUrl.startsWith('./assets/')) {
+        // Convert local image to data URL
+        try {
+          const response = await fetch(imageUrl);
+          const blob = await response.blob();
+          const dataUrl = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.readAsDataURL(blob);
+          });
+          imageDataForServer = dataUrl;
+        } catch (error) {
+          console.error('Error converting local image to data URL:', error);
+          throw new Error('Failed to load the image for object detection');
         }
-      } catch (parseError) {
-        console.log('JSON parse error:', parseError) // Debug log
-        // Fallback parsing if JSON parsing fails
-        const fallbackObjects = textResponse
-          .replace(/```json\s*/gi, '')
-          .replace(/```\s*/g, '')
-          .replace(/^objects?:\s*/gmi, '')
-          .replace(/[\[\]{}"]/g, '')
-          .split(/[,;\n]/)
-          .map(obj => obj.trim())
-          .filter(obj => obj.length > 0 && !obj.match(/^(json|objects?|```)/i))
-        console.log('Final fallback objects:', fallbackObjects) // Debug log
-        setDetectedObjects(fallbackObjects)
+      }
+      
+      // Submit request to server (HTTP function)
+      const result = await aiService.submitObjectDetectionRequest(currentUser, imageDataForServer, currentHistoryId)
+      
+      console.log('Object detection result:', result)
+      
+      if (result && result.objects) {
+        console.log('Raw objects from server:', result.objects)
+        console.log('Type of objects:', typeof result.objects)
+        
+        // Parse objects - handle array with comma-separated string in first element
+        let objectsArray = result.objects;
+        
+        if (Array.isArray(result.objects) && result.objects.length > 0) {
+          console.log('Objects is array, checking first element...')
+          const firstElement = result.objects[0];
+          if (typeof firstElement === 'string' && firstElement.includes(',')) {
+            console.log('First element is comma-separated string, parsing...')
+            // Split the first element (comma-separated string) into array
+            objectsArray = firstElement
+              .split(',')
+              .map(obj => obj.trim())
+              .filter(obj => obj.length > 0);
+            console.log('Parsed objects array:', objectsArray)
+          } else {
+            console.log('Using array as-is:', objectsArray)
+          }
+        } else if (typeof result.objects === 'string') {
+          console.log('Parsing string objects...')
+          // Split comma-separated string into array
+          objectsArray = result.objects
+            .split(',')
+            .map(obj => obj.trim())
+            .filter(obj => obj.length > 0);
+          console.log('Parsed objects array:', objectsArray)
+        } else {
+          console.log('Objects is already an array:', objectsArray)
+        }
+        
+        setDetectedObjects(objectsArray)
+        console.log('Final detected objects:', objectsArray)
+      } else {
+        setDetectedObjects([])
       }
     } catch (error) {
       console.error('Object detection failed:', error)
       setDetectedObjects([])
+      alert('שגיאה בזיהוי אובייקטים. נסה שוב.')
     } finally {
       setIsLoadingObjects(false)
     }
+  }
+
+  const colorCategoryColors = {
+    'אדומים': '#C1121C',
+    'כתומים': '#FF7514', 
+    'צהובים': '#E5BE01',
+    'ירוקים': '#287233',
+    'כחולים': '#1E2460',
+    'סגולים': '#6D3F5B',
+    'אפורים': '#78858B',
+    'לבנים ושחורים': '#F4F4F4'
   }
 
   const colorPalette = {
@@ -903,32 +1049,132 @@ function App() {
 
   const handleColorSelect = (color) => {
     setShowColorPalette(false)
-    const prompt = `Change the color of all the walls in the room to color ${color.ral}`
-    console.log('🎨 Color Selection - Prompt being sent:', prompt)
+    const prompt = `צבע בצבע ${color.ral} את ה`
+    console.log('🎨 Color Selection - Prompt being added to input:', prompt)
     console.log('🎨 Selected color:', color.ral, color.name)
-    handleAIEdit(prompt)
+    addPromptToInput(prompt)
   }
 
   const angleOptions = [
-    { name: 'מבט מלמעלה', value: 'bird\'s eye view', icon: '⬆️', prompt: 'Transform this image to show the camera point of view from above' },
-    { name: 'סובב שמאלה', value: 'left angle', icon: '⬅️', prompt: 'Rotate the camera 45 degrees looking left' },
-    { name: 'סובב ימינה', value: 'right angle', icon: '➡️', prompt: 'Rotate the camera 45 degrees looking right' },
-    { name: 'זום פנימה', value: 'zoom in', icon: '🔍+', prompt: 'Zoom in closer to show more detail in this image' },
-    { name: 'זום החוצה', value: 'zoom out', icon: '🔍-', prompt: 'Zoom out to show a wider view of this image' },
-    { name: 'זווית אחורית', value: 'back view', icon: '👁️‍🗨️', prompt: 'Transform this whole image to show a back view perspective 180 degrees looking forward' }
+    { name: 'מבט מלמעלה', value: 'bird\'s eye view', icon: '⬆️', prompt: 'שנה את התמונה להציג מבט מלמעלה' },
+    { name: 'סובב שמאלה', value: 'left angle', icon: '⬅️', prompt: 'סובב את המצלמה 45 מעלות שמאלה' },
+    { name: 'סובב ימינה', value: 'right angle', icon: '➡️', prompt: 'סובב את המצלמה 45 מעלות ימינה' },
+    { name: 'זום פנימה', value: 'zoom in', icon: '🔍+', prompt: 'זום פנימה להציג יותר פרטים בתמונה' },
+    { name: 'זום החוצה', value: 'zoom out', icon: '🔍-', prompt: 'זום החוצה להציג מבט רחב יותר של התמונה' },
+    { name: 'זווית אחורית', value: 'back view', icon: '👁️‍🗨️', prompt: 'שנה את כל התמונה להציג מבט אחורי 180 מעלות' }
+  ]
+
+  const lightingOptions = [
+    { name: 'תאורה מוסתרת', value: 'recessed lighting', prompt: 'הוסף תאורה מוסתרת' },
+    { name: 'נברשת', value: 'pendant lights', prompt: 'הוסף נברשת' },
+    { name: 'נברשת גדולה', value: 'chandeliers', prompt: 'הוסף נברשת גדולה' },
+    { name: 'מנורת שולחן', value: 'table lamps', prompt: 'הוסף מנורת שולחן' },
+    { name: 'מנורת רצפה', value: 'floor lamps', prompt: 'הוסף מנורת רצפה' },
+    { name: 'מנורת קיר', value: 'wall sconces', prompt: 'הוסף מנורת קיר' },
+    { name: 'תאורת מסילה', value: 'track lighting', prompt: 'הוסף תאורת מסילה' },
+    { name: 'תאורת תקרה', value: 'ceiling fixtures', prompt: 'הוסף תאורת תקרה' },
+    { name: 'תאורת מטבח', value: 'under-cabinet lighting', prompt: 'הוסף תאורת מטבח' },
+    { name: 'תאורה דקורטיבית', value: 'string lights', prompt: 'הוסף תאורה דקורטיבית' },
+    { name: 'יום', value: 'day', prompt: 'שנה את התאורה לתאורת יום' },
+    { name: 'לילה', value: 'night', prompt: 'שנה את התאורה לתאורת לילה' },
+    { name: 'שקיעה', value: 'sunset', prompt: 'שנה את התאורה לתאורת שקיעה' },
+    { name: 'זריחה', value: 'sunrise', prompt: 'שנה את התאורה לתאורת זריחה' }
+  ]
+
+  const furnitureOptions = [
+    { name: 'ספה', value: 'sofa', prompt: 'הוסף ספה' },
+    { name: 'ספה פינתית', value: 'sectional sofa', prompt: 'הוסף ספה פינתית' },
+    { name: 'כורסא', value: 'armchair', prompt: 'הוסף כורסא' },
+    { name: 'כיסא דקורטיבי', value: 'accent chair', prompt: 'הוסף כיסא דקורטיבי' },
+    { name: 'כיסא אוכל', value: 'dining chair', prompt: 'הוסף כיסא אוכל' },
+    { name: 'שרפרף', value: 'bar stool', prompt: 'הוסף שרפרף' },
+    { name: 'מיטה יחידה', value: 'single bed', prompt: 'הוסף מיטה יחידה' },
+    { name: 'מיטה זוגית', value: 'double bed', prompt: 'הוסף מיטה זוגית' },
+    { name: 'פוף', value: 'beanbag', prompt: 'הוסף פוף' },
+    { name: 'הדום', value: 'ottoman', prompt: 'הוסף הדום' },
+    { name: 'ספסל', value: 'bench', prompt: 'הוסף ספסל' },
+    { name: 'שולחן קפה', value: 'coffee table', prompt: 'הוסף שולחן קפה' },
+    { name: 'שולחן צד', value: 'end table', prompt: 'הוסף שולחן צד' },
+    { name: 'שולחן לילה', value: 'nightstand', prompt: 'הוסף שולחן לילה' },
+    { name: 'שולחן אוכל', value: 'dining table', prompt: 'הוסף שולחן אוכל' },
+    { name: 'שולחן עבודה', value: 'desk', prompt: 'הוסף שולחן עבודה' },
+    { name: 'שידה', value: 'dresser', prompt: 'הוסף שידה' },
+    { name: 'ארון בגדים', value: 'wardrobe', prompt: 'הוסף ארון בגדים' },
+    { name: 'מדף ספרים', value: 'bookcase', prompt: 'הוסף מדף ספרים' },
+    { name: 'עמדת טלוויזיה', value: 'tv stand', prompt: 'הוסף עמדת טלוויזיה' },
+    { name: 'ארונות מטבח', value: 'cabinetry', prompt: 'הוסף ארונות מטבח' }
+  ]
+
+  const repairsOptions = [
+    { name: 'בצע תיקונים להכל', value: 'repair everything', prompt: 'בצע תיקונים להכל' },
+    { name: 'תסדר ותקנה את הכל', value: 'fix and repair everything', prompt: 'תסדר ותקנה את הכל' },
+    { name: 'תבלגן את הכל', value: 'mess up everything', prompt: 'תבלגן את הכל' },
+    { name: 'תהרוס ותגרום נזקים להכל', value: 'destroy and cause damage to everything', prompt: 'תהרוס ותגרום נזקים להכל' }
+  ]
+
+  const styleOptions = [
+    { name: 'מינימליסטי', value: 'minimalist', prompt: 'שנה את סגנון החדר למינימליסטי - נקי, פשוט, לא עמוס' },
+    { name: 'בוהו', value: 'bohemian', prompt: 'שנה את סגנון החדר לבוהו - אקלקטי, מרקם, חופשי' },
+    { name: 'אינדוסטריאלי', value: 'industrial', prompt: 'שנה את סגנון החדר לאינדוסטריאלי - חומרים גולמיים וחשופים' },
+    { name: 'מודרני אמצע המאה', value: 'mid-century modern', prompt: 'שנה את סגנון החדר למודרני אמצע המאה - חלק, רטרו, פונקציונלי' },
+    { name: 'סקנדינבי', value: 'scandinavian', prompt: 'שנה את סגנון החדר לסקנדינבי - בהיר, נוח, פונקציונלי' },
+    { name: 'מסורתי', value: 'traditional', prompt: 'שנה את סגנון החדר למסורתי - קלאסי, פורמלי, סימטרי' },
+    { name: 'חווה מודרנית', value: 'modern farmhouse', prompt: 'שנה את סגנון החדר לחווה מודרנית - כפרי, ניטרלי, רגוע' },
+    { name: 'עכשווי', value: 'contemporary', prompt: 'שנה את סגנון החדר לעכשווי - עדכני, חלק, מתוחכם' },
+    { name: 'חופי', value: 'coastal', prompt: 'שנה את סגנון החדר לחופי - אוורירי, בהיר, רוחי' },
+    { name: 'אר דקו', value: 'art deco', prompt: 'שנה את סגנון החדר לאר דקו - גיאומטרי, מפואר, גלמור' }
   ]
 
   const handleAngleSelect = (angle) => {
     setShowAnglePanel(false)
-    console.log('📐 Angle Selection - Prompt being sent:', angle.prompt)
+    console.log('📐 Angle Selection - Prompt being added to input:', angle.prompt)
     console.log('📐 Selected angle:', angle.name, angle.value)
-    handleAIEdit(angle.prompt)
+    addPromptToInput(angle.prompt)
   }
 
-  const handleActionButton = (actionName, prompt) => {
-    console.log('⚡ Action Button - Prompt being sent:', prompt)
-    console.log('⚡ Action name:', actionName)
-    handleAIEdit(prompt)
+  const handleLightingSelect = (lighting) => {
+    setShowLightingOptions(false)
+    console.log('💡 Lighting Selection - Prompt being added to input:', lighting.prompt)
+    console.log('💡 Selected lighting:', lighting.name, lighting.value)
+    addPromptToInput(lighting.prompt)
+  }
+
+  const handleFurnitureSelect = (furniture) => {
+    setShowFurnitureOptions(false)
+    console.log('🪑 Furniture Selection - Prompt being added to input:', furniture.prompt)
+    console.log('🪑 Selected furniture:', furniture.name, furniture.value)
+    addPromptToInput(furniture.prompt)
+  }
+
+  const handleRepairsSelect = (repair) => {
+    setShowRepairsOptions(false)
+    console.log('🔨 Repairs Selection - Prompt being added to input:', repair.prompt)
+    console.log('🔨 Selected repair:', repair.name, repair.value)
+    addPromptToInput(repair.prompt)
+  }
+
+  const handleStyleSelect = (style) => {
+    setShowStyleOptions(false)
+    console.log('🎨 Style Selection - Prompt being added to input:', style.prompt)
+    console.log('🎨 Selected style:', style.name, style.value)
+    addPromptToInput(style.prompt)
+  }
+
+  const addPromptToInput = (prompt) => {
+    const currentPrompt = customPrompt.trim()
+    let newPrompt
+    
+    if (!currentPrompt) {
+      newPrompt = prompt
+    } else if (currentPrompt.endsWith('את ה')) {
+      // If current prompt ends with "את ה" (color prompt), don't add comma or space
+      newPrompt = `${currentPrompt}${prompt}`
+    } else {
+      // Normal case: add comma and space
+      newPrompt = `${currentPrompt}, ${prompt}`
+    }
+    
+    setCustomPrompt(newPrompt)
   }
 
   const handleAIEdit = async (prompt) => {
@@ -941,30 +1187,50 @@ function App() {
       console.log('📸 Main image URL:', mainImage)
       console.log('🖼️ Object image available:', !!objectImageFile)
       
-      // Convert current image to file
-      const imageFile = await urlToFile(mainImage)
-      const imagePart = await fileToGenerativePart(imageFile)
-      
-      // Prepare content array with main image and prompt
-      const content = [prompt, imagePart]
-      
-      // Add object image if available
-      if (objectImageFile) {
-        const objectImagePart = await fileToGenerativePart(objectImageFile)
-        content.push(objectImagePart)
-        console.log('🔗 Object image added to content array')
+      // Check if user can make requests
+      if (isAuthenticated && currentUser) {
+        const canMakeRequest = await aiService.canMakeRequest(currentUser.uid)
+        if (!canMakeRequest) {
+          alert('הגעת למגבלת הדורות החודשית. נסה שוב בחודש הבא.')
+          setIsProcessing(false)
+          return
+        }
       }
       
-      console.log('📦 Content array prepared with', content.length, 'items')
+      // Convert image to data URL if it's a local path
+      let imageDataForServer = mainImage;
+      if (mainImage.startsWith('/assets/') || mainImage.startsWith('./assets/')) {
+        // Convert local image to data URL
+        try {
+          const response = await fetch(mainImage);
+          const blob = await response.blob();
+          const dataUrl = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.readAsDataURL(blob);
+          });
+          imageDataForServer = dataUrl;
+        } catch (error) {
+          console.error('Error converting local image to data URL:', error);
+          throw new Error('Failed to load the default image');
+        }
+      }
       
-      // Generate AI-edited image
-      const result = await model.generateContent(content)
+      // Submit request to server
+      const requestId = await aiService.submitImageGenerationRequest(
+        currentUser, 
+        prompt, 
+        imageDataForServer, 
+        objectImageFile ? await fileToGenerativePart(objectImageFile) : null
+      )
       
-      // Handle the generated image
-      const inlineDataParts = result.response.inlineDataParts()
-      if (inlineDataParts?.[0]) {
-        const image = inlineDataParts[0].inlineData
-        const imageDataUrl = `data:${image.mimeType};base64,${image.data}`
+      // Wait for completion
+      const result = await aiService.waitForRequestCompletion(requestId)
+      
+      console.log('AI Service result:', result)
+      
+      if (result && result.storageUrl) {
+        const imageDataUrl = result.storageUrl
         
         // Add to history
         const historyEntry = {
@@ -973,26 +1239,17 @@ function App() {
           timestamp: formatTimestamp(new Date())
         }
         
-        // Save to Firebase if user is authenticated
+        // Reload history to get the server-processed result
         if (isAuthenticated && currentUser) {
           setIsLoadingHistory(true)
           try {
-            await saveImageToHistory(currentUser.uid, historyEntry)
             // Reload first page of history from Firebase to get the updated list
             const historyResult = await loadUserHistoryPaginated(currentUser.uid, 1, 5)
             setImageHistory(historyResult.history)
             setHistoryPage(1)
             setHasMoreHistory(historyResult.hasMore)
           } catch (error) {
-            console.error('Failed to save to Firebase, using local storage:', error)
-            // Fallback to local state if Firebase fails
-            const localHistoryEntry = {
-              id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-              ...historyEntry
-            }
-            setImageHistory(prev => [localHistoryEntry, ...prev])
-            setHistoryPage(1)
-            setHasMoreHistory(true)
+            console.error('Failed to reload history from Firebase:', error)
           } finally {
             setIsLoadingHistory(false)
           }
@@ -1009,6 +1266,7 @@ function App() {
         
         setMainImage(imageDataUrl)
         setImageAspectRatio(16/9) // Reset to default until new image loads
+        setCurrentHistoryId(null) // Clear history ID for new generated image
         
         // Clear object image after successful processing
         setObjectImage(null)
@@ -1017,21 +1275,16 @@ function App() {
           objectInputRef.current.value = ''
         }
       } else {
-        // If no image was generated, try to get text response
-        const textResponse = result.response.text()
-        console.log('AI Response:', textResponse)
         alert('התמונה לא עובדה בהצלחה. נסה עם תמונה אחרת או פעולה אחרת.')
       }
     } catch (error) {
       console.error('AI processing failed:', error)
       
       // Handle specific error types
-      if (error.message?.includes('RECITATION')) {
-        alert('התמונה נחסמה על ידי מערכת הבטיחות. נסה עם תמונה אחרת או פעולה פשוטה יותר.')
-      } else if (error.message?.includes('SAFETY')) {
-        alert('התמונה לא עומדת בקריטריוני הבטיחות. נסה עם תמונה אחרת.')
-      } else if (error.message?.includes('BLOCKED')) {
-        alert('הפעולה נחסמה. נסה פעולה אחרת או תמונה אחרת.')
+      if (error.message?.includes('limit reached') || error.message?.includes('מגבלת הדורות')) {
+        alert('הגעת למגבלת הדורות החודשית. נסה שוב בחודש הבא.')
+      } else if (error.message?.includes('timeout')) {
+        alert('הבקשה ארכה יותר מדי זמן. נסה שוב.')
       } else {
         alert('שגיאה בעיבוד התמונה. אנא נסה שוב או עם תמונה אחרת.')
       }
@@ -1238,19 +1491,30 @@ function App() {
 
               {/* Mobile Action Bar */}
               <div className="flex items-center gap-2 mb-4">
-                <input
-                  type="text"
-                  value={customPrompt}
-                  onChange={(e) => setCustomPrompt(e.target.value)}
-                  placeholder="הקלד שינוי..."
-                  disabled={isProcessing}
-                  className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      handleCustomPromptSubmit()
-                    }
-                  }}
-                />
+                <div className="flex-1 relative">
+                  <input
+                    type="text"
+                    value={customPrompt}
+                    onChange={(e) => setCustomPrompt(e.target.value)}
+                    placeholder="הקלד שינוי..."
+                    disabled={isProcessing}
+                    className="w-full px-3 py-2 pr-8 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        handleCustomPromptSubmit()
+                      }
+                    }}
+                  />
+                  {customPrompt && (
+                    <button
+                      onClick={() => setCustomPrompt('')}
+                      disabled={isProcessing}
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
                 <button
                   onClick={handleCustomPromptSubmit}
                   disabled={isProcessing || !customPrompt.trim()}
@@ -1269,7 +1533,7 @@ function App() {
                 <button
                   onClick={isProcessing ? undefined : handleObjectUploadClick}
                   disabled={isProcessing}
-                  className="flex-shrink-0 btn-secondary flex items-center text-sm px-3 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-shrink-0 btn-secondary border-2 border-dashed border-blue-400 hover:border-blue-500 hover:bg-blue-50 flex items-center text-sm px-3 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {objectImage ? (
                     <div className="relative w-4 h-4 ml-2">
@@ -1290,9 +1554,9 @@ function App() {
                   </button>
                 </div>
               ) : (
-                    <Plus className="w-4 h-4 ml-2" />
+                    <Plus className="w-4 h-4 text-blue-500 ml-2" />
                   )}
-                  הוסף אובייקט
+                  <span className="text-blue-600">הוסף אובייקט</span>
                 </button>
                 
                 {/* Category-specific action buttons */}
@@ -1318,21 +1582,26 @@ function App() {
                 className="hidden"
               />
 
-              {selectedObject && (
-                <p className="text-sm text-blue-600 text-center">
-                  נבחר: {selectedObject}
-                </p>
-              )}
 
-              {/* Download Button - Mobile (Bottom of Main Panel) */}
-              <button 
-                onClick={handleDownload}
-                disabled={isProcessing}
-                className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed shadow-lg mt-4"
-              >
-                <Download className="w-4 h-4 ml-2" />
-                הורד תמונה
-              </button>
+              {/* Download and WhatsApp Share Buttons - Mobile (Bottom of Main Panel) */}
+              <div className="flex gap-2 mt-4">
+                <button 
+                  onClick={handleDownload}
+                  disabled={isProcessing}
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+                >
+                  <Download className="w-4 h-4 ml-2" />
+                  הורדה
+                </button>
+                <button 
+                  onClick={handleWhatsAppShare}
+                  disabled={isProcessing}
+                  className="flex-1 bg-green-500 hover:bg-green-600 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+                >
+                  <Share2 className="w-4 h-4 ml-2" />
+                  ווזאפ
+                </button>
+              </div>
             </div>
           </div>
 
@@ -1360,7 +1629,7 @@ function App() {
               <div className={`transition-opacity duration-300 ${
                 isLoadingHistory || isProcessing ? 'opacity-50 pointer-events-none' : ''
               }`}>
-                {imageHistory.length === 0 ? (
+                {(imageHistory || []).length === 0 ? (
                   <div className="text-center py-6">
                     <div className="text-gray-400 mb-2">
                       <Sparkles className="w-6 h-6 mx-auto" />
@@ -1379,7 +1648,7 @@ function App() {
                       }
                     }}
                   >
-                    {imageHistory.map((entry) => (
+                    {(imageHistory || []).map((entry) => (
                       <div
                         key={entry.id}
                         onClick={() => handleHistoryImageClick(entry)}
@@ -1394,8 +1663,8 @@ function App() {
                           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200 rounded-lg"></div>
                         </div>
                         <div className="mt-1">
-                          <p className="text-xs text-gray-600 truncate" title={entry.prompt}>
-                            {entry.prompt.length > 15 ? `${entry.prompt.substring(0, 15)}...` : entry.prompt}
+                          <p className="text-xs text-gray-600 truncate" title={entry.prompt || 'No prompt'}>
+                            {entry.prompt && entry.prompt.length > 15 ? `${entry.prompt.substring(0, 15)}...` : (entry.prompt || 'No prompt')}
                           </p>
                           <p className="text-xs text-gray-400">{displayTimestamp(entry.timestamp)}</p>
                         </div>
@@ -1435,7 +1704,7 @@ function App() {
               <div className={`transition-opacity duration-300 ${
                 isLoadingHistory || isProcessing ? 'opacity-50 pointer-events-none' : ''
               }`}>
-              {imageHistory.length === 0 ? (
+              {(imageHistory || []).length === 0 ? (
                 <div className="text-center py-8">
                   <div className="text-gray-400 mb-2">
                     <Sparkles className="w-8 h-8 mx-auto" />
@@ -1453,7 +1722,7 @@ function App() {
                     }
                   }}
                 >
-                  {imageHistory.map((entry) => (
+                  {(imageHistory || []).map((entry) => (
                     <div
                       key={entry.id}
                       onClick={() => handleHistoryImageClick(entry)}
@@ -1468,8 +1737,8 @@ function App() {
                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200 rounded-lg"></div>
                       </div>
                       <div className="mt-2">
-                        <p className="text-xs text-gray-600 truncate" title={entry.prompt}>
-                          {entry.prompt.length > 30 ? `${entry.prompt.substring(0, 30)}...` : entry.prompt}
+                        <p className="text-xs text-gray-600 truncate" title={entry.prompt || 'No prompt'}>
+                          {entry.prompt && entry.prompt.length > 30 ? `${entry.prompt.substring(0, 30)}...` : (entry.prompt || 'No prompt')}
                         </p>
                         <p className="text-xs text-gray-400 mt-1">{displayTimestamp(entry.timestamp)}</p>
                       </div>
@@ -1504,14 +1773,24 @@ function App() {
           <div className="lg:col-span-1 lg:order-3">
             {/* Download Button */}
             <div className="mb-4">
-              <button 
-                onClick={handleDownload}
-                disabled={isProcessing}
-                className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
-              >
-                <Download className="w-4 h-4 ml-2" />
-                הורד תמונה
-              </button>
+              <div className="flex gap-2">
+                <button 
+                  onClick={handleDownload}
+                  disabled={isProcessing}
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+                >
+                  <Download className="w-4 h-4 ml-2" />
+                  הורדה
+                </button>
+                <button 
+                  onClick={handleWhatsAppShare}
+                  disabled={isProcessing}
+                  className="flex-1 bg-green-500 hover:bg-green-600 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+                >
+                  <Share2 className="w-4 h-4 ml-2" />
+                  ווזאפ
+                </button>
+              </div>
             </div>
             
             <div className="card p-4 relative">
@@ -1519,9 +1798,9 @@ function App() {
                 <h3 className="text-lg font-semibold text-text">אובייקטים</h3>
                 <button
                   onClick={() => detectObjects(mainImage)}
-                  disabled={isLoadingObjects || !mainImage || isProcessing}
+                  disabled={isLoadingObjects || !mainImage || isProcessing || !currentHistoryId}
                   className="w-8 h-8 bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 rounded-full flex items-center justify-center transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="רענן רשימת אובייקטים"
+                  title={currentHistoryId ? "רענן רשימת אובייקטים" : "בחר תמונה מההיסטוריה תחילה"}
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -1531,7 +1810,7 @@ function App() {
               <div className={`transition-opacity duration-300 ${
                 isLoadingObjects || isProcessing ? 'opacity-50 pointer-events-none' : ''
               }`}>
-                {detectedObjects.length === 0 ? (
+                {(detectedObjects || []).length === 0 ? (
                   <div className="text-center py-8">
                     <div className="text-gray-400 mb-2">
                       <Sparkles className="w-8 h-8 mx-auto" />
@@ -1543,19 +1822,13 @@ function App() {
                   </div>
                 ) : (
                   <div className="space-y-2 max-h-96 overflow-y-auto scrollbar-hide">
-                    {detectedObjects.map((object, index) => (
+                    {(detectedObjects || []).map((object, index) => (
                       <div
                         key={index}
                         onClick={() => handleObjectSelect(object)}
-                        className={`rounded-lg p-3 transition-colors duration-200 cursor-pointer ${
-                          selectedObject === object 
-                            ? 'bg-blue-100 border-2 border-blue-500' 
-                            : 'bg-gray-50 hover:bg-gray-100 border-2 border-transparent'
-                        }`}
+                        className="rounded-lg p-3 transition-colors duration-200 cursor-pointer bg-gray-50 hover:bg-gray-100 border-2 border-transparent"
                       >
-                        <p className={`text-sm font-medium ${
-                          selectedObject === object ? 'text-blue-700' : 'text-gray-700'
-                        }`}>
+                        <p className="text-sm font-medium text-gray-700">
                           {object}
                         </p>
                       </div>
@@ -1628,19 +1901,30 @@ function App() {
               {/* Custom Prompt Input */}
               <div className="mb-6">
                 <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={customPrompt}
-                    onChange={(e) => setCustomPrompt(e.target.value)}
-                    placeholder="הקלד שינוי..."
-                    disabled={isProcessing}
-                    className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter') {
-                        handleCustomPromptSubmit()
-                      }
-                    }}
-                  />
+                  <div className="flex-1 relative">
+                    <input
+                      type="text"
+                      value={customPrompt}
+                      onChange={(e) => setCustomPrompt(e.target.value)}
+                      placeholder="הקלד שינוי..."
+                      disabled={isProcessing}
+                      className="w-full px-4 py-3 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          handleCustomPromptSubmit()
+                        }
+                      }}
+                    />
+                    {customPrompt && (
+                      <button
+                        onClick={() => setCustomPrompt('')}
+                        disabled={isProcessing}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
                   <button
                     onClick={handleCustomPromptSubmit}
                     disabled={isProcessing || !customPrompt.trim()}
@@ -1651,11 +1935,6 @@ function App() {
                     </svg>
                   </button>
                 </div>
-                {selectedObject && (
-                  <p className="text-sm text-blue-600 mt-2">
-                    נבחר: {selectedObject}
-                  </p>
-                )}
               </div>
 
               {/* Action Buttons */}
@@ -1676,30 +1955,29 @@ function App() {
                 {/* Object Image Upload - always available */}
                 <div className="relative">
                   {objectImage ? (
-                    <div className="relative w-24 h-24">
+                    <div className="relative btn-secondary h-10 w-24 flex items-center justify-center">
                       <img
                         src={objectImage}
                         alt="Object to add"
-                        className="w-full h-full object-cover rounded-lg border-2 border-gray-300"
+                        className="w-6 h-6 object-cover rounded border border-gray-300"
                       />
                 <button 
                         onClick={handleRemoveObjectImage}
                   disabled={isProcessing}
-                        className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="absolute -top-1 -right-1 bg-red-500 hover:bg-red-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                         ×
                 </button>
                     </div>
                   ) : (
-                    <div
+                    <button
                       onClick={isProcessing ? undefined : handleObjectUploadClick}
-                      className={`w-24 h-24 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center transition-colors duration-200 cursor-pointer hover:border-blue-400 hover:bg-blue-50 ${
-                        isProcessing ? 'opacity-50 cursor-not-allowed' : ''
-                      }`}
+                      disabled={isProcessing}
+                      className={`btn-secondary h-10 border-2 border-dashed border-blue-400 hover:border-blue-500 hover:bg-blue-50 flex items-center transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
-                      <Plus className="w-6 h-6 text-gray-400 mb-1" />
-                      <span className="text-xs text-gray-500 text-center leading-tight">הוסף אובייקט</span>
-                    </div>
+                      <Plus className="w-4 h-4 text-blue-500 ml-2" />
+                      <span className="text-sm text-blue-600">הוסף אובייקט</span>
+                    </button>
                   )}
                   
                   <input
@@ -1721,10 +1999,10 @@ function App() {
               {/* Color Palette Modal */}
               {showColorPalette && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
-          <div className="bg-white rounded-xl shadow-2xl w-full mx-4 max-h-[85vh] overflow-hidden max-w-[95vw] md:max-w-6xl">
+          <div className="bg-white rounded-xl shadow-2xl w-full mx-4 h-[85vh] overflow-hidden max-w-[95vw] md:max-w-6xl">
             <div className="p-4 md:p-6">
                       <div className="flex justify-between items-center mb-6">
-                        <h3 className="text-lg font-semibold text-text">בחר צבע RAL לקיר</h3>
+                        <h3 className="text-lg font-semibold text-text">בחר צבע RAL</h3>
                         <button
                           onClick={() => setShowColorPalette(false)}
                           disabled={isProcessing}
@@ -1741,19 +2019,23 @@ function App() {
                     key={category}
                     onClick={() => setActiveColorCategory(category)}
                     disabled={isProcessing}
-                    className={`px-2 md:px-4 py-1 md:py-2 rounded-lg font-medium text-xs md:text-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
+                    className={`flex items-center gap-2 px-2 md:px-4 py-1 md:py-2 rounded-lg font-medium text-xs md:text-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
                       activeColorCategory === category
                         ? 'bg-blue-600 text-white shadow-lg'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
                   >
-                            {category}
+                    <div 
+                      className="w-3 h-3 rounded-full border border-gray-300"
+                      style={{ backgroundColor: colorCategoryColors[category] }}
+                    ></div>
+                    {category}
                   </button>
                 ))}
               </div>
               
               {/* Active Category Colors */}
-              <div className="max-h-96 overflow-y-auto">
+              <div className="h-96 overflow-y-auto">
                 <div className="grid grid-cols-4 md:grid-cols-8 gap-2 md:gap-3">
                   {colorPalette[activeColorCategory]?.map((color, index) => (
                               <button
@@ -1817,6 +2099,150 @@ function App() {
                   </div>
                 </div>
               )}
+
+              {/* Lighting Options Modal */}
+              {showLightingOptions && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-xl shadow-2xl w-full mx-4 max-h-[70vh] overflow-y-auto max-w-[95vw] md:max-w-2xl">
+            <div className="p-4 md:p-6">
+                      <div className="flex justify-between items-center mb-6">
+                        <h3 className="text-lg font-semibold text-text">בחר סוג תאורה</h3>
+                        <button
+                          onClick={() => setShowLightingOptions(false)}
+                          disabled={isProcessing}
+                          className="text-gray-500 hover:text-gray-700 text-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          ×
+                        </button>
+                      </div>
+                      
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                        {lightingOptions.map((lighting, index) => (
+                          <button
+                            key={index}
+                            onClick={() => handleLightingSelect(lighting)}
+                            disabled={isProcessing}
+                            className="flex items-center p-4 rounded-lg hover:bg-gray-50 transition-colors duration-200 border border-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <span className="text-2xl ml-3">💡</span>
+                            <div className="text-right">
+                              <div className="text-sm font-medium text-text">{lighting.name}</div>
+                              <div className="text-xs text-gray-500">{lighting.value}</div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Furniture Options Modal */}
+              {showFurnitureOptions && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-xl shadow-2xl w-full mx-4 max-h-[70vh] overflow-y-auto max-w-[95vw] md:max-w-2xl">
+            <div className="p-4 md:p-6">
+                      <div className="flex justify-between items-center mb-6">
+                        <h3 className="text-lg font-semibold text-text">בחר סוג ריהוט</h3>
+                        <button
+                          onClick={() => setShowFurnitureOptions(false)}
+                          disabled={isProcessing}
+                          className="text-gray-500 hover:text-gray-700 text-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          ×
+                        </button>
+                      </div>
+                      
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                        {furnitureOptions.map((furniture, index) => (
+                          <button
+                            key={index}
+                            onClick={() => handleFurnitureSelect(furniture)}
+                            disabled={isProcessing}
+                            className="flex items-center p-4 rounded-lg hover:bg-gray-50 transition-colors duration-200 border border-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <div className="text-right w-full">
+                              <div className="text-sm font-medium text-text">{furniture.name}</div>
+                              <div className="text-xs text-gray-500">{furniture.value}</div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+      {/* Repairs Options Modal */}
+      {showRepairsOptions && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-xl shadow-2xl w-full mx-4 max-h-[70vh] overflow-y-auto max-w-[95vw] md:max-w-2xl">
+            <div className="p-4 md:p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-lg font-semibold text-text">בחר סוג תיקון/נזק</h3>
+                <button
+                  onClick={() => setShowRepairsOptions(false)}
+                  disabled={isProcessing}
+                  className="text-gray-500 hover:text-gray-700 text-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  ×
+                </button>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {repairsOptions.map((repair) => (
+                  <button
+                    key={repair.value}
+                    onClick={() => handleRepairsSelect(repair)}
+                    disabled={isProcessing}
+                    className="flex items-center gap-3 p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-right"
+                  >
+                    <Hammer className="w-5 h-5 text-gray-600 flex-shrink-0" />
+                    <span className="text-sm font-medium text-gray-800">{repair.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Style Options Modal */}
+      {showStyleOptions && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-xl shadow-2xl w-full mx-4 max-h-[80vh] overflow-y-auto max-w-[95vw] md:max-w-3xl">
+            <div className="p-4 md:p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-lg font-semibold text-text">בחר סגנון עיצוב</h3>
+                <button
+                  onClick={() => setShowStyleOptions(false)}
+                  disabled={isProcessing}
+                  className="text-gray-500 hover:text-gray-700 text-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  ×
+                </button>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {styleOptions.map((style) => (
+                  <button
+                    key={style.value}
+                    onClick={() => handleStyleSelect(style)}
+                    disabled={isProcessing}
+                    className="flex flex-col items-center gap-3 p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-center"
+                  >
+                    <FreeStyle className="w-6 h-6 text-blue-600 flex-shrink-0" />
+                    <div>
+                      <div className="text-sm font-medium text-gray-800 mb-1">{style.name}</div>
+                      <div className="text-xs text-gray-500">{style.value}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Image Modal */}
       {showImageModal && (
@@ -1997,11 +2423,11 @@ function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
             <div className="text-sm text-gray-500">
-              © 2024 MoomHe. כל הזכויות שמורות.
+              © 2025 MoomHe. כל הזכויות שמורות.
             </div>
             <div className="flex space-x-6 space-x-reverse">
               <a
-                href="/eula.txt"
+                href="/eula.html"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-sm text-gray-600 hover:text-gray-900 transition-colors duration-200"
@@ -2009,7 +2435,7 @@ function App() {
                 הסכם שימוש
               </a>
               <a
-                href="/privacy.txt"
+                href="/privacy.html"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-sm text-gray-600 hover:text-gray-900 transition-colors duration-200"

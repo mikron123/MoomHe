@@ -89,37 +89,55 @@ async function createOrUpdateUser(user) {
 // Storage functions
 // Helper function to create thumbnail
 function createThumbnail(imageDataUrl, maxWidth = 200, maxHeight = 200) {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const img = new Image();
+    
+    // Set crossOrigin to anonymous to avoid tainted canvas issues
+    img.crossOrigin = 'anonymous';
+    
     img.onload = () => {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      
-      // Calculate thumbnail dimensions
-      let { width, height } = img;
-      if (width > height) {
-        if (width > maxWidth) {
-          height = (height * maxWidth) / width;
-          width = maxWidth;
+      try {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Calculate thumbnail dimensions
+        let { width, height } = img;
+        if (width > height) {
+          if (width > maxWidth) {
+            height = (height * maxWidth) / width;
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = (width * maxHeight) / height;
+            height = maxHeight;
+          }
         }
-      } else {
-        if (height > maxHeight) {
-          width = (width * maxHeight) / height;
-          height = maxHeight;
-        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        // Draw thumbnail
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Convert to blob with error handling
+        canvas.toBlob((blob) => {
+          if (blob) {
+            resolve(blob);
+          } else {
+            reject(new Error('Failed to create thumbnail blob'));
+          }
+        }, 'image/jpeg', 0.8);
+      } catch (error) {
+        console.error('Error creating thumbnail:', error);
+        reject(error);
       }
-      
-      canvas.width = width;
-      canvas.height = height;
-      
-      // Draw thumbnail
-      ctx.drawImage(img, 0, 0, width, height);
-      
-      // Convert to blob
-      canvas.toBlob((blob) => {
-        resolve(blob);
-      }, 'image/jpeg', 0.8);
     };
+    
+    img.onerror = () => {
+      reject(new Error('Failed to load image for thumbnail creation'));
+    };
+    
     img.src = imageDataUrl;
   });
 }
@@ -130,8 +148,15 @@ async function uploadImageToStorage(userId, imageDataUrl, prompt) {
     const response = await fetch(imageDataUrl);
     const blob = await response.blob();
     
-    // Create thumbnail
-    const thumbnailBlob = await createThumbnail(imageDataUrl);
+    // Create thumbnail with error handling
+    let thumbnailBlob;
+    try {
+      thumbnailBlob = await createThumbnail(imageDataUrl);
+    } catch (thumbnailError) {
+      console.warn('Failed to create thumbnail, using original image:', thumbnailError);
+      // Fallback: use the original image as thumbnail (not ideal but functional)
+      thumbnailBlob = blob;
+    }
     
     // Create unique filename
     const timestamp = Date.now();
@@ -164,8 +189,15 @@ async function uploadImageToUserUploads(userId, file) {
       reader.readAsDataURL(file);
     });
     
-    // Create thumbnail
-    const thumbnailBlob = await createThumbnail(dataUrl);
+    // Create thumbnail with error handling
+    let thumbnailBlob;
+    try {
+      thumbnailBlob = await createThumbnail(dataUrl);
+    } catch (thumbnailError) {
+      console.warn('Failed to create thumbnail, using original image:', thumbnailError);
+      // Fallback: use the original file as thumbnail
+      thumbnailBlob = file;
+    }
     
     // Create unique filename
     const timestamp = Date.now();
@@ -262,12 +294,28 @@ async function loadUserHistory(userId) {
     const history = [];
     querySnapshot.forEach((doc) => {
       const data = doc.data();
-      // Only include records that belong to the current user
-      if (data.userId === userId) {
-        history.push({
+      // Only include records that belong to the current user and don't have errors
+      if (data.userId === userId && !data.isError) {
+        // Handle nested result structure from server-side processing
+        const historyEntry = {
           id: doc.id,
           ...data
-        });
+        };
+        
+        // If this is a server-processed result, flatten the result object
+        if (data.result && data.result.storageUrl) {
+          historyEntry.storageUrl = data.result.storageUrl;
+          historyEntry.thumbnailUrl = data.result.thumbnailUrl;
+          historyEntry.filename = data.result.filename;
+          historyEntry.thumbnailFilename = data.result.thumbnailFilename;
+        }
+        
+        // Preserve objects field if it exists (from object detection)
+        if (data.objects) {
+          historyEntry.objects = data.objects;
+        }
+        
+        history.push(historyEntry);
       }
     });
     
@@ -287,12 +335,28 @@ async function loadUserHistoryPaginated(userId, page = 1, pageSize = 5) {
     const allHistory = [];
     querySnapshot.forEach((doc) => {
       const data = doc.data();
-      // Only include records that belong to the current user
-      if (data.userId === userId) {
-        allHistory.push({
+      // Only include records that belong to the current user and don't have errors
+      if (data.userId === userId && !data.isError) {
+        // Handle nested result structure from server-side processing
+        const historyEntry = {
           id: doc.id,
           ...data
-        });
+        };
+        
+        // If this is a server-processed result, flatten the result object
+        if (data.result && data.result.storageUrl) {
+          historyEntry.storageUrl = data.result.storageUrl;
+          historyEntry.thumbnailUrl = data.result.thumbnailUrl;
+          historyEntry.filename = data.result.filename;
+          historyEntry.thumbnailFilename = data.result.thumbnailFilename;
+        }
+        
+        // Preserve objects field if it exists (from object detection)
+        if (data.objects) {
+          historyEntry.objects = data.objects;
+        }
+        
+        allHistory.push(historyEntry);
       }
     });
     
@@ -306,6 +370,40 @@ async function loadUserHistoryPaginated(userId, page = 1, pageSize = 5) {
   } catch (error) {
     console.error('Error loading paginated user history:', error);
     return { history: [], hasMore: false };
+  }
+}
+
+// Temporary upload for WhatsApp sharing
+async function uploadImageForSharing(userId, imageDataUrl) {
+  try {
+    // Convert data URL to blob
+    const response = await fetch(imageDataUrl);
+    const blob = await response.blob();
+    
+    // Create temporary filename
+    const timestamp = Date.now();
+    const filename = `temp_${timestamp}.jpg`;
+    
+    // Upload to temporary path
+    const storageRef = ref(storage, `temp/${userId}/${filename}`);
+    const snapshot = await uploadBytes(storageRef, blob);
+    const downloadURL = await getDownloadURL(snapshot.ref);
+    
+    // Schedule cleanup after 1 hour (3600000 ms)
+    setTimeout(() => {
+      try {
+        // Note: In a production app, you'd want to implement proper cleanup
+        // For now, we'll just log that cleanup would happen
+        console.log('🧹 Cleanup scheduled for temporary file:', filename);
+      } catch (cleanupError) {
+        console.error('Error during cleanup:', cleanupError);
+      }
+    }, 3600000);
+    
+    return { downloadURL, filename, timestamp };
+  } catch (error) {
+    console.error('Error uploading image for sharing:', error);
+    throw error;
   }
 }
 
@@ -324,5 +422,6 @@ export {
   saveImageToHistory,
   saveUploadToHistory,
   loadUserHistory,
-  loadUserHistoryPaginated
+  loadUserHistoryPaginated,
+  uploadImageForSharing
 };
