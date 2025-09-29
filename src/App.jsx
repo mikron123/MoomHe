@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { Upload, Plus, Palette, RotateCcw, Download, Settings, Home, TreePine, Car, Heart, Hammer, Sparkles, Package, User, Share2, Palette as FreeStyle, Type, Loader2 } from 'lucide-react'
+import { Upload, Plus, Palette, RotateCcw, Download, Settings, Home, TreePine, Car, Heart, Hammer, Sparkles, Package, User, Share2, Palette as FreeStyle, Type, Loader2, RotateCw, Lightbulb, Sofa, Droplets, ArrowLeftRight } from 'lucide-react'
 import { fileToGenerativePart, urlToFile, signInUser, createOrUpdateUser, saveImageToHistory, saveUploadToHistory, loadUserHistory, loadUserHistoryPaginated, auth, uploadImageForSharing } from './firebase.js'
 import { aiService } from './aiService.js'
 import { onAuthStateChanged } from 'firebase/auth'
@@ -190,14 +190,14 @@ function App() {
 
   const categoryActionButtons = {
     'עיצוב פנים וחוץ': [
-      { name: 'שינוי טוטאלי', action: () => setShowStyleOptions(!showStyleOptions), icon: FreeStyle },
+      { name: 'שינוי טוטאלי', action: () => setShowStyleOptions(!showStyleOptions), icon: ArrowLeftRight },
       { name: 'תיקונים/נזקים', action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer },
       { name: 'שנה צבע', action: () => setShowColorPalette(!showColorPalette), icon: Palette },
       { name: 'זווית', action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
-      { name: 'תאורה', action: () => setShowLightingOptions(!showLightingOptions), icon: Settings },
-      { name: 'הוסף ריהוט', action: () => setShowFurnitureOptions(!showFurnitureOptions), icon: Plus },
+      { name: 'תאורה', action: () => setShowLightingOptions(!showLightingOptions), icon: Lightbulb },
+      { name: 'ריהוט', action: () => setShowFurnitureOptions(!showFurnitureOptions), icon: Sofa },
       { name: 'דלתות/חלונות', action: () => setShowDoorsWindowsOptions(!showDoorsWindowsOptions), icon: Home },
-      { name: 'רחצה', action: () => setShowBathroomOptions(!showBathroomOptions), icon: Settings }
+      { name: 'רחצה', action: () => setShowBathroomOptions(!showBathroomOptions), icon: Droplets }
     ],
     'גינות ומרפסות': [
       { name: 'שינוי טוטאלי', action: () => setShowStyleOptions(!showStyleOptions), icon: FreeStyle },
