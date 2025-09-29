@@ -85,8 +85,31 @@ async function uploadToStorage(userId, imageBuffer, filename, isThumbnail = fals
   return `https://storage.googleapis.com/${bucket.name}/${filePath}`;
 }
 
+// Helper function to translate Hebrew prompt to English
+async function translatePromptToEnglish(hebrewPrompt) {
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+  
+  try {
+    const translationPrompt = `Translate the following Hebrew text to English. The text is a prompt for AI image generation, so translate it accurately while keeping the technical and artistic context. Only return the English translation, nothing else.
+
+Hebrew text: ${hebrewPrompt}`;
+    
+    const result = await model.generateContent([translationPrompt]);
+    const englishPrompt = result.response.text().trim();
+    
+    logger.info(`Translation - Hebrew: ${hebrewPrompt}`);
+    logger.info(`Translation - English: ${englishPrompt}`);
+    
+    return englishPrompt;
+  } catch (error) {
+    logger.error('Translation failed:', error);
+    // Fallback: return original prompt if translation fails
+    return hebrewPrompt;
+  }
+}
+
 // Helper function to process image with Gemini
-async function processImageWithGemini(prompt, imageData, isObjectDetection = false, objectImageData = null) {
+async function processImageWithGemini(prompt, imageData, isObjectDetection = false, objectImageData = null, docId = null) {
   const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-image-preview" });
   
   try {
@@ -101,8 +124,23 @@ async function processImageWithGemini(prompt, imageData, isObjectDetection = fal
       const result = await model.generateContent([objectDetectionPrompt, imageData]);
       return { type: 'text', content: result.response.text() };
     } else {
-      // Prepare content array with prompt and main image
-      const content = [prompt, imageData];
+      // Translate Hebrew prompt to English
+      const englishPrompt = await translatePromptToEnglish(prompt);
+      
+      // Save the original Hebrew prompt and translated English prompt for review
+      if (docId) {
+        logger.info(`Updating document ${docId} with translation data`);
+        await db.collection('userHistory').doc(docId).update({
+          originalPrompt: prompt,
+          translatedPrompt: englishPrompt
+        });
+        logger.info(`Successfully updated document ${docId} with translation data`);
+      } else {
+        logger.warn('No docId provided, skipping translation data update');
+      }
+      
+      // Prepare content array with translated prompt and main image
+      const content = [englishPrompt, imageData];
       
       // Add object image if provided
       if (objectImageData) {
@@ -348,7 +386,7 @@ exports.processImageRequest = onDocumentCreated('userHistory/{docId}', async (ev
         objectImageData = docData.objectImageData;
       }
       
-      result = await processImageWithGemini(docData.prompt, imageData, false, objectImageData);
+      result = await processImageWithGemini(docData.prompt, imageData, false, objectImageData, docId);
       
       if (result.type === 'image') {
         // Convert base64 to buffer
@@ -548,3 +586,4 @@ exports.detectObjects = onRequest({ cors: true }, async (req, res) => {
 exports.healthCheck = onRequest({ cors: true }, (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+// Translation feature added

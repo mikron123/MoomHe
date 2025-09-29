@@ -24,8 +24,7 @@ class AIService {
         objectImageData: objectImageData,
         isDone: false,
         isError: false,
-        createdAt: new Date(),
-        timestamp: new Date().toLocaleString('he-IL')
+        createdAt: new Date()
       };
 
       // Create document reference
@@ -78,7 +77,7 @@ class AIService {
   }
 
   // Wait for request completion
-  async waitForRequestCompletion(docId, timeout = 60000) {
+  waitForRequestCompletion = async (docId, timeout = 60000) => {
     return new Promise((resolve, reject) => {
       const timeoutId = setTimeout(() => {
         this.activeRequests.delete(docId);

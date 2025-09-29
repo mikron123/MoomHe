@@ -6,5 +6,14 @@ module.exports = defineConfig({
   server: {
     port: 3000,
     open: true
+  },
+  publicDir: 'public',
+  build: {
+    assetsDir: 'assets',
+    rollupOptions: {
+      input: {
+        main: './index.html'
+      }
+    }
   }
 })

@@ -1396,45 +1396,46 @@ function App() {
           </div>
           
           {/* Mobile Layout */}
-          <div className="md:hidden relative py-3">
-            {/* Left: Profile Button */}
-            <div className="absolute top-3 left-0">
-              <button 
-                className="bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 rounded-full flex items-center gap-2 px-3 py-2 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm" 
-                disabled={isProcessing}
-                onClick={() => {
-                  if (currentUser && !currentUser.isAnonymous) {
-                    setShowLogoutModal(true)
-                  } else {
-                    setShowAuthModal(true)
-                  }
-                }}
-              >
-                {currentUser && !currentUser.isAnonymous ? (
-                  <>
-                    <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
-                      <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                    <span className="text-xs">{currentUser.email}</span>
-                  </>
-                ) : (
-                  <>
-                    <User className="w-4 h-4" />
-                    התחבר
-                  </>
-                )}
-              </button>
-            </div>
-            
-            {/* Center: Logo */}
-            <div className="flex justify-center">
-              <img src="/Logo.png" alt="MoomHe Logo" className="h-12 w-auto" />
-            </div>
-            
-            {/* Right: Categories Dropdown */}
-            <div className="absolute top-3 right-0">
+          <div className="md:hidden py-3">
+            <div className="flex items-center justify-between">
+              {/* Left: Profile Button */}
+              <div className="flex items-center">
+                <button 
+                  className="bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 rounded-full flex items-center gap-2 px-3 py-2 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm" 
+                  disabled={isProcessing}
+                  onClick={() => {
+                    if (currentUser && !currentUser.isAnonymous) {
+                      setShowLogoutModal(true)
+                    } else {
+                      setShowAuthModal(true)
+                    }
+                  }}
+                >
+                  {currentUser && !currentUser.isAnonymous ? (
+                    <>
+                      <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+                        <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                      <span className="text-xs">{currentUser.email}</span>
+                    </>
+                  ) : (
+                    <>
+                      <User className="w-4 h-4" />
+                      התחבר
+                    </>
+                  )}
+                </button>
+              </div>
+              
+              {/* Center: Logo */}
+              <div className="flex items-center">
+                <img src="/Logo.png" alt="MoomHe Logo" className="h-12 w-auto" />
+              </div>
+              
+              {/* Right: Categories Dropdown */}
+              <div className="flex items-center">
               <div className="relative mobile-dropdown">
                 <button
                   onClick={() => setShowMobileDropdown(!showMobileDropdown)}
@@ -1470,6 +1471,7 @@ function App() {
                     })}
                   </div>
                 )}
+              </div>
               </div>
             </div>
           </div>
