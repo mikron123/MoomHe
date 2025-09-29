@@ -15,6 +15,8 @@ function App() {
   const [showFurnitureOptions, setShowFurnitureOptions] = useState(false)
   const [showRepairsOptions, setShowRepairsOptions] = useState(false)
   const [showStyleOptions, setShowStyleOptions] = useState(false)
+  const [showDoorsWindowsOptions, setShowDoorsWindowsOptions] = useState(false)
+  const [showBathroomOptions, setShowBathroomOptions] = useState(false)
   const [imageHistory, setImageHistory] = useState([])
   const [currentUser, setCurrentUser] = useState(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -189,59 +191,61 @@ function App() {
   const categoryActionButtons = {
     'עיצוב פנים וחוץ': [
       { name: 'שינוי טוטאלי', action: () => setShowStyleOptions(!showStyleOptions), icon: FreeStyle },
+      { name: 'תיקונים/נזקים', action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer },
       { name: 'שנה צבע', action: () => setShowColorPalette(!showColorPalette), icon: Palette },
       { name: 'זווית', action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
       { name: 'תאורה', action: () => setShowLightingOptions(!showLightingOptions), icon: Settings },
       { name: 'הוסף ריהוט', action: () => setShowFurnitureOptions(!showFurnitureOptions), icon: Plus },
-      { name: 'תיקונים/נזקים', action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer }
+      { name: 'דלתות/חלונות', action: () => setShowDoorsWindowsOptions(!showDoorsWindowsOptions), icon: Home },
+      { name: 'רחצה', action: () => setShowBathroomOptions(!showBathroomOptions), icon: Settings }
     ],
     'גינות ומרפסות': [
       { name: 'שינוי טוטאלי', action: () => setShowStyleOptions(!showStyleOptions), icon: FreeStyle },
+      { name: 'תיקונים/נזקים', action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer },
       { name: 'שנה צבע', action: () => setShowColorPalette(!showColorPalette), icon: Palette },
       { name: 'זווית', action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
       { name: 'הוסף צמחים', action: () => addPromptToInput("Add beautiful plants and flowers to this garden"), icon: TreePine },
-      { name: 'שיפור תאורה', action: () => addPromptToInput("Enhance the outdoor lighting"), icon: Settings },
-      { name: 'תיקונים/נזקים', action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer }
+      { name: 'שיפור תאורה', action: () => addPromptToInput("Enhance the outdoor lighting"), icon: Settings }
     ],
     'רכבים ודו גלגלי': [
       { name: 'שינוי טוטאלי', action: () => setShowStyleOptions(!showStyleOptions), icon: FreeStyle },
+      { name: 'תיקונים/נזקים', action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer },
       { name: 'שנה צבע', action: () => setShowColorPalette(!showColorPalette), icon: Palette },
       { name: 'זווית', action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
       { name: 'שיפור תאורה', action: () => addPromptToInput("Enhance the lighting and reflections on this vehicle"), icon: Settings },
-      { name: 'הוסף אביזרים', action: () => addPromptToInput("Add accessories and modifications to this vehicle"), icon: Plus },
-      { name: 'תיקונים/נזקים', action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer }
+      { name: 'הוסף אביזרים', action: () => addPromptToInput("Add accessories and modifications to this vehicle"), icon: Plus }
     ],
     'קעקועים': [
       { name: 'שינוי טוטאלי', action: () => setShowStyleOptions(!showStyleOptions), icon: FreeStyle },
+      { name: 'תיקונים/נזקים', action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer },
       { name: 'שנה צבע', action: () => setShowColorPalette(!showColorPalette), icon: Palette },
       { name: 'זווית', action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
       { name: 'שיפור תאורה', action: () => addPromptToInput("Enhance the lighting to show the tattoo details"), icon: Settings },
-      { name: 'הוסף פרטים', action: () => addPromptToInput("Add more details and shading to this tattoo"), icon: Plus },
-      { name: 'תיקונים/נזקים', action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer }
+      { name: 'הוסף פרטים', action: () => addPromptToInput("Add more details and shading to this tattoo"), icon: Plus }
     ],
     'איפור וטיפוח': [
       { name: 'שינוי טוטאלי', action: () => setShowStyleOptions(!showStyleOptions), icon: FreeStyle },
+      { name: 'תיקונים/נזקים', action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer },
       { name: 'שנה צבע', action: () => setShowColorPalette(!showColorPalette), icon: Palette },
       { name: 'זווית', action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
       { name: 'שיפור תאורה', action: () => addPromptToInput("Enhance the lighting for better makeup visibility"), icon: Settings },
-      { name: 'הוסף איפור', action: () => addPromptToInput("Add more makeup and beauty enhancements"), icon: Sparkles },
-      { name: 'תיקונים/נזקים', action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer }
+      { name: 'הוסף איפור', action: () => addPromptToInput("Add more makeup and beauty enhancements"), icon: Sparkles }
     ],
     'פרסום ומוצרים': [
       { name: 'שינוי טוטאלי', action: () => setShowStyleOptions(!showStyleOptions), icon: FreeStyle },
+      { name: 'תיקונים/נזקים', action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer },
       { name: 'שנה צבע', action: () => setShowColorPalette(!showColorPalette), icon: Palette },
       { name: 'זווית', action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
       { name: 'שיפור תאורה', action: () => addPromptToInput("Enhance the product lighting and presentation"), icon: Settings },
-      { name: 'הוסף פרטים', action: () => addPromptToInput("Add product details and features"), icon: Plus },
-      { name: 'תיקונים/נזקים', action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer }
+      { name: 'הוסף פרטים', action: () => addPromptToInput("Add product details and features"), icon: Plus }
     ],
     'פרופיל ותדמית': [
       { name: 'שינוי טוטאלי', action: () => setShowStyleOptions(!showStyleOptions), icon: FreeStyle },
+      { name: 'תיקונים/נזקים', action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer },
       { name: 'שנה צבע', action: () => setShowColorPalette(!showColorPalette), icon: Palette },
       { name: 'זווית', action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
       { name: 'שיפור תאורה', action: () => addPromptToInput("Enhance the portrait lighting"), icon: Settings },
-      { name: 'הוסף רקע', action: () => addPromptToInput("Add a professional background"), icon: Plus },
-      { name: 'תיקונים/נזקים', action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer }
+      { name: 'הוסף רקע', action: () => addPromptToInput("Add a professional background"), icon: Plus }
     ]
   }
 
@@ -255,27 +259,47 @@ function App() {
         setImageAspectRatio(16/9) // Reset to default until new image loads
         setCurrentHistoryId(null) // Clear history ID for new upload
         
-        // Detect objects for uploaded image (desktop only)
-        const isMobile = window.innerWidth < 1024
-        if (!isMobile) {
-          detectObjects(e.target.result)
-        }
-        
         // Save to Firebase if user is authenticated
         if (isAuthenticated && currentUser) {
           setIsLoadingHistory(true)
           try {
-            await saveUploadToHistory(currentUser.uid, file, `Uploaded: ${file.name}`)
+            const uploadResult = await saveUploadToHistory(currentUser.uid, file, `Uploaded: ${file.name}`)
             
-            // Reload history from Firebase to get the updated list
+            // Use the ID from the upload result directly
+            const newHistoryId = uploadResult.id
+            console.log('Upload result ID:', newHistoryId)
+            console.log('Upload result:', uploadResult)
+            
+            // Reload history from Firebase to get the updated list first
             const historyResult = await loadUserHistoryPaginated(currentUser.uid, 1, 5)
             setImageHistory(historyResult.history)
             setHistoryPage(1)
             setHasMoreHistory(historyResult.hasMore)
+            
+            // Set the current history ID after reloading history
+            setCurrentHistoryId(newHistoryId)
+            console.log('Set current history ID to newly uploaded image:', newHistoryId)
+            console.log('Current history after reload:', historyResult.history.map(h => ({ id: h.id, prompt: h.prompt })))
+            
+            // Detect objects for uploaded image (desktop only) after setting the history ID
+            const isMobile = window.innerWidth < 1024
+            if (!isMobile) {
+              console.log('About to detect objects for history ID:', newHistoryId)
+              // Pass the history ID directly to avoid state timing issues
+              detectObjectsWithId(e.target.result, newHistoryId)
+            }
           } catch (error) {
             console.error('Failed to save upload to Firebase:', error)
           } finally {
             setIsLoadingHistory(false)
+          }
+        } else {
+          // For non-authenticated users, just detect objects locally
+          const isMobile = window.innerWidth < 1024
+          if (!isMobile) {
+            // Use default objects for uploaded images when not authenticated
+            const defaultObjects = categoryDefaultObjects[selectedCategory] || []
+            setDetectedObjects(defaultObjects)
           }
         }
       }
@@ -732,7 +756,7 @@ function App() {
       // If object image is available, modify prompt to include it
       let promptWithObject = finalPrompt
       if (objectImageFile) {
-        promptWithObject = `Using the provided object image, ${finalPrompt}`
+        promptWithObject = `השתמש בתמונות שצורפו, ${finalPrompt}`
       }
       
       console.log('🎯 Final prompt for AI:', promptWithObject)
@@ -760,11 +784,23 @@ function App() {
   const detectObjects = async (imageUrl) => {
     if (!imageUrl) return
     
-    // Only allow object detection on history images
+    // Allow object detection on history images or newly uploaded images with a history ID
     if (!currentHistoryId) {
-      alert('אובייקטים יכולים להיות מזוהים רק על תמונות מההיסטוריה. אנא בחר תמונה מההיסטוריה תחילה.')
+      console.log('No current history ID available for object detection')
       return
     }
+    
+    console.log('detectObjects called with currentHistoryId:', currentHistoryId)
+    console.log('detectObjects called with imageUrl:', imageUrl)
+    
+    return detectObjectsWithId(imageUrl, currentHistoryId)
+  }
+
+  const detectObjectsWithId = async (imageUrl, historyId) => {
+    if (!imageUrl || !historyId) return
+    
+    console.log('detectObjectsWithId called with historyId:', historyId)
+    console.log('detectObjectsWithId called with imageUrl:', imageUrl)
     
     setIsLoadingObjects(true)
     try {
@@ -799,9 +835,11 @@ function App() {
       }
       
       // Submit request to server (HTTP function)
-      const result = await aiService.submitObjectDetectionRequest(currentUser, imageDataForServer, currentHistoryId)
+      console.log('Submitting object detection request for history ID:', historyId)
+      const result = await aiService.submitObjectDetectionRequest(currentUser, imageDataForServer, historyId)
       
       console.log('Object detection result:', result)
+      console.log('Objects will be saved to history ID:', historyId)
       
       if (result && result.objects) {
         console.log('Raw objects from server:', result.objects)
@@ -838,6 +876,18 @@ function App() {
         
         setDetectedObjects(objectsArray)
         console.log('Final detected objects:', objectsArray)
+        
+        // Update the local imageHistory state with the detected objects
+        if (historyId && imageHistory.length > 0) {
+          setImageHistory(prevHistory => 
+            prevHistory.map(entry => 
+              entry.id === historyId 
+                ? { ...entry, objects: objectsArray }
+                : entry
+            )
+          )
+          console.log('Updated local imageHistory with detected objects for ID:', historyId, objectsArray)
+        }
       } else {
         setDetectedObjects([])
       }
@@ -1216,12 +1266,22 @@ function App() {
         }
       }
       
+      // Process object image if available
+      let objectImageData = null;
+      if (objectImageFile) {
+        console.log('🖼️ Processing object image file:', objectImageFile.name, objectImageFile.type, objectImageFile.size);
+        objectImageData = await fileToGenerativePart(objectImageFile);
+        console.log('🖼️ Object image processed successfully:', !!objectImageData);
+      } else {
+        console.log('🖼️ No object image file available');
+      }
+      
       // Submit request to server
       const requestId = await aiService.submitImageGenerationRequest(
         currentUser, 
         prompt, 
         imageDataForServer, 
-        objectImageFile ? await fileToGenerativePart(objectImageFile) : null
+        objectImageData
       )
       
       // Wait for completion
@@ -1518,60 +1578,81 @@ function App() {
                 <button
                   onClick={handleCustomPromptSubmit}
                   disabled={isProcessing || !customPrompt.trim()}
-                  className="w-10 h-10 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center justify-center transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center justify-center transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                  </svg>
+                  <span className="text-sm font-medium">בצע</span>
                 </button>
               </div>
 
 
               {/* Mobile Action Buttons - Horizontal Scroll */}
-              <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2 mb-4">
-                {/* Object Image Upload - First Button */}
-                <button
-                  onClick={isProcessing ? undefined : handleObjectUploadClick}
-                  disabled={isProcessing}
-                  className="flex-shrink-0 btn-secondary border-2 border-dashed border-blue-400 hover:border-blue-500 hover:bg-blue-50 flex items-center text-sm px-3 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {objectImage ? (
-                    <div className="relative w-4 h-4 ml-2">
-                      <img
-                        src={objectImage}
-                        alt="Object to add"
-                        className="w-full h-full object-cover rounded border border-gray-300"
-                  />
+              <div className="relative">
+                <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2 mb-4" ref={(el) => {
+                  if (el) {
+                    el.addEventListener('scroll', () => {
+                      const isScrollable = el.scrollWidth > el.clientWidth;
+                      const isAtStart = el.scrollLeft <= 5;
+                      const isAtEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 5;
+                      const leftFade = el.parentElement.querySelector('.fade-overlay-left');
+                      const rightFade = el.parentElement.querySelector('.fade-overlay-right');
+                      
+                      if (leftFade) {
+                        leftFade.style.opacity = isScrollable && !isAtEnd ? '1' : '0';
+                      }
+                      if (rightFade) {
+                        rightFade.style.opacity = isScrollable && !isAtStart ? '1' : '0';
+                      }
+                    });
+                  }
+                }}>
+                  {/* Object Image Upload - First Button */}
                   <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleRemoveObjectImage()
-                        }}
+                    onClick={isProcessing ? undefined : handleObjectUploadClick}
                     disabled={isProcessing}
-                        className="absolute -top-1 -right-1 bg-red-500 hover:bg-red-600 text-white rounded-full w-3 h-3 flex items-center justify-center text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-shrink-0 btn-secondary border-2 border-dashed border-blue-400 hover:border-blue-500 hover:bg-blue-50 flex items-center text-sm px-3 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                        ×
+                    {objectImage ? (
+                      <div className="relative w-4 h-4 ml-2">
+                        <img
+                          src={objectImage}
+                          alt="Object to add"
+                          className="w-full h-full object-cover rounded border border-gray-300"
+                    />
+                    <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleRemoveObjectImage()
+                          }}
+                      disabled={isProcessing}
+                          className="absolute -top-1 -right-1 bg-red-500 hover:bg-red-600 text-white rounded-full w-3 h-3 flex items-center justify-center text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                          ×
+                    </button>
+                  </div>
+                ) : (
+                      <Plus className="w-4 h-4 text-blue-500 ml-2" />
+                    )}
+                    <span className="text-blue-600">הוסף אובייקט</span>
                   </button>
+                  
+                  {/* Category-specific action buttons */}
+                  {categoryActionButtons[selectedCategory]?.map((button, index) => (
+                    <button
+                      key={index}
+                      onClick={button.action}
+                      disabled={isProcessing}
+                      className="flex-shrink-0 btn-secondary flex items-center text-sm px-3 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <button.icon className="w-4 h-4 ml-2" />
+                      {button.name}
+                    </button>
+                  ))}
                 </div>
-              ) : (
-                    <Plus className="w-4 h-4 text-blue-500 ml-2" />
-                  )}
-                  <span className="text-blue-600">הוסף אובייקט</span>
-                </button>
                 
-                {/* Category-specific action buttons */}
-                {categoryActionButtons[selectedCategory]?.map((button, index) => (
-                  <button
-                    key={index}
-                    onClick={button.action}
-                    disabled={isProcessing}
-                    className="flex-shrink-0 btn-secondary flex items-center text-sm px-3 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <button.icon className="w-4 h-4 ml-2" />
-                    {button.name}
-                  </button>
-                ))}
-                </div>
+                {/* Fade overlays */}
+                <div className="fade-overlay-left absolute top-0 left-0 w-8 h-full bg-gradient-to-r from-white to-transparent pointer-events-none transition-opacity duration-300 opacity-0"></div>
+                <div className="fade-overlay-right absolute top-0 right-0 w-8 h-full bg-gradient-to-l from-white to-transparent pointer-events-none transition-opacity duration-300 opacity-0"></div>
+              </div>
               
               {/* Hidden file input for object upload */}
               <input
@@ -1624,7 +1705,7 @@ function App() {
                 <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                תמונות
+                יצירות
               </h3>
               <div className={`transition-opacity duration-300 ${
                 isLoadingHistory || isProcessing ? 'opacity-50 pointer-events-none' : ''
@@ -1638,27 +1719,42 @@ function App() {
                     <p className="text-xs text-gray-400 mt-1">התמונות שייווצרו יופיעו כאן</p>
                   </div>
                 ) : (
-                  <div 
-                    ref={historyScrollRef}
-                    className="grid grid-cols-3 gap-3 max-h-48 overflow-y-auto scrollbar-hide"
-                    onScroll={(e) => {
-                      const { scrollTop, scrollHeight, clientHeight } = e.target
-                      if (scrollTop + clientHeight >= scrollHeight - 10 && hasMoreHistory && !isLoadingMoreHistory) {
-                        loadMoreHistory()
-                      }
-                    }}
-                  >
+                  <div className="relative">
+                    <div 
+                      ref={historyScrollRef}
+                      className="flex gap-3 overflow-x-auto scrollbar-visible pb-2"
+                      onScroll={(e) => {
+                        const { scrollLeft, scrollWidth, clientWidth } = e.target
+                        if (scrollLeft + clientWidth >= scrollWidth - 10 && hasMoreHistory && !isLoadingMoreHistory) {
+                          loadMoreHistory()
+                        }
+                        
+                        // Handle fade effects
+                        const isScrollable = scrollWidth > clientWidth;
+                        const isAtStart = scrollLeft <= 5;
+                        const isAtEnd = scrollLeft + clientWidth >= scrollWidth - 5;
+                        const leftFade = e.target.parentElement.querySelector('.image-fade-overlay-left');
+                        const rightFade = e.target.parentElement.querySelector('.image-fade-overlay-right');
+                        
+                        if (leftFade) {
+                          leftFade.style.opacity = isScrollable && !isAtEnd ? '1' : '0';
+                        }
+                        if (rightFade) {
+                          rightFade.style.opacity = isScrollable && !isAtStart ? '1' : '0';
+                        }
+                      }}
+                    >
                     {(imageHistory || []).map((entry) => (
                       <div
                         key={entry.id}
                         onClick={() => handleHistoryImageClick(entry)}
-                        className="cursor-pointer group"
+                        className="cursor-pointer group flex-shrink-0 w-24"
                       >
                         <div className="relative">
                           <img
                             src={entry.thumbnailUrl || entry.storageUrl || entry.imageUrl}
                             alt="History entry"
-                            className="w-full h-20 object-cover rounded-lg group-hover:opacity-80 transition-opacity duration-200"
+                            className="w-24 h-24 object-cover rounded-lg group-hover:opacity-80 transition-opacity duration-200"
                           />
                           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200 rounded-lg"></div>
                         </div>
@@ -1673,10 +1769,15 @@ function App() {
                     
                     {/* Loading more indicator */}
                     {isLoadingMoreHistory && (
-                      <div className="col-span-3 flex justify-center py-4">
+                      <div className="flex-shrink-0 flex items-center justify-center w-24">
                         <div className="w-6 h-6 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
                       </div>
                     )}
+                    </div>
+                    
+                    {/* Fade overlays for images */}
+                    <div className="image-fade-overlay-left absolute top-0 left-0 w-6 h-full bg-gradient-to-r from-white to-transparent pointer-events-none transition-opacity duration-300 opacity-0"></div>
+                    <div className="image-fade-overlay-right absolute top-0 right-0 w-6 h-full bg-gradient-to-l from-white to-transparent pointer-events-none transition-opacity duration-300 opacity-0"></div>
                   </div>
                 )}
               </div>
@@ -1700,7 +1801,7 @@ function App() {
 
             {/* History Panel */}
             <div className="card p-4 relative">
-              <h3 className="text-lg font-semibold text-text mb-3">תמונות</h3>
+               <h3 className="text-lg font-semibold text-text mb-3">יצירות</h3>
               <div className={`transition-opacity duration-300 ${
                 isLoadingHistory || isProcessing ? 'opacity-50 pointer-events-none' : ''
               }`}>
@@ -1714,7 +1815,7 @@ function App() {
                 </div>
               ) : (
                 <div 
-                  className="space-y-3 max-h-96 overflow-y-auto scrollbar-hide"
+                  className="space-y-3 max-h-96 overflow-y-auto scrollbar-visible"
                   onScroll={(e) => {
                     const { scrollTop, scrollHeight, clientHeight } = e.target
                     if (scrollTop + clientHeight >= scrollHeight - 10 && hasMoreHistory && !isLoadingMoreHistory) {
@@ -1821,7 +1922,7 @@ function App() {
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-2 max-h-96 overflow-y-auto scrollbar-hide">
+                  <div className="space-y-2 max-h-96 overflow-y-auto scrollbar-visible">
                     {(detectedObjects || []).map((object, index) => (
                       <div
                         key={index}
@@ -1928,9 +2029,10 @@ function App() {
                   <button
                     onClick={handleCustomPromptSubmit}
                     disabled={isProcessing || !customPrompt.trim()}
-                    className="w-12 h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center justify-center transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <span className="text-sm font-medium">בצע</span>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                     </svg>
                   </button>
@@ -1939,19 +2041,6 @@ function App() {
 
               {/* Action Buttons */}
               <div className="flex flex-wrap gap-4">
-                {/* Category-specific action buttons */}
-                {categoryActionButtons[selectedCategory]?.map((button, index) => (
-                <button 
-                    key={index}
-                    onClick={button.action}
-                  disabled={isProcessing}
-                  className="btn-secondary flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                    <button.icon className="w-4 h-4 ml-2" />
-                    {button.name}
-                </button>
-                ))}
-                
                 {/* Object Image Upload - always available */}
                 <div className="relative">
                   {objectImage ? (
@@ -1988,6 +2077,19 @@ function App() {
                     className="hidden"
                   />
                 </div>
+                
+                {/* Category-specific action buttons */}
+                {categoryActionButtons[selectedCategory]?.map((button, index) => (
+                <button 
+                    key={index}
+                    onClick={button.action}
+                  disabled={isProcessing}
+                  className="btn-secondary flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    <button.icon className="w-4 h-4 ml-2" />
+                    {button.name}
+                </button>
+                ))}
               </div>
 
             </div>
@@ -2238,6 +2340,275 @@ function App() {
                     </div>
                   </button>
                 ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Doors/Windows Options Modal */}
+      {showDoorsWindowsOptions && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-xl shadow-2xl w-full mx-4 max-h-[80vh] overflow-y-auto max-w-[95vw] md:max-w-4xl">
+            <div className="p-4 md:p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-lg font-semibold text-text">דלתות וחלונות</h3>
+                <button
+                  onClick={() => setShowDoorsWindowsOptions(false)}
+                  disabled={isProcessing}
+                  className="text-gray-500 hover:text-gray-700 text-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  ×
+                </button>
+              </div>
+              
+              <div className="space-y-6">
+                {/* Window Options */}
+                <div>
+                  <h4 className="text-md font-semibold text-gray-800 mb-3">אפשרויות חלונות</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {[
+                      { name: 'חלון מפרץ/קשת', value: 'הוסף חלון מפרץ או קשת שמגדיל את החלל', hebrew: 'הוסף חלון מפרץ או קשת שמגדיל את החלל' },
+                      { name: 'חלון תמונה', value: 'Picture Window: Large, fixed view.', hebrew: 'הוסף חלון תמונה גדול עם נוף קבוע' },
+                      { name: 'חלון ציר', value: 'Casement Window: Outward crank open.', hebrew: 'הוסף חלון ציר שנפתח החוצה' },
+                      { name: 'חלון גג/מנהרת שמש', value: 'Skylight / Sun Tunnel: Light from above.', hebrew: 'הוסף חלון גג או מנהרת שמש לאור מלמעלה' },
+                      { name: 'חלון טרנזום', value: 'Transom Window: Sits over door.', hebrew: 'הוסף חלון טרנזום מעל הדלת' },
+                      { name: 'חלון פנימי', value: 'Interior Window: Between two rooms.', hebrew: 'הוסף חלון פנימי בין שני חדרים' }
+                    ].map((option, index) => (
+                      <button
+                        key={index}
+                        onClick={() => {
+                          addPromptToInput(option.hebrew)
+                          setShowDoorsWindowsOptions(false)
+                        }}
+                        disabled={isProcessing}
+                        className="flex items-center gap-3 p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-right"
+                      >
+                        <Home className="w-5 h-5 text-gray-600 flex-shrink-0" />
+                        <div>
+                          <div className="text-sm font-medium text-gray-800">{option.name}</div>
+                          <div className="text-xs text-gray-500">{option.hebrew}</div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Door Options */}
+                <div>
+                  <h4 className="text-md font-semibold text-gray-800 mb-3">אפשרויות דלתות</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {[
+                      { name: 'דלתות צרפתיות', value: 'French Doors: Glass pane entry.', hebrew: 'הוסף דלתות צרפתיות עם זכוכית' },
+                      { name: 'דלת כיס', value: 'Pocket Door: Slides inside wall.', hebrew: 'הוסף דלת כיס שנכנסת לתוך הקיר' },
+                      { name: 'דלת אסם', value: 'Barn Door: Sliding exposed track.', hebrew: 'הוסף דלת אסם עם מסילה גלויה' },
+                      { name: 'דלת לובר', value: 'Louvered Door: Vented slats, air.', hebrew: 'הוסף דלת לובר עם סורגים לאוורור' }
+                    ].map((option, index) => (
+                      <button
+                        key={index}
+                        onClick={() => {
+                          addPromptToInput(option.hebrew)
+                          setShowDoorsWindowsOptions(false)
+                        }}
+                        disabled={isProcessing}
+                        className="flex items-center gap-3 p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-right"
+                      >
+                        <Home className="w-5 h-5 text-gray-600 flex-shrink-0" />
+                        <div>
+                          <div className="text-sm font-medium text-gray-800">{option.name}</div>
+                          <div className="text-xs text-gray-500">{option.hebrew}</div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bathroom Options Modal */}
+      {showBathroomOptions && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-xl shadow-2xl w-full mx-4 max-h-[80vh] overflow-y-auto max-w-[95vw] md:max-w-4xl">
+            <div className="p-4 md:p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-lg font-semibold text-text">אפשרויות רחצה</h3>
+                <button
+                  onClick={() => setShowBathroomOptions(false)}
+                  disabled={isProcessing}
+                  className="text-gray-500 hover:text-gray-700 text-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  ×
+                </button>
+              </div>
+              
+              <div className="space-y-6">
+                {/* Toilet Options */}
+                <div>
+                  <h4 className="text-md font-semibold text-gray-800 mb-3">אפשרויות אסלה</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {[
+                      { name: 'מושב אסלה', value: 'Toilet Seat: Slow-close lid', hebrew: 'הוסף מושב אסלה עם מכסה שנסגר לאט' },
+                      { name: 'בידט מחומם', value: 'Toilet Seat: Heated bidet function', hebrew: 'הוסף מושב אסלה עם פונקציית בידט מחוממת' }
+                    ].map((option, index) => (
+                      <button
+                        key={index}
+                        onClick={() => {
+                          addPromptToInput(option.hebrew)
+                          setShowBathroomOptions(false)
+                        }}
+                        disabled={isProcessing}
+                        className="flex items-center gap-3 p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-right"
+                      >
+                        <Settings className="w-5 h-5 text-gray-600 flex-shrink-0" />
+                        <div>
+                          <div className="text-sm font-medium text-gray-800">{option.name}</div>
+                          <div className="text-xs text-gray-500">{option.hebrew}</div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Bathtub Options */}
+                <div>
+                  <h4 className="text-md font-semibold text-gray-800 mb-3">אפשרויות אמבטיה</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {[
+                      { name: 'אמבטיה עומדת', value: 'Bathtub: Freestanding oval soak', hebrew: 'הוסף אמבטיה עומדת אליפטית' },
+                      { name: 'אמבטיה וינטג', value: 'Bathtub: Clawfoot vintage design', hebrew: 'הוסף אמבטיה וינטג עם רגליים מעוצבות' },
+                      { name: 'אמבטיה סטנדרטית', value: 'Bathtub: Drop-in standard size', hebrew: 'הוסף אמבטיה סטנדרטית מובנית' }
+                    ].map((option, index) => (
+                      <button
+                        key={index}
+                        onClick={() => {
+                          addPromptToInput(option.hebrew)
+                          setShowBathroomOptions(false)
+                        }}
+                        disabled={isProcessing}
+                        className="flex items-center gap-3 p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-right"
+                      >
+                        <Settings className="w-5 h-5 text-gray-600 flex-shrink-0" />
+                        <div>
+                          <div className="text-sm font-medium text-gray-800">{option.name}</div>
+                          <div className="text-xs text-gray-500">{option.hebrew}</div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Shower Options */}
+                <div>
+                  <h4 className="text-md font-semibold text-gray-800 mb-3">אפשרויות מקלחת</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {[
+                      { name: 'מקלחת זכוכית', value: 'Shower: Walk-in frameless glass', hebrew: 'הוסף מקלחת עם זכוכית ללא מסגרת' },
+                      { name: 'מקלחת גשם', value: 'Shower: Rainfall head system', hebrew: 'הוסף מקלחת עם מערכת ראש גשם' },
+                      { name: 'מקלחת דלתות', value: 'Shower: Sliding door enclosure', hebrew: 'הוסף מקלחת עם דלתות הזזה' }
+                    ].map((option, index) => (
+                      <button
+                        key={index}
+                        onClick={() => {
+                          addPromptToInput(option.hebrew)
+                          setShowBathroomOptions(false)
+                        }}
+                        disabled={isProcessing}
+                        className="flex items-center gap-3 p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-right"
+                      >
+                        <Settings className="w-5 h-5 text-gray-600 flex-shrink-0" />
+                        <div>
+                          <div className="text-sm font-medium text-gray-800">{option.name}</div>
+                          <div className="text-xs text-gray-500">{option.hebrew}</div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Sink Options */}
+                <div>
+                  <h4 className="text-md font-semibold text-gray-800 mb-3">אפשרויות כיור</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {[
+                      { name: 'כיור כלי', value: 'Sink (Vanity): Vessel bowl style', hebrew: 'הוסף כיור כלי בסגנון קערה' },
+                      { name: 'כיור עמוד', value: 'Sink (Vanity): Pedestal classic look', hebrew: 'הוסף כיור עמוד בסגנון קלאסי' },
+                      { name: 'כיור מובנה', value: 'Sink (Vanity): Undermount ceramic white', hebrew: 'הוסף כיור מובנה קרמי לבן' }
+                    ].map((option, index) => (
+                      <button
+                        key={index}
+                        onClick={() => {
+                          addPromptToInput(option.hebrew)
+                          setShowBathroomOptions(false)
+                        }}
+                        disabled={isProcessing}
+                        className="flex items-center gap-3 p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-right"
+                      >
+                        <Settings className="w-5 h-5 text-gray-600 flex-shrink-0" />
+                        <div>
+                          <div className="text-sm font-medium text-gray-800">{option.name}</div>
+                          <div className="text-xs text-gray-500">{option.hebrew}</div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Jacuzzi/Spa Options */}
+                <div>
+                  <h4 className="text-md font-semibold text-gray-800 mb-3">אפשרויות ג\'קוזי/ספא</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {[
+                      { name: 'ג\'קוזי נייד', value: 'Jacuzzi / Spa: Portable vinyl bubble', hebrew: 'הוסף ג\'קוזי נייד ויניל' },
+                      { name: 'ג\'קוזי מובנה', value: 'Jacuzzi / Spa: Built-in tiled perimeter', hebrew: 'הוסף ג\'קוזי מובנה עם אריחים' }
+                    ].map((option, index) => (
+                      <button
+                        key={index}
+                        onClick={() => {
+                          addPromptToInput(option.hebrew)
+                          setShowBathroomOptions(false)
+                        }}
+                        disabled={isProcessing}
+                        className="flex items-center gap-3 p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-right"
+                      >
+                        <Settings className="w-5 h-5 text-gray-600 flex-shrink-0" />
+                        <div>
+                          <div className="text-sm font-medium text-gray-800">{option.name}</div>
+                          <div className="text-xs text-gray-500">{option.hebrew}</div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Pool Options */}
+                <div>
+                  <h4 className="text-md font-semibold text-gray-800 mb-3">אפשרויות בריכה</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {[
+                      { name: 'בריכה מעל הקרקע', value: 'Pool: Above-ground metal frame', hebrew: 'הוסף בריכה מעל הקרקע עם מסגרת מתכת' },
+                      { name: 'בריכה בתוך הקרקע', value: 'Pool: In-ground concrete custom', hebrew: 'הוסף בריכה בתוך הקרקע מבטון מותאמת אישית' }
+                    ].map((option, index) => (
+                      <button
+                        key={index}
+                        onClick={() => {
+                          addPromptToInput(option.hebrew)
+                          setShowBathroomOptions(false)
+                        }}
+                        disabled={isProcessing}
+                        className="flex items-center gap-3 p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-right"
+                      >
+                        <Settings className="w-5 h-5 text-gray-600 flex-shrink-0" />
+                        <div>
+                          <div className="text-sm font-medium text-gray-800">{option.name}</div>
+                          <div className="text-xs text-gray-500">{option.hebrew}</div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           </div>

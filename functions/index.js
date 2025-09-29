@@ -86,19 +86,31 @@ async function uploadToStorage(userId, imageBuffer, filename, isThumbnail = fals
 }
 
 // Helper function to process image with Gemini
-async function processImageWithGemini(prompt, imageData, isObjectDetection = false) {
+async function processImageWithGemini(prompt, imageData, isObjectDetection = false, objectImageData = null) {
   const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-image-preview" });
   
   try {
     // Log image data info for debugging
     logger.info(`Processing image - isObjectDetection: ${isObjectDetection}, dataLength: ${imageData.inlineData.data.length}, mimeType: ${imageData.inlineData.mimeType}`);
+    if (objectImageData) {
+      logger.info(`Object image provided - dataLength: ${objectImageData.inlineData.data.length}, mimeType: ${objectImageData.inlineData.mimeType}`);
+    }
     
     if (isObjectDetection) {
       const objectDetectionPrompt = "make a very simple name list of the different objects (2-4 words each) that are in the image. include things like walls/sky etc. write the answer it in a json format only. write the names in Hebrew. if there are 2 similar named objects like \"window\" make it clear which window is which, e.g. \"small window\" and \"big window\"";
       const result = await model.generateContent([objectDetectionPrompt, imageData]);
       return { type: 'text', content: result.response.text() };
     } else {
-      const result = await model.generateContent([prompt, imageData]);
+      // Prepare content array with prompt and main image
+      const content = [prompt, imageData];
+      
+      // Add object image if provided
+      if (objectImageData) {
+        content.push(objectImageData);
+        logger.info('Added object image to Gemini request');
+      }
+      
+      const result = await model.generateContent(content);
       
       // Debug: Log the response structure
       logger.info('Gemini response structure:', {
@@ -329,7 +341,14 @@ exports.processImageRequest = onDocumentCreated('userHistory/{docId}', async (ev
         logger.info(`Base64 data processed - dataLength: ${docData.imageData.length}`);
       }
       
-      result = await processImageWithGemini(docData.prompt, imageData, false);
+      // Process object image if provided
+      let objectImageData = null;
+      if (docData.objectImageData) {
+        logger.info(`Processing object image - dataLength: ${docData.objectImageData.inlineData.data.length}, mimeType: ${docData.objectImageData.inlineData.mimeType}`);
+        objectImageData = docData.objectImageData;
+      }
+      
+      result = await processImageWithGemini(docData.prompt, imageData, false, objectImageData);
       
       if (result.type === 'image') {
         // Convert base64 to buffer
