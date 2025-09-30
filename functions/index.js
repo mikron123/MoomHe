@@ -582,6 +582,87 @@ exports.detectObjects = onRequest({ cors: true }, async (req, res) => {
   }
 });
 
+// HTTP function for speech-to-text using Gemini
+exports.speechToText = onRequest({ cors: true }, async (req, res) => {
+  // Set CORS headers
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+  
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: 'Method not allowed' });
+    return;
+  }
+  
+  try {
+    const { audioData, authToken } = req.body;
+    
+    if (!audioData || !authToken) {
+      res.status(400).json({ error: 'Missing required fields: audioData, authToken' });
+      return;
+    }
+    
+    // Validate user token
+    const user = await validateUserToken(authToken);
+    const userId = user.uid;
+    
+    logger.info(`Processing speech-to-text for user: ${userId}`);
+    
+    // Process audio data with Gemini
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    
+    // Convert audio data to the format expected by Gemini
+    let audioDataForGemini;
+    if (audioData.startsWith('data:')) {
+      // Data URL format
+      const [header, base64Data] = audioData.split(',');
+      const mimeType = header.match(/data:([^;]+)/)?.[1] || 'audio/wav';
+      audioDataForGemini = {
+        inlineData: {
+          data: base64Data,
+          mimeType: mimeType
+        }
+      };
+    } else {
+      // Assume it's already base64
+      audioDataForGemini = {
+        inlineData: {
+          data: audioData,
+          mimeType: 'audio/wav'
+        }
+      };
+    }
+    
+    logger.info(`Audio data size: ${audioDataForGemini.inlineData.data.length} characters`);
+    
+    // Create prompt for Hebrew speech recognition
+    const prompt = `Transcribe the following audio to text. The audio is in Hebrew language. Return only the transcribed text in Hebrew, nothing else. Do not translate to English, keep it in Hebrew.`;
+    
+    const result = await model.generateContent([prompt, audioDataForGemini]);
+    const transcribedText = result.response.text().trim();
+    
+    logger.info(`Speech-to-text result: ${transcribedText}`);
+    
+    res.json({
+      success: true,
+      text: transcribedText,
+      userId: userId
+    });
+    
+  } catch (error) {
+    logger.error('Speech-to-text error:', error);
+    res.status(500).json({ 
+      error: error.message || 'Speech-to-text failed',
+      success: false 
+    });
+  }
+});
+
 // HTTP function for health check
 exports.healthCheck = onRequest({ cors: true }, (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

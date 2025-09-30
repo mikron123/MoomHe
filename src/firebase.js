@@ -3,7 +3,7 @@ import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
 import { getAI, getGenerativeModel, GoogleAIBackend, ResponseModality } from "firebase/ai";
 import { getAuth, signInAnonymously, onAuthStateChanged } from "firebase/auth";
-import { getFirestore, doc, setDoc, getDoc, collection, query, orderBy, getDocs } from "firebase/firestore";
+import { getFirestore, doc, setDoc, getDoc, collection, query, orderBy, where, getDocs, limit, startAfter } from "firebase/firestore";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 // Your web app's Firebase configuration
@@ -288,20 +288,23 @@ async function saveUploadToHistory(userId, file, prompt = '') {
 async function loadUserHistory(userId) {
   try {
     const historyRef = collection(db, 'userHistory');
-    const q = query(historyRef, orderBy('createdAt', 'desc'));
+    const q = query(historyRef,
+      where('userId', '==', userId),
+      orderBy('createdAt', 'desc')
+    );
     const querySnapshot = await getDocs(q);
-    
+
     const history = [];
     querySnapshot.forEach((doc) => {
       const data = doc.data();
-      // Only include records that belong to the current user and don't have errors
-      if (data.userId === userId && !data.isError) {
+      // Only include records that don't have errors
+      if (!data.isError) {
         // Handle nested result structure from server-side processing
         const historyEntry = {
           id: doc.id,
           ...data
         };
-        
+
         // If this is a server-processed result, flatten the result object
         if (data.result && data.result.storageUrl) {
           historyEntry.storageUrl = data.result.storageUrl;
@@ -309,16 +312,16 @@ async function loadUserHistory(userId) {
           historyEntry.filename = data.result.filename;
           historyEntry.thumbnailFilename = data.result.thumbnailFilename;
         }
-        
+
         // Preserve objects field if it exists (from object detection)
         if (data.objects) {
           historyEntry.objects = data.objects;
         }
-        
+
         history.push(historyEntry);
       }
     });
-    
+
     return history;
   } catch (error) {
     console.error('Error loading user history:', error);
@@ -326,23 +329,57 @@ async function loadUserHistory(userId) {
   }
 }
 
-async function loadUserHistoryPaginated(userId, page = 1, pageSize = 5) {
+async function loadUserHistoryPaginated(userId, page = 1, pageSize = 7) {
   try {
     const historyRef = collection(db, 'userHistory');
-    const q = query(historyRef, orderBy('createdAt', 'desc'));
+
+    // Get the last document from previous page for cursor-based pagination
+    let lastDoc = null;
+    if (page > 1) {
+      // For subsequent pages, we need to get the cursor from the last item of previous page
+      // This is a simplified approach - in a real app, you'd want to store cursors
+      const prevPageQuery = query(historyRef,
+        where('userId', '==', userId),
+        orderBy('createdAt', 'desc'),
+        limit((page - 1) * pageSize)
+      );
+      const prevSnapshot = await getDocs(prevPageQuery);
+      if (!prevSnapshot.empty) {
+        lastDoc = prevSnapshot.docs[prevSnapshot.docs.length - 1];
+      }
+    }
+
+    // Build the query for current page - fetch more than needed to account for filtered items
+    let q;
+    const fetchLimit = pageSize * 2; // Fetch double to account for potential filtering
+    if (lastDoc && page > 1) {
+      q = query(historyRef,
+        where('userId', '==', userId),
+        orderBy('createdAt', 'desc'),
+        startAfter(lastDoc),
+        limit(fetchLimit)
+      );
+    } else {
+      q = query(historyRef,
+        where('userId', '==', userId),
+        orderBy('createdAt', 'desc'),
+        limit(fetchLimit)
+      );
+    }
+
     const querySnapshot = await getDocs(q);
-    
-    const allHistory = [];
+
+    const history = [];
     querySnapshot.forEach((doc) => {
       const data = doc.data();
-      // Only include records that belong to the current user and don't have errors
-      if (data.userId === userId && !data.isError) {
+      // Only include records that don't have errors
+      if (!data.isError) {
         // Handle nested result structure from server-side processing
         const historyEntry = {
           id: doc.id,
           ...data
         };
-        
+
         // If this is a server-processed result, flatten the result object
         if (data.result && data.result.storageUrl) {
           historyEntry.storageUrl = data.result.storageUrl;
@@ -350,23 +387,25 @@ async function loadUserHistoryPaginated(userId, page = 1, pageSize = 5) {
           historyEntry.filename = data.result.filename;
           historyEntry.thumbnailFilename = data.result.thumbnailFilename;
         }
-        
+
         // Preserve objects field if it exists (from object detection)
         if (data.objects) {
           historyEntry.objects = data.objects;
         }
-        
-        allHistory.push(historyEntry);
+
+        history.push(historyEntry);
       }
     });
+
+    // Take only the requested page size
+    const paginatedHistory = history.slice(0, pageSize);
     
-    // Implement pagination manually - only return items for current page
-    const startIndex = (page - 1) * pageSize;
-    const endIndex = page * pageSize;
-    const history = allHistory.slice(startIndex, endIndex);
-    const hasMore = endIndex < allHistory.length;
-    
-    return { history, hasMore };
+    // Determine if there are more items
+    const hasMore = querySnapshot.docs.length === fetchLimit && history.length >= pageSize;
+
+    console.log(`Pagination debug - Page: ${page}, Requested: ${pageSize}, Fetched: ${querySnapshot.docs.length}, Valid: ${history.length}, Returned: ${paginatedHistory.length}, HasMore: ${hasMore}`);
+
+    return { history: paginatedHistory, hasMore };
   } catch (error) {
     console.error('Error loading paginated user history:', error);
     return { history: [], hasMore: false };

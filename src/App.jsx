@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { Upload, Plus, Palette, RotateCcw, Download, Settings, Home, TreePine, Car, Heart, Hammer, Sparkles, Package, User, Share2, Palette as FreeStyle, Type, Loader2, RotateCw, Lightbulb, Sofa, Droplets, ArrowLeftRight } from 'lucide-react'
+import { Upload, Plus, Palette, RotateCcw, Download, Settings, Home, TreePine, Car, Heart, Hammer, Sparkles, Package, User, Share2, Palette as FreeStyle, Type, Loader2, RotateCw, Lightbulb, Sofa, Droplets, ArrowLeftRight, Mic, MicOff, MessageCircle } from 'lucide-react'
 import { fileToGenerativePart, urlToFile, signInUser, createOrUpdateUser, saveImageToHistory, saveUploadToHistory, loadUserHistory, loadUserHistoryPaginated, auth, uploadImageForSharing } from './firebase.js'
 import { aiService } from './aiService.js'
 import { onAuthStateChanged } from 'firebase/auth'
@@ -42,7 +42,17 @@ function App() {
   const [password, setPassword] = useState('')
   const [isLoadingAuth, setIsLoadingAuth] = useState(false)
   const [isResettingPassword, setIsResettingPassword] = useState(false)
+  const [showSuggestionsDropdown, setShowSuggestionsDropdown] = useState(false)
+  const [showSuggestionsModal, setShowSuggestionsModal] = useState(false)
+  const [isListening, setIsListening] = useState(false)
+  const [mediaRecorder, setMediaRecorder] = useState(null)
+  const [audioChunks, setAudioChunks] = useState([])
+  const [isProcessingSpeech, setIsProcessingSpeech] = useState(false)
+  const [micPermissionError, setMicPermissionError] = useState(false)
+  const [micPermissionGranted, setMicPermissionGranted] = useState(false)
+  const [micStream, setMicStream] = useState(null)
   const fileInputRef = useRef(null)
+  const suggestionsDropdownRef = useRef(null)
   const objectInputRef = useRef(null)
   const historyScrollRef = useRef(null)
 
@@ -61,7 +71,7 @@ function App() {
         setIsLoadingHistory(true)
         
         try {
-          const historyResult = await loadUserHistoryPaginated(user.uid, 1, 5)
+          const historyResult = await loadUserHistoryPaginated(user.uid, 1, 7)
           setImageHistory(historyResult.history)
           setHasMoreHistory(historyResult.hasMore)
         } finally {
@@ -82,6 +92,246 @@ function App() {
 
     return () => unsubscribe()
   }, [])
+
+  // Cleanup microphone stream on unmount
+  useEffect(() => {
+    return () => {
+      if (micStream) {
+        micStream.getTracks().forEach(track => track.stop())
+      }
+    }
+  }, [micStream])
+
+  // Check microphone permission status
+  const checkMicPermission = async () => {
+    try {
+      const result = await navigator.permissions.query({ name: 'microphone' })
+      return result.state === 'granted'
+    } catch (error) {
+      // Fallback: permissions API not supported, assume we need to check
+      return false
+    }
+  }
+
+  // Initialize microphone stream once and reuse it
+  const initializeMicStream = async () => {
+    try {
+      setMicPermissionError(false)
+      
+      // Check if we already have a stream
+      if (micStream) {
+        return micStream
+      }
+      
+      // Check if permission is already granted
+      const hasPermission = await checkMicPermission()
+      
+      if (!hasPermission) {
+        // Request permission and get stream
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+        setMicStream(stream)
+        setMicPermissionGranted(true)
+        return stream
+      } else {
+        // Permission already granted, get stream
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+        setMicStream(stream)
+        setMicPermissionGranted(true)
+        return stream
+      }
+    } catch (error) {
+      console.error('Error accessing microphone:', error)
+      setMicPermissionError(true)
+      setMicPermissionGranted(false)
+      return null
+    }
+  }
+
+  // Create media recorder from existing stream
+  const createMediaRecorder = (stream) => {
+    const recorder = new MediaRecorder(stream, {
+      mimeType: 'audio/webm;codecs=opus'
+    })
+    
+    const chunks = []
+    
+    recorder.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        chunks.push(event.data)
+      }
+    }
+    
+    recorder.onstop = async () => {
+      const audioBlob = new Blob(chunks, { type: 'audio/webm' })
+      await processAudioWithServer(audioBlob)
+      setAudioChunks([])
+      // Don't stop the stream, just reset the recorder
+      setMediaRecorder(null)
+    }
+    
+    return recorder
+  }
+
+  // Optimize audio blob for faster processing
+  const optimizeAudioBlob = async (audioBlob) => {
+    try {
+      // Create a new audio context to compress the audio
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)()
+      const arrayBuffer = await audioBlob.arrayBuffer()
+      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer)
+      
+      // Convert to mono and reduce sample rate for smaller file size
+      const sampleRate = Math.min(audioBuffer.sampleRate, 16000) // Max 16kHz
+      const length = Math.floor(audioBuffer.length * sampleRate / audioBuffer.sampleRate)
+      const monoBuffer = audioContext.createBuffer(1, length, sampleRate)
+      
+      // Mix down to mono
+      const sourceData = audioBuffer.getChannelData(0)
+      const monoData = monoBuffer.getChannelData(0)
+      for (let i = 0; i < length; i++) {
+        const sourceIndex = Math.floor(i * audioBuffer.sampleRate / sampleRate)
+        monoData[i] = sourceData[sourceIndex]
+      }
+      
+      // Convert back to blob with compression
+      const wavBlob = await audioBufferToWav(monoBuffer)
+      return wavBlob
+    } catch (error) {
+      console.warn('Audio optimization failed, using original:', error)
+      return audioBlob
+    }
+  }
+
+  // Convert audio buffer to WAV blob
+  const audioBufferToWav = async (audioBuffer) => {
+    const length = audioBuffer.length
+    const sampleRate = audioBuffer.sampleRate
+    const arrayBuffer = new ArrayBuffer(44 + length * 2)
+    const view = new DataView(arrayBuffer)
+    
+    // WAV header
+    const writeString = (offset, string) => {
+      for (let i = 0; i < string.length; i++) {
+        view.setUint8(offset + i, string.charCodeAt(i))
+      }
+    }
+    
+    writeString(0, 'RIFF')
+    view.setUint32(4, 36 + length * 2, true)
+    writeString(8, 'WAVE')
+    writeString(12, 'fmt ')
+    view.setUint32(16, 16, true)
+    view.setUint16(20, 1, true)
+    view.setUint16(22, 1, true)
+    view.setUint32(24, sampleRate, true)
+    view.setUint32(28, sampleRate * 2, true)
+    view.setUint16(32, 2, true)
+    view.setUint16(34, 16, true)
+    writeString(36, 'data')
+    view.setUint32(40, length * 2, true)
+    
+    // Convert float samples to 16-bit PCM
+    const channelData = audioBuffer.getChannelData(0)
+    let offset = 44
+    for (let i = 0; i < length; i++) {
+      const sample = Math.max(-1, Math.min(1, channelData[i]))
+      view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true)
+      offset += 2
+    }
+    
+    return new Blob([arrayBuffer], { type: 'audio/wav' })
+  }
+
+  // Process audio with server-side speech-to-text
+  const processAudioWithServer = async (audioBlob) => {
+    if (!currentUser) {
+      console.error('No current user available')
+      return
+    }
+
+    setIsProcessingSpeech(true)
+    
+    try {
+      // Optimize audio for faster processing
+      const optimizedBlob = await optimizeAudioBlob(audioBlob)
+      
+      // Convert to base64 (smaller file now)
+      const arrayBuffer = await optimizedBlob.arrayBuffer()
+      const base64Audio = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)))
+      const audioDataUrl = `data:audio/wav;base64,${base64Audio}`
+      
+      // Get auth token
+      const authToken = await currentUser.getIdToken()
+      
+      // Call Firebase function with timeout
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
+      
+      const response = await fetch('https://us-central1-moomhe-6de30.cloudfunctions.net/speechToText', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          audioData: audioDataUrl,
+          authToken: authToken
+        }),
+        signal: controller.signal
+      })
+      
+      clearTimeout(timeoutId)
+      const result = await response.json()
+      
+      if (result.success && result.text) {
+        // Append to existing prompt or replace it
+        const currentPrompt = customPrompt.trim()
+        if (currentPrompt) {
+          setCustomPrompt(currentPrompt + ' ' + result.text)
+        } else {
+          setCustomPrompt(result.text)
+        }
+      } else {
+        console.error('Speech-to-text failed:', result.error)
+      }
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        console.error('Speech-to-text timeout')
+      } else {
+        console.error('Error processing speech:', error)
+      }
+    } finally {
+      setIsProcessingSpeech(false)
+    }
+  }
+
+  // Handle button click events for toggle listening
+  const handleMicButtonClick = async () => {
+    if (isProcessing || isProcessingSpeech) return
+    
+    if (isListening && mediaRecorder) {
+      // Stop recording
+      mediaRecorder.stop()
+      setIsListening(false)
+    } else if (!isListening) {
+      // Start recording - get stream and create recorder
+      if (!micStream || !micPermissionGranted) {
+        const stream = await initializeMicStream()
+        if (!stream) {
+          console.error('Failed to initialize microphone')
+          return
+        }
+      }
+      
+      // Create new recorder from existing stream
+      const recorder = createMediaRecorder(micStream)
+      setMediaRecorder(recorder)
+      
+      // Start recording immediately
+      setAudioChunks([])
+      recorder.start()
+      setIsListening(true)
+    }
+  }
 
   // Load default objects for initial category and when switching categories
   useEffect(() => {
@@ -271,7 +521,7 @@ function App() {
             console.log('Upload result:', uploadResult)
             
             // Reload history from Firebase to get the updated list first
-            const historyResult = await loadUserHistoryPaginated(currentUser.uid, 1, 5)
+            const historyResult = await loadUserHistoryPaginated(currentUser.uid, 1, 7)
             setImageHistory(historyResult.history)
             setHistoryPage(1)
             setHasMoreHistory(historyResult.hasMore)
@@ -634,7 +884,7 @@ function App() {
       
       // Reload user history after migration
       if (isAuthenticated) {
-        const historyResult = await loadUserHistoryPaginated(toUid, 1, 5)
+        const historyResult = await loadUserHistoryPaginated(toUid, 1, 7)
         setImageHistory(historyResult.history)
         setHistoryPage(1)
         setHasMoreHistory(historyResult.hasMore)
@@ -666,12 +916,18 @@ function App() {
   }
 
   const loadMoreHistory = async () => {
-    if (!isAuthenticated || !currentUser || isLoadingMoreHistory || !hasMoreHistory) return
+    if (!isAuthenticated || !currentUser || isLoadingMoreHistory || !hasMoreHistory) {
+      console.log('Load more history blocked:', { isAuthenticated, currentUser: !!currentUser, isLoadingMoreHistory, hasMoreHistory })
+      return
+    }
     
+    console.log('Loading more history, current page:', historyPage)
     setIsLoadingMoreHistory(true)
     try {
       const nextPage = historyPage + 1
-      const result = await loadUserHistoryPaginated(currentUser.uid, nextPage, 5)
+      const result = await loadUserHistoryPaginated(currentUser.uid, nextPage, 7)
+      
+      console.log('Load more result:', { nextPage, historyCount: result.history.length, hasMore: result.hasMore })
       
       if (result.history.length > 0) {
         setImageHistory(prev => [...prev, ...result.history])
@@ -693,13 +949,19 @@ function App() {
       if (showMobileDropdown && !event.target.closest('.mobile-dropdown')) {
         setShowMobileDropdown(false)
       }
+      if (showSuggestionsDropdown && suggestionsDropdownRef.current && !suggestionsDropdownRef.current.contains(event.target)) {
+        setShowSuggestionsDropdown(false)
+      }
+      if (showSuggestionsModal && !event.target.closest('.suggestions-modal')) {
+        setShowSuggestionsModal(false)
+      }
     }
 
     document.addEventListener('mousedown', handleClickOutside)
     return () => {
       document.removeEventListener('mousedown', handleClickOutside)
     }
-  }, [showMobileDropdown])
+  }, [showMobileDropdown, showSuggestionsDropdown, showSuggestionsModal])
 
   const formatTimestamp = (date) => {
     const day = String(date.getDate()).padStart(2, '0')
@@ -708,24 +970,73 @@ function App() {
     return `${day}/${month}/${year}`
   }
 
-  const displayTimestamp = (timestamp) => {
+  const getRelativeTime = (date) => {
+    const now = new Date()
+    const diffInSeconds = Math.floor((now - date) / 1000)
+    
+    if (diffInSeconds < 60) {
+      return 'לפני רגע'
+    } else if (diffInSeconds < 3600) {
+      const minutes = Math.floor(diffInSeconds / 60)
+      return `לפני ${minutes} דקות`
+    } else if (diffInSeconds < 86400) {
+      const hours = Math.floor(diffInSeconds / 3600)
+      return `לפני ${hours} שעות`
+    } else if (diffInSeconds < 172800) {
+      return 'אתמול'
+    } else if (diffInSeconds < 604800) {
+      const days = Math.floor(diffInSeconds / 86400)
+      return `לפני ${days} ימים`
+    } else if (diffInSeconds < 2592000) {
+      const weeks = Math.floor(diffInSeconds / 604800)
+      return `לפני ${weeks} שבועות`
+    } else if (diffInSeconds < 31536000) {
+      const months = Math.floor(diffInSeconds / 2592000)
+      return `לפני ${months} חודשים`
+    } else {
+      const years = Math.floor(diffInSeconds / 31536000)
+      return `לפני ${years} שנים`
+    }
+  }
+
+  const displayTimestamp = (entry) => {
+    // Use createdAt as the primary timestamp field
+    const timestamp = entry.createdAt
+    
+    // If no createdAt found, return fallback
+    if (!timestamp) {
+      return 'תאריך לא זמין'
+    }
+    
     // If it's already in dd/mm/yy format, return as is
     if (/^\d{2}\/\d{2}\/\d{2}$/.test(timestamp)) {
       return timestamp
     }
     
-    // If it's in the old format, try to parse and reformat
+    // Try to parse the timestamp
     try {
-      const date = new Date(timestamp)
+      let date
+      
+      // Handle Firestore Timestamp objects
+      if (timestamp && typeof timestamp === 'object' && timestamp.toDate) {
+        date = timestamp.toDate()
+      } else if (timestamp && typeof timestamp === 'object' && timestamp.seconds) {
+        // Handle Firestore Timestamp with seconds property
+        date = new Date(timestamp.seconds * 1000)
+      } else {
+        // Handle string timestamps
+        date = new Date(timestamp)
+      }
+      
       if (!isNaN(date.getTime())) {
-        return formatTimestamp(date)
+        return getRelativeTime(date)
       }
     } catch (error) {
-      console.warn('Failed to parse timestamp:', timestamp)
+      console.warn('Failed to parse timestamp:', timestamp, error)
     }
     
-    // Fallback: return original timestamp
-    return timestamp
+    // Fallback: return original timestamp or fallback message
+    return timestamp || 'תאריך לא זמין'
   }
 
   const handleCloseModal = () => {
@@ -1304,7 +1615,7 @@ function App() {
           setIsLoadingHistory(true)
           try {
             // Reload first page of history from Firebase to get the updated list
-            const historyResult = await loadUserHistoryPaginated(currentUser.uid, 1, 5)
+            const historyResult = await loadUserHistoryPaginated(currentUser.uid, 1, 7)
             setImageHistory(historyResult.history)
             setHistoryPage(1)
             setHasMoreHistory(historyResult.hasMore)
@@ -1536,6 +1847,26 @@ function App() {
                   <Upload className="w-3 h-3" />
                   העלה תמונה
                 </button>
+
+                {/* Download and WhatsApp Buttons - Mobile (Top Left) */}
+                <div className="absolute top-3 left-3 flex gap-2">
+                  <button 
+                    onClick={handleDownload}
+                    disabled={isProcessing}
+                    className="w-8 h-8 bg-green-600/70 hover:bg-green-600/90 text-white rounded-full flex items-center justify-center transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-sm"
+                    title="הורדה"
+                  >
+                    <Download className="w-4 h-4" />
+                  </button>
+                  <button 
+                    onClick={handleWhatsAppShare}
+                    disabled={isProcessing}
+                    className="w-8 h-8 bg-green-500/70 hover:bg-green-500/90 text-white rounded-full flex items-center justify-center transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-sm"
+                    title="שיתוף בווטסאפ"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                  </button>
+                </div>
                 
                 {/* Circular Loader Overlay */}
                 {isProcessing && (
@@ -1552,38 +1883,86 @@ function App() {
 
 
               {/* Mobile Action Bar */}
-              <div className="flex items-center gap-2 mb-4">
-                <div className="flex-1 relative">
-                  <input
-                    type="text"
-                    value={customPrompt}
-                    onChange={(e) => setCustomPrompt(e.target.value)}
-                    placeholder="הקלד שינוי..."
-                    disabled={isProcessing}
-                    className="w-full px-3 py-2 pr-8 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter') {
-                        handleCustomPromptSubmit()
-                      }
-                    }}
-                  />
-                  {customPrompt && (
-                    <button
-                      onClick={() => setCustomPrompt('')}
+              <div className="mb-4">
+                <div className="flex gap-2 mb-4">
+                  {/* Microphone Button - Outside Input */}
+                  <button
+                    onClick={handleMicButtonClick}
+                    disabled={isProcessing || isProcessingSpeech}
+                    className={`flex-shrink-0 w-10 h-10 rounded-full border-2 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 select-none ${
+                      isListening ? 'bg-green-500 border-green-500 text-white animate-pulse' : 
+                      isProcessingSpeech ? 'bg-blue-500 border-blue-500 text-white' :
+                      'bg-green-500 border-green-500 hover:bg-green-600 hover:border-green-600 text-white'
+                    }`}
+                    title={isListening ? "לחץ כדי לעצור הקלטה" : 
+                           isProcessingSpeech ? "מעבד הקלטה..." : 
+                           "לחץ כדי להתחיל הקלטה קולית"}
+                  >
+                    {isProcessingSpeech ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : isListening ? (
+                      <MicOff className="w-5 h-5" />
+                    ) : (
+                      <Mic className="w-5 h-5" />
+                    )}
+                  </button>
+
+                  <div className="flex-1 relative">
+                    <input
+                      type="text"
+                      value={customPrompt}
+                      onChange={(e) => setCustomPrompt(e.target.value)}
+                      placeholder="הקלד שינוי..."
                       disabled={isProcessing}
-                      className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      ×
-                    </button>
-                  )}
+                      className="w-full px-3 py-2 pr-8 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed overflow-x-auto"
+                      style={{ 
+                        textAlign: 'right',
+                        direction: 'rtl',
+                        overflowX: 'auto',
+                        whiteSpace: 'nowrap'
+                      }}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          handleCustomPromptSubmit()
+                        }
+                      }}
+                    />
+
+                    {customPrompt && (
+                      <button
+                        onClick={() => setCustomPrompt('')}
+                        disabled={isProcessing}
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <button
-                  onClick={handleCustomPromptSubmit}
-                  disabled={isProcessing || !customPrompt.trim()}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center justify-center transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <span className="text-sm font-medium">בצע</span>
-                </button>
+
+                {/* Speech Recognition Status Indicator - Mobile */}
+                {(isListening || isProcessingSpeech) && (
+                  <div className="mt-2 text-center">
+                    <div className={`inline-flex items-center gap-2 text-sm px-3 py-1 rounded-full ${
+                      isListening ? 'text-green-600 bg-green-50' : 'text-blue-600 bg-blue-50'
+                    }`}>
+                      <div className={`w-2 h-2 rounded-full animate-pulse ${
+                        isListening ? 'bg-green-500' : 'bg-blue-500'
+                      }`}></div>
+                      <span>{isListening ? 'מקשיב... לחץ על הכפתור כדי לעצור' : 'מעבד הקלטה...'}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Microphone Permission Error - Mobile */}
+                {micPermissionError && (
+                  <div className="mt-2 text-center">
+                    <div className="inline-flex items-center gap-2 text-sm text-red-600 bg-red-50 px-3 py-1 rounded-full">
+                      <span>❌</span>
+                      <span>נדרשת הרשאה לגישה למיקרופון</span>
+                    </div>
+                  </div>
+                )}
               </div>
 
 
@@ -1611,7 +1990,7 @@ function App() {
                   <button
                     onClick={isProcessing ? undefined : handleObjectUploadClick}
                     disabled={isProcessing}
-                    className="flex-shrink-0 btn-secondary border-2 border-dashed border-blue-400 hover:border-blue-500 hover:bg-blue-50 flex items-center text-sm px-3 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 btn-secondary border-2 border-dashed border-blue-400 hover:border-blue-500 hover:bg-blue-50 flex items-center justify-center text-sm px-3 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {objectImage ? (
                       <div className="relative w-4 h-4 ml-2">
@@ -1637,18 +2016,27 @@ function App() {
                     <span className="text-blue-600">הוסף אובייקט</span>
                   </button>
                   
-                  {/* Category-specific action buttons */}
-                  {categoryActionButtons[selectedCategory]?.map((button, index) => (
-                    <button
-                      key={index}
-                      onClick={button.action}
-                      disabled={isProcessing}
-                      className="flex-shrink-0 btn-secondary flex items-center text-sm px-3 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <button.icon className="w-4 h-4 ml-2" />
-                      {button.name}
-                    </button>
-                  ))}
+                  {/* Suggestions Button - Mobile */}
+                  <button
+                    onClick={() => setShowSuggestionsModal(true)}
+                    disabled={isProcessing}
+                    className="flex-1 btn-secondary flex items-center justify-center text-sm px-3 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Settings className="w-4 h-4 ml-2" />
+                    הצעות...
+                  </button>
+                  
+                  {/* בצע Button - Mobile */}
+                  <button
+                    onClick={handleCustomPromptSubmit}
+                    disabled={isProcessing || !customPrompt.trim()}
+                    className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center justify-center gap-2 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <span className="text-sm font-medium">בצע</span>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                    </svg>
+                  </button>
                 </div>
                 
                 {/* Fade overlays */}
@@ -1666,25 +2054,6 @@ function App() {
               />
 
 
-              {/* Download and WhatsApp Share Buttons - Mobile (Bottom of Main Panel) */}
-              <div className="flex gap-2 mt-4">
-                <button 
-                  onClick={handleDownload}
-                  disabled={isProcessing}
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
-                >
-                  <Download className="w-4 h-4 ml-2" />
-                  הורדה
-                </button>
-                <button 
-                  onClick={handleWhatsAppShare}
-                  disabled={isProcessing}
-                  className="flex-1 bg-green-500 hover:bg-green-600 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
-                >
-                  <Share2 className="w-4 h-4 ml-2" />
-                  ווזאפ
-                </button>
-              </div>
             </div>
           </div>
 
@@ -1764,7 +2133,7 @@ function App() {
                           <p className="text-xs text-gray-600 truncate" title={entry.prompt || 'No prompt'}>
                             {entry.prompt && entry.prompt.length > 15 ? `${entry.prompt.substring(0, 15)}...` : (entry.prompt || 'No prompt')}
                           </p>
-                          <p className="text-xs text-gray-400">{displayTimestamp(entry.timestamp)}</p>
+                          <p className="text-xs text-gray-400">{displayTimestamp(entry)}</p>
                         </div>
                       </div>
                     ))}
@@ -1843,17 +2212,26 @@ function App() {
                         <p className="text-xs text-gray-600 truncate" title={entry.prompt || 'No prompt'}>
                           {entry.prompt && entry.prompt.length > 30 ? `${entry.prompt.substring(0, 30)}...` : (entry.prompt || 'No prompt')}
                         </p>
-                        <p className="text-xs text-gray-400 mt-1">{displayTimestamp(entry.timestamp)}</p>
+                        <p className="text-xs text-gray-400 mt-1">{displayTimestamp(entry)}</p>
                       </div>
                     </div>
                   ))}
                   
-                  {/* Loading more indicator */}
-                  {isLoadingMoreHistory && (
+                  {/* Loading more indicator and manual load more button */}
+                  {isLoadingMoreHistory ? (
                     <div className="flex justify-center py-4">
                       <div className="w-6 h-6 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
                     </div>
-                  )}
+                  ) : hasMoreHistory ? (
+                    <div className="flex justify-center py-4">
+                      <button
+                        onClick={loadMoreHistory}
+                        className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors duration-200 text-sm"
+                      >
+                        טען עוד
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
               )}
               </div>
@@ -1874,27 +2252,6 @@ function App() {
 
           {/* Objects Panel */}
           <div className="lg:col-span-1 lg:order-3">
-            {/* Download Button */}
-            <div className="mb-4">
-              <div className="flex gap-2">
-                <button 
-                  onClick={handleDownload}
-                  disabled={isProcessing}
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
-                >
-                  <Download className="w-4 h-4 ml-2" />
-                  הורדה
-                </button>
-                <button 
-                  onClick={handleWhatsAppShare}
-                  disabled={isProcessing}
-                  className="flex-1 bg-green-500 hover:bg-green-600 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
-                >
-                  <Share2 className="w-4 h-4 ml-2" />
-                  ווזאפ
-                </button>
-              </div>
-            </div>
             
             <div className="card p-4 relative">
               <div className="flex items-center justify-between mb-3">
@@ -1987,6 +2344,26 @@ function App() {
                   <Upload className="w-4 h-4" />
                   העלה תמונה
                 </button>
+
+                {/* Download and WhatsApp Buttons - Desktop (Top Left) */}
+                <div className="absolute top-4 left-4 flex gap-2">
+                  <button 
+                    onClick={handleDownload}
+                    disabled={isProcessing}
+                    className="w-10 h-10 bg-green-600/70 hover:bg-green-600/90 text-white rounded-full flex items-center justify-center transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-sm"
+                    title="הורדה"
+                  >
+                    <Download className="w-5 h-5" />
+                  </button>
+                  <button 
+                    onClick={handleWhatsAppShare}
+                    disabled={isProcessing}
+                    className="w-10 h-10 bg-green-500/70 hover:bg-green-500/90 text-white rounded-full flex items-center justify-center transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-sm"
+                    title="שיתוף בווטסאפ"
+                  >
+                    <MessageCircle className="w-5 h-5" />
+                  </button>
+                </div>
                 
                 {/* Circular Loader Overlay */}
                 {isProcessing && (
@@ -2003,7 +2380,29 @@ function App() {
 
               {/* Custom Prompt Input */}
               <div className="mb-6">
-                <div className="flex items-center gap-2">
+                <div className="flex gap-3">
+                  {/* Microphone Button - Outside Input - Desktop */}
+                  <button
+                    onClick={handleMicButtonClick}
+                    disabled={isProcessing || isProcessingSpeech}
+                    className={`flex-shrink-0 w-12 h-12 rounded-full border-2 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 select-none ${
+                      isListening ? 'bg-green-500 border-green-500 text-white animate-pulse' : 
+                      isProcessingSpeech ? 'bg-blue-500 border-blue-500 text-white' :
+                      'bg-green-500 border-green-500 hover:bg-green-600 hover:border-green-600 text-white'
+                    }`}
+                    title={isListening ? "לחץ כדי לעצור הקלטה" : 
+                           isProcessingSpeech ? "מעבד הקלטה..." : 
+                           "לחץ כדי להתחיל הקלטה קולית"}
+                  >
+                    {isProcessingSpeech ? (
+                      <Loader2 className="w-6 h-6 animate-spin" />
+                    ) : isListening ? (
+                      <MicOff className="w-6 h-6" />
+                    ) : (
+                      <Mic className="w-6 h-6" />
+                    )}
+                  </button>
+
                   <div className="flex-1 relative">
                     <input
                       type="text"
@@ -2011,13 +2410,20 @@ function App() {
                       onChange={(e) => setCustomPrompt(e.target.value)}
                       placeholder="הקלד שינוי..."
                       disabled={isProcessing}
-                      className="w-full px-4 py-3 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full px-4 py-3 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed overflow-x-auto"
+                      style={{ 
+                        textAlign: 'right',
+                        direction: 'rtl',
+                        overflowX: 'auto',
+                        whiteSpace: 'nowrap'
+                      }}
                       onKeyPress={(e) => {
                         if (e.key === 'Enter') {
                           handleCustomPromptSubmit()
                         }
                       }}
                     />
+
                     {customPrompt && (
                       <button
                         onClick={() => setCustomPrompt('')}
@@ -2028,21 +2434,35 @@ function App() {
                       </button>
                     )}
                   </div>
-                  <button
-                    onClick={handleCustomPromptSubmit}
-                    disabled={isProcessing || !customPrompt.trim()}
-                    className="px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <span className="text-sm font-medium">בצע</span>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                    </svg>
-                  </button>
                 </div>
+
+                {/* Speech Recognition Status Indicator - Desktop */}
+                {(isListening || isProcessingSpeech) && (
+                  <div className="mt-3 text-center">
+                    <div className={`inline-flex items-center gap-2 text-sm px-4 py-2 rounded-full ${
+                      isListening ? 'text-green-600 bg-green-50' : 'text-blue-600 bg-blue-50'
+                    }`}>
+                      <div className={`w-2 h-2 rounded-full animate-pulse ${
+                        isListening ? 'bg-green-500' : 'bg-blue-500'
+                      }`}></div>
+                      <span>{isListening ? 'מקשיב... לחץ על הכפתור כדי לעצור' : 'מעבד הקלטה...'}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Microphone Permission Error - Desktop */}
+                {micPermissionError && (
+                  <div className="mt-3 text-center">
+                    <div className="inline-flex items-center gap-2 text-sm text-red-600 bg-red-50 px-4 py-2 rounded-full">
+                      <span>❌</span>
+                      <span>נדרשת הרשאה לגישה למיקרופון</span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Action Buttons */}
-              <div className="flex flex-wrap gap-4">
+              <div className="flex gap-4">
                 {/* Object Image Upload - always available */}
                 <div className="relative">
                   {objectImage ? (
@@ -2064,7 +2484,7 @@ function App() {
                     <button
                       onClick={isProcessing ? undefined : handleObjectUploadClick}
                       disabled={isProcessing}
-                      className={`btn-secondary h-10 border-2 border-dashed border-blue-400 hover:border-blue-500 hover:bg-blue-50 flex items-center transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed`}
+                      className={`flex-1 btn-secondary h-10 border-2 border-dashed border-blue-400 hover:border-blue-500 hover:bg-blue-50 flex items-center justify-center transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
                       <Plus className="w-4 h-4 text-blue-500 ml-2" />
                       <span className="text-sm text-blue-600">הוסף אובייקט</span>
@@ -2080,18 +2500,48 @@ function App() {
                   />
                 </div>
                 
-                {/* Category-specific action buttons */}
-                {categoryActionButtons[selectedCategory]?.map((button, index) => (
-                <button 
-                    key={index}
-                    onClick={button.action}
-                  disabled={isProcessing}
-                  className="btn-secondary flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+                {/* Suggestions Dropdown */}
+                <div className="relative" ref={suggestionsDropdownRef}>
+                  <button
+                    onClick={() => setShowSuggestionsDropdown(!showSuggestionsDropdown)}
+                    disabled={isProcessing}
+                    className="flex-1 btn-secondary flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Settings className="w-4 h-4 ml-2" />
+                    הצעות...
+                  </button>
+                  
+                  {showSuggestionsDropdown && (
+                    <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 min-w-48">
+                      {categoryActionButtons[selectedCategory]?.map((button, index) => (
+                        <button
+                          key={index}
+                          onClick={() => {
+                            button.action()
+                            setShowSuggestionsDropdown(false)
+                          }}
+                          disabled={isProcessing}
+                          className="w-full px-4 py-2 text-right hover:bg-gray-50 flex items-center justify-end gap-2 disabled:opacity-50 disabled:cursor-not-allowed border-b border-gray-100 last:border-b-0"
+                        >
+                          <span>{button.name}</span>
+                          <button.icon className="w-4 h-4" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                
+                {/* בצע Button - Desktop */}
+                <button
+                  onClick={handleCustomPromptSubmit}
+                  disabled={isProcessing || !customPrompt.trim()}
+                  className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center justify-center gap-2 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    <button.icon className="w-4 h-4 ml-2" />
-                    {button.name}
+                  <span className="text-sm font-medium">בצע</span>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                  </svg>
                 </button>
-                ))}
               </div>
 
             </div>
@@ -2639,6 +3089,59 @@ function App() {
             </button>
             <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/50 text-white px-4 py-2 rounded-full backdrop-blur-sm">
               <span className="text-sm">לחץ על התמונה או מחוץ לה לסגירה</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Suggestions Modal - Mobile */}
+      {showSuggestionsModal && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4"
+          onClick={() => setShowSuggestionsModal(false)}
+        >
+          <div 
+            className="suggestions-modal bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-semibold text-text">הצעות עבור {selectedCategory}</h3>
+                <button
+                  onClick={() => setShowSuggestionsModal(false)}
+                  className="text-gray-500 hover:text-gray-700 text-xl"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="space-y-3">
+                {categoryActionButtons[selectedCategory]?.map((button, index) => (
+                  <button
+                    key={index}
+                    onClick={() => {
+                      button.action()
+                      setShowSuggestionsModal(false)
+                    }}
+                    disabled={isProcessing}
+                    className="w-full px-4 py-3 text-right hover:bg-gray-50 flex items-center justify-start gap-3 disabled:opacity-50 disabled:cursor-not-allowed border border-gray-200 rounded-lg transition-colors duration-200"
+                  >
+                    <button.icon className="w-5 h-5 text-gray-600" />
+                    <span className="text-sm font-medium">{button.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+            <div className="p-6 border-t border-gray-200">
+              <button
+                onClick={() => setShowSuggestionsModal(false)}
+                className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 px-4 rounded-lg transition-colors duration-200"
+              >
+                סגור
+              </button>
             </div>
           </div>
         </div>
