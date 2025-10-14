@@ -1,11 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { Upload, Plus, Palette, RotateCcw, Download, Settings, Home, TreePine, Car, Heart, Hammer, Sparkles, Package, User, Share2, Palette as FreeStyle, Type, Loader2, RotateCw, Lightbulb, Sofa, Droplets, ArrowLeftRight, Mic, MicOff, MessageCircle } from 'lucide-react'
+import { Upload, Plus, Palette, RotateCcw, Download, Settings, Home, TreePine, Car, Heart, Hammer, Sparkles, Package, User, Share2, Palette as FreeStyle, Type, Loader2, RotateCw, Lightbulb, Sofa, Droplets, ArrowLeftRight, Mic, MicOff, MessageCircle, ArrowLeft } from 'lucide-react'
 import { fileToGenerativePart, urlToFile, signInUser, createOrUpdateUser, saveImageToHistory, saveUploadToHistory, loadUserHistory, loadUserHistoryPaginated, auth, uploadImageForSharing, compressImage } from './firebase.js'
 import { aiService } from './aiService.js'
 import { onAuthStateChanged } from 'firebase/auth'
 
-function App() {
-  const [selectedCategory, setSelectedCategory] = useState('עיצוב פנים וחוץ') // Fixed to interior design only
+function GeneralApp() {
+  const [selectedCategory, setSelectedCategory] = useState('עיצוב פנים וחוץ')
   const [uploadedImage, setUploadedImage] = useState(null)
   const [mainImage, setMainImage] = useState('/assets/design_img.jpg')
   const [isProcessing, setIsProcessing] = useState(false)
@@ -30,6 +30,7 @@ function App() {
   const [activeColorCategory, setActiveColorCategory] = useState('אדומים') // Default to reds
   const [objectImage, setObjectImage] = useState(null)
   const [objectImageFile, setObjectImageFile] = useState(null)
+  const [showMobileDropdown, setShowMobileDropdown] = useState(false)
   const [historyPage, setHistoryPage] = useState(1)
   const [hasMoreHistory, setHasMoreHistory] = useState(true)
   const [isLoadingMoreHistory, setIsLoadingMoreHistory] = useState(false)
@@ -737,6 +738,24 @@ function App() {
     }
   }
 
+  const handleCategorySelect = (category) => {
+    setSelectedCategory(category)
+    // Change default image based on category
+    const defaultImage = categoryDefaultImages[category]
+    if (defaultImage) {
+      setMainImage(defaultImage)
+      setImageAspectRatio(16/9) // Reset to default until new image loads
+      setCurrentHistoryId(null) // Clear history ID for default image
+      
+      // Load hardcoded objects for default images (desktop only)
+      const isMobile = window.innerWidth < 1024
+      if (!isMobile) {
+        const defaultObjects = categoryDefaultObjects[category] || []
+        setDetectedObjects(defaultObjects)
+        console.log('Loaded default objects for category:', category, defaultObjects)
+      }
+    }
+  }
 
   const handleGalleryImageClick = (imageUrl) => {
     setMainImage(imageUrl)
@@ -1019,9 +1038,12 @@ function App() {
     }
   }
 
-  // Close dropdowns when clicking outside
+  // Close mobile dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
+      if (showMobileDropdown && !event.target.closest('.mobile-dropdown')) {
+        setShowMobileDropdown(false)
+      }
       if (showSuggestionsDropdown && suggestionsDropdownRef.current && !suggestionsDropdownRef.current.contains(event.target)) {
         setShowSuggestionsDropdown(false)
       }
@@ -1034,7 +1056,7 @@ function App() {
     return () => {
       document.removeEventListener('mousedown', handleClickOutside)
     }
-  }, [showSuggestionsDropdown, showSuggestionsModal])
+  }, [showMobileDropdown, showSuggestionsDropdown, showSuggestionsModal])
 
   const formatTimestamp = (date) => {
     const day = String(date.getDate()).padStart(2, '0')
@@ -1746,7 +1768,16 @@ function App() {
           <div className="hidden md:flex justify-between items-center py-3">
             <div className="flex items-center">
               <img src="/Logo.png" alt="MoomHe Logo" className="h-16 w-auto" />
-              <span className="mr-2 text-sm text-gray-500">עיצוב פנים וחוץ</span>
+              <span className="mr-2 text-sm text-gray-500">כל סוגי העיצוב</span>
+            </div>
+            <div className="flex items-center">
+              <a 
+                href="/" 
+                className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors duration-200"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                עיצוב פנים וחוץ
+              </a>
             </div>
             <div className="flex items-center space-x-4">
               <button 
@@ -1818,9 +1849,69 @@ function App() {
                 <img src="/Logo.png" alt="MoomHe Logo" className="h-12 w-auto" />
               </div>
               
+              {/* Right: Categories Dropdown */}
+              <div className="flex items-center">
+              <div className="relative mobile-dropdown">
+                <button
+                  onClick={() => setShowMobileDropdown(!showMobileDropdown)}
+                  className="btn-secondary flex items-center"
+                  disabled={isProcessing}
+                >
+                  <span className="text-sm">{selectedCategory}</span>
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                
+                {/* Dropdown Menu */}
+                {showMobileDropdown && (
+                  <div className="absolute top-full right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-50 max-h-80 overflow-y-auto">
+            {categories.map((category) => {
+              const IconComponent = categoryIcons[category]
+              return (
+                <button
+                  key={category}
+                          onClick={() => {
+                            handleCategorySelect(category)
+                            setShowMobileDropdown(false)
+                          }}
+                          className={`w-full flex items-center px-4 py-3 text-right hover:bg-gray-50 transition-colors duration-200 ${
+                            selectedCategory === category ? 'bg-blue-50 text-blue-600' : 'text-gray-700'
+                          }`}
+                        >
+                          <IconComponent className="w-4 h-4 ml-3" />
+                          <span className="text-sm font-medium">{category}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+              </div>
             </div>
           </div>
           
+          {/* Scrollable Category Buttons - Hidden on Mobile */}
+          <div className="hidden md:flex space-x-reverse space-x-1 pb-3 overflow-x-auto scrollbar-hide">
+            {categories.map((category) => {
+              const IconComponent = categoryIcons[category]
+              return (
+                <button
+                  key={category}
+                  onClick={() => handleCategorySelect(category)}
+                  disabled={isProcessing}
+                  className={`flex-shrink-0 px-4 py-2 rounded-lg font-medium transition-all duration-200 text-sm flex items-center disabled:opacity-50 disabled:cursor-not-allowed ${
+                    selectedCategory === category
+                      ? 'bg-accent text-white shadow-lg'
+                      : 'bg-white text-text hover:bg-gray-50 border border-gray-200'
+                  }`}
+                >
+                  <IconComponent className="w-4 h-4 ml-2" />
+                  {category}
+                </button>
+              )
+            })}
+          </div>
         </div>
       </header>
 
@@ -3359,4 +3450,4 @@ function App() {
   )
 }
 
-export default App
+export default GeneralApp

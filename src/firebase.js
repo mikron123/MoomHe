@@ -87,6 +87,79 @@ async function createOrUpdateUser(user) {
 }
 
 // Storage functions
+// Helper function to compress and resize image to max 1080p
+function compressImage(imageDataUrl, maxWidth = 1920, maxHeight = 1080, quality = 0.8) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    
+    // Set crossOrigin to anonymous to avoid tainted canvas issues
+    img.crossOrigin = 'anonymous';
+    
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Calculate new dimensions while maintaining aspect ratio
+        let { width, height } = img;
+        
+        // If image is smaller than max dimensions, keep original size
+        if (width <= maxWidth && height <= maxHeight) {
+          canvas.width = width;
+          canvas.height = height;
+        } else {
+          // Calculate scaling factor to fit within max dimensions
+          const scaleX = maxWidth / width;
+          const scaleY = maxHeight / height;
+          const scale = Math.min(scaleX, scaleY);
+          
+          width = Math.floor(width * scale);
+          height = Math.floor(height * scale);
+          
+          canvas.width = width;
+          canvas.height = height;
+        }
+        
+        // Draw compressed image
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Convert to blob with specified quality
+        canvas.toBlob((blob) => {
+          if (blob) {
+            console.log(`Image compressed: Original ${img.width}x${img.height} -> ${width}x${height}, Size: ${(blob.size / 1024 / 1024).toFixed(2)}MB`);
+            resolve(blob);
+          } else {
+            reject(new Error('Failed to create compressed image blob'));
+          }
+        }, 'image/jpeg', quality);
+      } catch (error) {
+        console.error('Error compressing image:', error);
+        reject(error);
+      }
+    };
+    
+    img.onerror = () => {
+      reject(new Error('Failed to load image for compression'));
+    };
+    
+    img.src = imageDataUrl;
+  });
+}
+
+// Helper function to compress file directly
+function compressFile(file, maxWidth = 1920, maxHeight = 1080, quality = 0.8) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      compressImage(e.target.result, maxWidth, maxHeight, quality)
+        .then(resolve)
+        .catch(reject);
+    };
+    reader.onerror = () => reject(new Error('Failed to read file'));
+    reader.readAsDataURL(file);
+  });
+}
+
 // Helper function to create thumbnail
 function createThumbnail(imageDataUrl, maxWidth = 200, maxHeight = 200) {
   return new Promise((resolve, reject) => {
@@ -144,18 +217,25 @@ function createThumbnail(imageDataUrl, maxWidth = 200, maxHeight = 200) {
 
 async function uploadImageToStorage(userId, imageDataUrl, prompt) {
   try {
-    // Convert data URL to blob
-    const response = await fetch(imageDataUrl);
-    const blob = await response.blob();
+    // Compress image to max 1080p before uploading
+    let compressedBlob;
+    try {
+      compressedBlob = await compressImage(imageDataUrl, 1920, 1080, 0.8);
+    } catch (compressionError) {
+      console.warn('Failed to compress image, using original:', compressionError);
+      // Fallback: convert data URL to blob without compression
+      const response = await fetch(imageDataUrl);
+      compressedBlob = await response.blob();
+    }
     
     // Create thumbnail with error handling
     let thumbnailBlob;
     try {
       thumbnailBlob = await createThumbnail(imageDataUrl);
     } catch (thumbnailError) {
-      console.warn('Failed to create thumbnail, using original image:', thumbnailError);
-      // Fallback: use the original image as thumbnail (not ideal but functional)
-      thumbnailBlob = blob;
+      console.warn('Failed to create thumbnail, using compressed image:', thumbnailError);
+      // Fallback: use the compressed image as thumbnail
+      thumbnailBlob = compressedBlob;
     }
     
     // Create unique filename
@@ -163,9 +243,9 @@ async function uploadImageToStorage(userId, imageDataUrl, prompt) {
     const filename = `image_${timestamp}.jpg`;
     const thumbnailFilename = `thumbnail_${timestamp}.jpg`;
     
-    // Upload full resolution image
+    // Upload compressed image
     const storageRef = ref(storage, `userHistory/${userId}/${filename}`);
-    const snapshot = await uploadBytes(storageRef, blob);
+    const snapshot = await uploadBytes(storageRef, compressedBlob);
     const downloadURL = await getDownloadURL(snapshot.ref);
     
     // Upload thumbnail
@@ -182,32 +262,41 @@ async function uploadImageToStorage(userId, imageDataUrl, prompt) {
 
 async function uploadImageToUserUploads(userId, file) {
   try {
-    // Convert file to data URL for thumbnail generation
+    // Convert file to data URL for compression and thumbnail generation
     const dataUrl = await new Promise((resolve) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result);
       reader.readAsDataURL(file);
     });
     
+    // Compress image to max 1080p before uploading
+    let compressedBlob;
+    try {
+      compressedBlob = await compressImage(dataUrl, 1920, 1080, 0.8);
+    } catch (compressionError) {
+      console.warn('Failed to compress image, using original file:', compressionError);
+      // Fallback: use the original file
+      compressedBlob = file;
+    }
+    
     // Create thumbnail with error handling
     let thumbnailBlob;
     try {
       thumbnailBlob = await createThumbnail(dataUrl);
     } catch (thumbnailError) {
-      console.warn('Failed to create thumbnail, using original image:', thumbnailError);
-      // Fallback: use the original file as thumbnail
-      thumbnailBlob = file;
+      console.warn('Failed to create thumbnail, using compressed image:', thumbnailError);
+      // Fallback: use the compressed image as thumbnail
+      thumbnailBlob = compressedBlob;
     }
     
     // Create unique filename
     const timestamp = Date.now();
-    const fileExtension = file.name.split('.').pop() || 'jpg';
-    const filename = `upload_${timestamp}.${fileExtension}`;
+    const filename = `upload_${timestamp}.jpg`; // Always use .jpg for compressed images
     const thumbnailFilename = `upload_thumbnail_${timestamp}.jpg`;
     
-    // Upload full resolution image
+    // Upload compressed image
     const storageRef = ref(storage, `userHistory/${userId}/${filename}`);
-    const snapshot = await uploadBytes(storageRef, file);
+    const snapshot = await uploadBytes(storageRef, compressedBlob);
     const downloadURL = await getDownloadURL(snapshot.ref);
     
     // Upload thumbnail
@@ -415,17 +504,24 @@ async function loadUserHistoryPaginated(userId, page = 1, pageSize = 7) {
 // Temporary upload for WhatsApp sharing
 async function uploadImageForSharing(userId, imageDataUrl) {
   try {
-    // Convert data URL to blob
-    const response = await fetch(imageDataUrl);
-    const blob = await response.blob();
+    // Compress image to max 1080p before uploading for sharing
+    let compressedBlob;
+    try {
+      compressedBlob = await compressImage(imageDataUrl, 1920, 1080, 0.8);
+    } catch (compressionError) {
+      console.warn('Failed to compress image for sharing, using original:', compressionError);
+      // Fallback: convert data URL to blob without compression
+      const response = await fetch(imageDataUrl);
+      compressedBlob = await response.blob();
+    }
     
     // Create temporary filename
     const timestamp = Date.now();
     const filename = `temp_${timestamp}.jpg`;
     
-    // Upload to temporary path
+    // Upload compressed image to temporary path
     const storageRef = ref(storage, `temp/${userId}/${filename}`);
-    const snapshot = await uploadBytes(storageRef, blob);
+    const snapshot = await uploadBytes(storageRef, compressedBlob);
     const downloadURL = await getDownloadURL(snapshot.ref);
     
     // Schedule cleanup after 1 hour (3600000 ms)
@@ -462,5 +558,7 @@ export {
   saveUploadToHistory,
   loadUserHistory,
   loadUserHistoryPaginated,
-  uploadImageForSharing
+  uploadImageForSharing,
+  compressImage,
+  compressFile
 };
