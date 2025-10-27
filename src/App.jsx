@@ -579,11 +579,17 @@ function App() {
   const handleImageUpload = async (event) => {
     const file = event.target.files[0]
     if (file) {
+      // Check if it's a HEIC file and show user feedback
+      const isHeicFile = file.type === 'image/heic' || file.type === 'image/heif' || file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')
+      if (isHeicFile) {
+        console.log('HEIC file detected, converting to JPEG...')
+      }
+      
       const reader = new FileReader()
       reader.onload = async (e) => {
         const originalImageDataUrl = e.target.result
         
-        // Compress the image first
+        // Compress the image first (this will handle HEIC conversion if needed)
         let compressedImageDataUrl = originalImageDataUrl
         try {
           const compressedBlob = await compressImage(originalImageDataUrl, 1920, 1080, 0.8)
@@ -596,6 +602,10 @@ function App() {
           console.log('Image compressed for display')
         } catch (compressionError) {
           console.warn('Failed to compress image for display, using original:', compressionError)
+          // If compression fails, try to use the original image
+          if (isHeicFile) {
+            console.error('HEIC conversion failed, please try uploading a JPEG or PNG image instead')
+          }
         }
         
         setUploadedImage(compressedImageDataUrl)

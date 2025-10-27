@@ -88,7 +88,46 @@ async function createOrUpdateUser(user) {
 
 // Storage functions
 // Helper function to compress and resize image to max 1080p
-function compressImage(imageDataUrl, maxWidth = 1920, maxHeight = 1080, quality = 0.8) {
+async function compressImage(imageDataUrl, maxWidth = 1920, maxHeight = 1080, quality = 0.8) {
+  // Check if the image is HEIC format
+  if (imageDataUrl.includes('image/heic') || imageDataUrl.includes('image/heif')) {
+    try {
+      console.log('Converting HEIC image to JPEG...');
+      
+      // Convert data URL to blob
+      const response = await fetch(imageDataUrl);
+      const heicBlob = await response.blob();
+      
+      // Convert HEIC to JPEG using heic2any
+      const heic2any = (await import('heic2any')).default;
+      const convertedBlob = await heic2any({
+        blob: heicBlob,
+        toType: 'image/jpeg',
+        quality: quality
+      });
+      
+      // If conversion returns an array, take the first element
+      const jpegBlob = Array.isArray(convertedBlob) ? convertedBlob[0] : convertedBlob;
+      
+      // Convert the converted JPEG blob to data URL for further processing
+      const convertedDataUrl = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.readAsDataURL(jpegBlob);
+      });
+      
+      console.log('HEIC converted to JPEG successfully');
+      
+      // Now process the converted JPEG with the regular compression logic
+      return await compressImage(convertedDataUrl, maxWidth, maxHeight, quality);
+      
+    } catch (heicError) {
+      console.error('Error converting HEIC image:', heicError);
+      throw new Error('Failed to convert HEIC image to JPEG');
+    }
+  }
+  
+  // Regular image compression for non-HEIC images
   return new Promise((resolve, reject) => {
     const img = new Image();
     
