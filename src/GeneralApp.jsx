@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { Upload, Plus, Palette, RotateCcw, Download, Settings, Home, TreePine, Car, Heart, Hammer, Sparkles, Package, User, Share2, Palette as FreeStyle, Type, Loader2, RotateCw, Lightbulb, Sofa, Droplets, ArrowLeftRight, Mic, MicOff, MessageCircle, ArrowLeft } from 'lucide-react'
+import { Upload, Plus, Palette, RotateCcw, Download, Settings, Home, TreePine, Car, Heart, Hammer, Sparkles, Package, User, Share2, Palette as FreeStyle, Type, Loader2, RotateCw, Lightbulb, Sofa, Droplets, ArrowLeftRight, MessageCircle, ArrowLeft } from 'lucide-react'
 import { fileToGenerativePart, urlToFile, signInUser, createOrUpdateUser, saveImageToHistory, saveUploadToHistory, loadUserHistory, loadUserHistoryPaginated, auth, uploadImageForSharing, compressImage } from './firebase.js'
 import { aiService } from './aiService.js'
 import { onAuthStateChanged } from 'firebase/auth'
@@ -36,6 +36,11 @@ function GeneralApp() {
   const [isLoadingMoreHistory, setIsLoadingMoreHistory] = useState(false)
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [showLogoutModal, setShowLogoutModal] = useState(false)
+  
+  // Debug: Log when showAuthModal changes
+  useEffect(() => {
+    console.log('showAuthModal changed:', showAuthModal)
+  }, [showAuthModal])
   const [authMode, setAuthMode] = useState('signup') // 'login' or 'signup'
   const [email, setEmail] = useState('')
   const [confirmEmail, setConfirmEmail] = useState('')
@@ -44,14 +49,6 @@ function GeneralApp() {
   const [isResettingPassword, setIsResettingPassword] = useState(false)
   const [showSuggestionsDropdown, setShowSuggestionsDropdown] = useState(false)
   const [showSuggestionsModal, setShowSuggestionsModal] = useState(false)
-  const [isListening, setIsListening] = useState(false)
-  const [mediaRecorder, setMediaRecorder] = useState(null)
-  const [audioChunks, setAudioChunks] = useState([])
-  const [isProcessingSpeech, setIsProcessingSpeech] = useState(false)
-  const [micPermissionError, setMicPermissionError] = useState(false)
-  const [micPermissionGranted, setMicPermissionGranted] = useState(false)
-  const [micStream, setMicStream] = useState(null)
-  const [audioProcessingError, setAudioProcessingError] = useState(null)
   const fileInputRef = useRef(null)
   const suggestionsDropdownRef = useRef(null)
   const objectInputRef = useRef(null)
@@ -93,323 +90,6 @@ function GeneralApp() {
 
     return () => unsubscribe()
   }, [])
-
-  // Cleanup microphone stream on unmount
-  useEffect(() => {
-    return () => {
-      if (micStream) {
-        micStream.getTracks().forEach(track => track.stop())
-      }
-    }
-  }, [micStream])
-
-  // Check microphone permission status
-  const checkMicPermission = async () => {
-    try {
-      const result = await navigator.permissions.query({ name: 'microphone' })
-      return result.state === 'granted'
-    } catch (error) {
-      // Fallback: permissions API not supported, assume we need to check
-      return false
-    }
-  }
-
-  // Initialize microphone stream once and reuse it
-  const initializeMicStream = async () => {
-    try {
-      setMicPermissionError(false)
-      
-      // Clean up existing stream if it exists
-      if (micStream) {
-        micStream.getTracks().forEach(track => track.stop())
-        setMicStream(null)
-      }
-      
-      // Check if permission is already granted
-      const hasPermission = await checkMicPermission()
-      
-      if (!hasPermission) {
-        // Request permission and get stream
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-        setMicStream(stream)
-        setMicPermissionGranted(true)
-        return stream
-      } else {
-        // Permission already granted, get stream
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-        setMicStream(stream)
-        setMicPermissionGranted(true)
-        return stream
-      }
-    } catch (error) {
-      console.error('Error accessing microphone:', error)
-      setMicPermissionError(true)
-      setMicPermissionGranted(false)
-      setMicStream(null)
-      return null
-    }
-  }
-
-  // Create media recorder from existing stream
-  const createMediaRecorder = (stream) => {
-    // Validate stream before creating MediaRecorder
-    if (!stream || !stream.active || stream.getTracks().length === 0) {
-      console.error('Invalid or inactive stream provided to MediaRecorder')
-      return null
-    }
-    
-    try {
-      const recorder = new MediaRecorder(stream, {
-        mimeType: 'audio/webm;codecs=opus'
-      })
-      
-      const chunks = []
-      
-      recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          chunks.push(event.data)
-        }
-      }
-      
-      recorder.onstop = async () => {
-        const audioBlob = new Blob(chunks, { type: 'audio/webm' })
-        await processAudioWithServer(audioBlob)
-        setAudioChunks([])
-        // Don't stop the stream, just reset the recorder
-        setMediaRecorder(null)
-      }
-      
-      return recorder
-    } catch (error) {
-      console.error('Failed to create MediaRecorder:', error)
-      return null
-    }
-  }
-
-  // Optimize audio blob for faster processing
-  const optimizeAudioBlob = async (audioBlob) => {
-    try {
-      // Create a new audio context to compress the audio
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)()
-      const arrayBuffer = await audioBlob.arrayBuffer()
-      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer)
-      
-      // Convert to mono and reduce sample rate for smaller file size
-      const sampleRate = Math.min(audioBuffer.sampleRate, 16000) // Max 16kHz
-      const length = Math.floor(audioBuffer.length * sampleRate / audioBuffer.sampleRate)
-      const monoBuffer = audioContext.createBuffer(1, length, sampleRate)
-      
-      // Mix down to mono
-      const sourceData = audioBuffer.getChannelData(0)
-      const monoData = monoBuffer.getChannelData(0)
-      for (let i = 0; i < length; i++) {
-        const sourceIndex = Math.floor(i * audioBuffer.sampleRate / sampleRate)
-        monoData[i] = sourceData[sourceIndex]
-      }
-      
-      // Convert back to blob with compression
-      const wavBlob = await audioBufferToWav(monoBuffer)
-      return wavBlob
-    } catch (error) {
-      console.warn('Audio optimization failed, using original:', error)
-      return audioBlob
-    }
-  }
-
-  // Convert audio buffer to WAV blob
-  const audioBufferToWav = async (audioBuffer) => {
-    const length = audioBuffer.length
-    const sampleRate = audioBuffer.sampleRate
-    const arrayBuffer = new ArrayBuffer(44 + length * 2)
-    const view = new DataView(arrayBuffer)
-    
-    // WAV header
-    const writeString = (offset, string) => {
-      for (let i = 0; i < string.length; i++) {
-        view.setUint8(offset + i, string.charCodeAt(i))
-      }
-    }
-    
-    writeString(0, 'RIFF')
-    view.setUint32(4, 36 + length * 2, true)
-    writeString(8, 'WAVE')
-    writeString(12, 'fmt ')
-    view.setUint32(16, 16, true)
-    view.setUint16(20, 1, true)
-    view.setUint16(22, 1, true)
-    view.setUint32(24, sampleRate, true)
-    view.setUint32(28, sampleRate * 2, true)
-    view.setUint16(32, 2, true)
-    view.setUint16(34, 16, true)
-    writeString(36, 'data')
-    view.setUint32(40, length * 2, true)
-    
-    // Convert float samples to 16-bit PCM
-    const channelData = audioBuffer.getChannelData(0)
-    let offset = 44
-    for (let i = 0; i < length; i++) {
-      const sample = Math.max(-1, Math.min(1, channelData[i]))
-      view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true)
-      offset += 2
-    }
-    
-    return new Blob([arrayBuffer], { type: 'audio/wav' })
-  }
-
-  // Process audio with server-side speech-to-text
-  const processAudioWithServer = async (audioBlob) => {
-    if (!currentUser) {
-      console.error('No current user available')
-      return
-    }
-
-    // Check audio duration - reject if longer than 5 seconds
-    try {
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)()
-      const arrayBuffer = await audioBlob.arrayBuffer()
-      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer)
-      const duration = audioBuffer.duration
-      
-      if (duration > 5) {
-        console.warn(`Audio too long (${duration.toFixed(1)}s), rejecting. Max duration: 5s`)
-        setAudioProcessingError('ההקלטה ארוכה מדי. אנא הקלט עד 5 שניות.')
-        setIsProcessingSpeech(false)
-        return
-      }
-    } catch (error) {
-      console.warn('Could not check audio duration, proceeding anyway:', error)
-    }
-
-    setIsProcessingSpeech(true)
-    
-    try {
-      // Optimize audio for faster processing
-      const optimizedBlob = await optimizeAudioBlob(audioBlob)
-      
-      // Convert to base64 efficiently (avoid stack overflow for large files)
-      const arrayBuffer = await optimizedBlob.arrayBuffer()
-      const uint8Array = new Uint8Array(arrayBuffer)
-      
-      // Convert in chunks to avoid stack overflow
-      let base64Audio = ''
-      const chunkSize = 8192 // Process 8KB at a time
-      for (let i = 0; i < uint8Array.length; i += chunkSize) {
-        const chunk = uint8Array.slice(i, i + chunkSize)
-        base64Audio += btoa(String.fromCharCode.apply(null, chunk))
-      }
-      
-      const audioDataUrl = `data:audio/wav;base64,${base64Audio}`
-      
-      // Get auth token
-      const authToken = await currentUser.getIdToken()
-      
-      // Call Firebase function with timeout
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
-      
-      const response = await fetch('https://us-central1-moomhe-6de30.cloudfunctions.net/speechToText', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          audioData: audioDataUrl,
-          authToken: authToken
-        }),
-        signal: controller.signal
-      })
-      
-      clearTimeout(timeoutId)
-      const result = await response.json()
-      
-      if (result.success && result.text) {
-        // Append to existing prompt or replace it
-        const currentPrompt = customPrompt.trim()
-        if (currentPrompt) {
-          setCustomPrompt(currentPrompt + ' ' + result.text)
-        } else {
-          setCustomPrompt(result.text)
-        }
-      } else {
-        console.error('Speech-to-text failed:', result.error)
-        setAudioProcessingError('שגיאה בעיבוד ההקלטה. אנא נסה שוב.')
-      }
-    } catch (error) {
-      if (error.name === 'AbortError') {
-        console.error('Speech-to-text timeout')
-        setAudioProcessingError('העיבוד ארך זמן רב מדי. אנא נסה הקלטה קצרה יותר.')
-      } else {
-        console.error('Error processing speech:', error)
-        setAudioProcessingError('שגיאה בעיבוד ההקלטה. אנא נסה שוב.')
-      }
-    } finally {
-      setIsProcessingSpeech(false)
-    }
-  }
-
-  // Handle button click events for toggle listening
-  const handleMicButtonClick = async () => {
-    if (isProcessing || isProcessingSpeech) return
-    
-    if (isListening && mediaRecorder) {
-      // Stop recording
-      mediaRecorder.stop()
-      setIsListening(false)
-    } else if (!isListening) {
-      // Clear any previous errors when starting new recording
-      setAudioProcessingError(null)
-      setMicPermissionError(false)
-      
-      // Start recording - get stream and create recorder
-      let currentStream = micStream
-      
-      // Check if we need to get a new stream
-      if (!currentStream || !micPermissionGranted || !currentStream.active || currentStream.getTracks().length === 0) {
-        console.log('Stream invalid or missing, creating new one...')
-        setAudioProcessingError('מאתחל מיקרופון...')
-        currentStream = await initializeMicStream()
-        setAudioProcessingError(null) // Clear the message
-        if (!currentStream) {
-          console.error('Failed to initialize microphone')
-          setMicPermissionError(true)
-          return
-        }
-      }
-      
-      // Create new recorder from stream
-      const recorder = createMediaRecorder(currentStream)
-      if (!recorder) {
-        console.error('Failed to create MediaRecorder, trying to recreate stream...')
-        // Try to recreate the stream one more time
-        const newStream = await initializeMicStream()
-        if (!newStream) {
-          console.error('Failed to recreate microphone stream')
-          setMicPermissionError(true)
-          return
-        }
-        
-        const retryRecorder = createMediaRecorder(newStream)
-        if (!retryRecorder) {
-          console.error('Failed to create MediaRecorder even after stream recreation')
-          setMicPermissionError(true)
-          return
-        }
-        
-        setMediaRecorder(retryRecorder)
-        setAudioChunks([])
-        retryRecorder.start()
-        setIsListening(true)
-        return
-      }
-      
-      setMediaRecorder(recorder)
-      
-      // Start recording immediately
-      setAudioChunks([])
-      recorder.start()
-      setIsListening(true)
-    }
-  }
 
   // Load default objects for initial category and when switching categories
   useEffect(() => {
@@ -1772,18 +1452,18 @@ function GeneralApp() {
   return (
     <div className="min-h-screen bg-background">
             {/* Combined Header with Categories */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
+      <header className="bg-surface/90 shadow-sm border-b border-white/10 relative z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Desktop Layout */}
           <div className="hidden md:flex justify-between items-center py-3">
             <div className="flex items-center">
               <img src="/Logo.png" alt="MoomHe Logo" className="h-16 w-auto" />
-              <span className="mr-2 text-sm text-gray-500">כל סוגי העיצוב</span>
+              <span className="mr-2 text-sm text-gray-400">כל סוגי העיצוב</span>
             </div>
             <div className="flex items-center">
               <a 
                 href="/" 
-                className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors duration-200"
+                className="flex items-center gap-2 px-4 py-2 text-sm text-gray-300 hover:text-gray-100 hover:bg-white/5 rounded-lg transition-colors duration-200"
               >
                 <ArrowLeft className="w-4 h-4" />
                 עיצוב פנים וחוץ
@@ -1791,13 +1471,24 @@ function GeneralApp() {
             </div>
             <div className="flex items-center space-x-4">
               <button 
-                className="bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 rounded-full flex items-center gap-2 px-4 py-2 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed" 
+                className="bg-white/5 hover:bg-white/5 text-gray-300 hover:text-gray-100 rounded-full flex items-center gap-2 px-4 py-2 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed" 
                 disabled={isProcessing}
-                onClick={() => {
-                  if (currentUser && !currentUser.isAnonymous) {
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  console.log('Login button clicked', { 
+                    currentUser, 
+                    isAnonymous: currentUser?.isAnonymous,
+                    hasEmail: !!currentUser?.email 
+                  })
+                  const isLoggedIn = currentUser && !currentUser.isAnonymous && currentUser.email
+                  if (isLoggedIn) {
+                    console.log('User is logged in, showing logout modal')
                     setShowLogoutModal(true)
                   } else {
+                    console.log('User is not logged in, showing auth modal')
                     setShowAuthModal(true)
+                    setAuthMode('login')
                   }
                 }}
               >
@@ -1826,13 +1517,24 @@ function GeneralApp() {
               {/* Left: Profile Button */}
               <div className="flex items-center">
                 <button 
-                  className="bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 rounded-full flex items-center gap-2 px-3 py-2 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm" 
+                  className="bg-white/5 hover:bg-white/5 text-gray-300 hover:text-gray-100 rounded-full flex items-center gap-2 px-3 py-2 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm" 
                   disabled={isProcessing}
-                  onClick={() => {
-                    if (currentUser && !currentUser.isAnonymous) {
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    console.log('Mobile login button clicked', { 
+                      currentUser, 
+                      isAnonymous: currentUser?.isAnonymous,
+                      hasEmail: !!currentUser?.email 
+                    })
+                    const isLoggedIn = currentUser && !currentUser.isAnonymous && currentUser.email
+                    if (isLoggedIn) {
+                      console.log('User is logged in, showing logout modal (mobile)')
                       setShowLogoutModal(true)
                     } else {
+                      console.log('User is not logged in, showing auth modal (mobile)')
                       setShowAuthModal(true)
+                      setAuthMode('login')
                     }
                   }}
                 >
@@ -1875,7 +1577,7 @@ function GeneralApp() {
                 
                 {/* Dropdown Menu */}
                 {showMobileDropdown && (
-                  <div className="absolute top-full right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-50 max-h-80 overflow-y-auto">
+                  <div className="absolute top-full right-0 mt-2 w-64 bg-surface/90 rounded-lg shadow-lg border border-white/10 z-50 max-h-80 overflow-y-auto">
             {categories.map((category) => {
               const IconComponent = categoryIcons[category]
               return (
@@ -1885,8 +1587,8 @@ function GeneralApp() {
                             handleCategorySelect(category)
                             setShowMobileDropdown(false)
                           }}
-                          className={`w-full flex items-center px-4 py-3 text-right hover:bg-gray-50 transition-colors duration-200 ${
-                            selectedCategory === category ? 'bg-blue-50 text-blue-600' : 'text-gray-700'
+                          className={`w-full flex items-center px-4 py-3 text-right hover:bg-white/5 transition-colors duration-200 ${
+                            selectedCategory === category ? 'bg-primary-500/10 text-primary-600' : 'text-gray-200'
                           }`}
                         >
                           <IconComponent className="w-4 h-4 ml-3" />
@@ -1913,7 +1615,7 @@ function GeneralApp() {
                   className={`flex-shrink-0 px-4 py-2 rounded-lg font-medium transition-all duration-200 text-sm flex items-center disabled:opacity-50 disabled:cursor-not-allowed ${
                     selectedCategory === category
                       ? 'bg-accent text-white shadow-lg'
-                      : 'bg-white text-text hover:bg-gray-50 border border-gray-200'
+                      : 'bg-surface/90 text-text hover:bg-white/5 border border-white/10'
                   }`}
                 >
                   <IconComponent className="w-4 h-4 ml-2" />
@@ -1931,7 +1633,7 @@ function GeneralApp() {
         <div className="block lg:hidden">
           {/* Main Stage - Primary on Mobile */}
           <div className="mb-6 -mt-4">
-            <div className="bg-white shadow-sm border-b border-gray-200 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-4">
+            <div className="bg-surface/90 shadow-sm border-b border-white/10 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-4">
               {/* Main Image Display */}
               <div className="relative mb-4">
                 <div 
@@ -1956,7 +1658,7 @@ function GeneralApp() {
                 <button
                   onClick={handleUploadClick}
                   disabled={isProcessing}
-                  className="absolute top-3 right-3 bg-blue-500/70 hover:bg-blue-500/90 text-white px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-sm flex items-center gap-1"
+                  className="absolute top-3 right-3 bg-primary-500/70 hover:bg-primary-500/90 text-white px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-sm flex items-center gap-1"
                 >
                   <Upload className="w-3 h-3" />
                   העלה תמונה
@@ -1999,28 +1701,6 @@ function GeneralApp() {
               {/* Mobile Action Bar */}
               <div className="mb-4">
                 <div className="flex gap-2 mb-4">
-                  {/* Microphone Button - Outside Input */}
-                  <button
-                    onClick={handleMicButtonClick}
-                    disabled={isProcessing || isProcessingSpeech}
-                    className={`flex-shrink-0 w-10 h-10 rounded-full border-2 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 select-none ${
-                      isListening ? 'bg-green-500 border-green-500 text-white animate-pulse' : 
-                      isProcessingSpeech ? 'bg-blue-500 border-blue-500 text-white' :
-                      'bg-green-500 border-green-500 hover:bg-green-600 hover:border-green-600 text-white'
-                    }`}
-                    title={isListening ? "לחץ כדי לעצור הקלטה" : 
-                           isProcessingSpeech ? "מעבד הקלטה..." : 
-                           "לחץ כדי להתחיל הקלטה קולית"}
-                  >
-                    {isProcessingSpeech ? (
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                    ) : isListening ? (
-                      <MicOff className="w-5 h-5" />
-                    ) : (
-                      <Mic className="w-5 h-5" />
-                    )}
-                  </button>
-
                   <div className="flex-1 relative">
                     <input
                       type="text"
@@ -2028,7 +1708,7 @@ function GeneralApp() {
                       onChange={(e) => setCustomPrompt(e.target.value)}
                       placeholder="הקלד שינוי..."
                       disabled={isProcessing}
-                      className="w-full px-3 py-2 pr-8 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed overflow-x-auto"
+                      className="w-full px-3 py-2 pr-8 text-sm border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed overflow-x-auto"
                       style={{ 
                         textAlign: 'right',
                         direction: 'rtl',
@@ -2046,7 +1726,7 @@ function GeneralApp() {
                       <button
                         onClick={() => setCustomPrompt('')}
                         disabled={isProcessing}
-                        className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         ×
                       </button>
@@ -2054,39 +1734,6 @@ function GeneralApp() {
                   </div>
                 </div>
 
-                {/* Speech Recognition Status Indicator - Mobile */}
-                {(isListening || isProcessingSpeech) && (
-                  <div className="mt-2 text-center">
-                    <div className={`inline-flex items-center gap-2 text-sm px-3 py-1 rounded-full ${
-                      isListening ? 'text-green-600 bg-green-50' : 'text-blue-600 bg-blue-50'
-                    }`}>
-                      <div className={`w-2 h-2 rounded-full animate-pulse ${
-                        isListening ? 'bg-green-500' : 'bg-blue-500'
-                      }`}></div>
-                      <span>{isListening ? 'מקשיב... לחץ על הכפתור כדי לעצור' : 'מעבד הקלטה...'}</span>
-                    </div>
-                  </div>
-                )}
-
-                {/* Microphone Permission Error - Mobile */}
-                {micPermissionError && (
-                  <div className="mt-2 text-center">
-                    <div className="inline-flex items-center gap-2 text-sm text-red-600 bg-red-50 px-3 py-1 rounded-full">
-                      <span>❌</span>
-                      <span>נדרשת הרשאה לגישה למיקרופון</span>
-                    </div>
-                  </div>
-                )}
-
-                {/* Audio Processing Error - Mobile */}
-                {audioProcessingError && (
-                  <div className="mt-2 text-center">
-                    <div className="inline-flex items-center gap-2 text-sm text-red-600 bg-red-50 px-3 py-1 rounded-full">
-                      <span>⚠️</span>
-                      <span>{audioProcessingError}</span>
-                    </div>
-                  </div>
-                )}
               </div>
 
 
@@ -2114,14 +1761,14 @@ function GeneralApp() {
                   <button
                     onClick={isProcessing ? undefined : handleObjectUploadClick}
                     disabled={isProcessing}
-                    className="flex-1 btn-secondary border-2 border-dashed border-blue-400 hover:border-blue-500 hover:bg-blue-50 flex items-center justify-center text-sm px-3 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 btn-secondary border-2 border-dashed border-primary-400 hover:border-primary-500 hover:bg-primary-500/10 flex items-center justify-center text-sm px-3 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {objectImage ? (
                       <div className="relative w-4 h-4 ml-2">
                         <img
                           src={objectImage}
                           alt="Object to add"
-                          className="w-full h-full object-cover rounded border border-gray-300"
+                          className="w-full h-full object-cover rounded border border-white/10"
                     />
                     <button
                           onClick={(e) => {
@@ -2135,9 +1782,9 @@ function GeneralApp() {
                     </button>
                   </div>
                 ) : (
-                      <Plus className="w-4 h-4 text-blue-500 ml-2" />
+                      <Plus className="w-4 h-4 text-primary-500 ml-2" />
                     )}
-                    <span className="text-blue-600">הוסף אובייקט</span>
+                    <span className="text-primary-600">הוסף אובייקט</span>
                   </button>
                   
                   {/* Suggestions Button - Mobile */}
@@ -2154,7 +1801,7 @@ function GeneralApp() {
                   <button
                     onClick={handleCustomPromptSubmit}
                     disabled={isProcessing || !customPrompt.trim()}
-                    className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center justify-center gap-2 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg flex items-center justify-center gap-2 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <span className="text-sm font-medium">בצע</span>
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2210,7 +1857,7 @@ function GeneralApp() {
                     <div className="text-gray-400 mb-2">
                       <Sparkles className="w-6 h-6 mx-auto" />
             </div>
-                    <p className="text-sm text-gray-500">אין עריכות עדיין</p>
+                    <p className="text-sm text-gray-400">אין עריכות עדיין</p>
                     <p className="text-xs text-gray-400 mt-1">התמונות שייווצרו יופיעו כאן</p>
                   </div>
                 ) : (
@@ -2254,7 +1901,7 @@ function GeneralApp() {
                           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200 rounded-lg"></div>
                         </div>
                         <div className="mt-1">
-                          <p className="text-xs text-gray-600 truncate" title={entry.prompt || 'No prompt'}>
+                          <p className="text-xs text-gray-300 truncate" title={entry.prompt || 'No prompt'}>
                             {entry.prompt && entry.prompt.length > 15 ? `${entry.prompt.substring(0, 15)}...` : (entry.prompt || 'No prompt')}
                           </p>
                           <p className="text-xs text-gray-400">{displayTimestamp(entry)}</p>
@@ -2265,7 +1912,7 @@ function GeneralApp() {
                     {/* Loading more indicator */}
                     {isLoadingMoreHistory && (
                       <div className="flex-shrink-0 flex items-center justify-center w-24">
-                        <div className="w-6 h-6 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
+                        <div className="w-6 h-6 border-2 border-white/10 border-t-primary-500 rounded-full animate-spin"></div>
                       </div>
                     )}
                     </div>
@@ -2279,9 +1926,9 @@ function GeneralApp() {
               
               {/* Loading Overlay for History */}
               {isLoadingHistory && (
-                <div className="absolute inset-0 bg-white/80 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                <div className="absolute inset-0 bg-surface/90/80 backdrop-blur-sm rounded-xl flex items-center justify-center">
                   <div className="relative">
-                    <div className="w-8 h-8 border-4 border-gray-300 border-t-purple-500 rounded-full animate-spin"></div>
+                    <div className="w-8 h-8 border-4 border-white/10 border-t-purple-500 rounded-full animate-spin"></div>
                   </div>
                 </div>
               )}
@@ -2305,7 +1952,7 @@ function GeneralApp() {
                   <div className="text-gray-400 mb-2">
                     <Sparkles className="w-8 h-8 mx-auto" />
                   </div>
-                  <p className="text-sm text-gray-500">אין עריכות עדיין</p>
+                  <p className="text-sm text-gray-400">אין עריכות עדיין</p>
                   <p className="text-xs text-gray-400 mt-1">התמונות שייווצרו יופיעו כאן</p>
                 </div>
               ) : (
@@ -2333,7 +1980,7 @@ function GeneralApp() {
                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200 rounded-lg"></div>
                       </div>
                       <div className="mt-2">
-                        <p className="text-xs text-gray-600 truncate" title={entry.prompt || 'No prompt'}>
+                        <p className="text-xs text-gray-300 truncate" title={entry.prompt || 'No prompt'}>
                           {entry.prompt && entry.prompt.length > 30 ? `${entry.prompt.substring(0, 30)}...` : (entry.prompt || 'No prompt')}
                         </p>
                         <p className="text-xs text-gray-400 mt-1">{displayTimestamp(entry)}</p>
@@ -2344,13 +1991,13 @@ function GeneralApp() {
                   {/* Loading more indicator and manual load more button */}
                   {isLoadingMoreHistory ? (
                     <div className="flex justify-center py-4">
-                      <div className="w-6 h-6 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
+                      <div className="w-6 h-6 border-2 border-white/10 border-t-primary-500 rounded-full animate-spin"></div>
                     </div>
                   ) : hasMoreHistory ? (
                     <div className="flex justify-center py-4">
                       <button
                         onClick={loadMoreHistory}
-                        className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors duration-200 text-sm"
+                        className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors duration-200 text-sm"
                       >
                         טען עוד
                       </button>
@@ -2362,11 +2009,11 @@ function GeneralApp() {
               
               {/* Loading Overlay for History */}
               {isLoadingHistory && (
-                <div className="absolute inset-0 bg-white/80 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                <div className="absolute inset-0 bg-surface/90/80 backdrop-blur-sm rounded-xl flex items-center justify-center">
                   <div className="relative">
-                    <div className="w-12 h-12 border-4 border-gray-300 border-t-purple-500 rounded-full animate-spin"></div>
+                    <div className="w-12 h-12 border-4 border-white/10 border-t-purple-500 rounded-full animate-spin"></div>
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-6 h-6 border-2 border-gray-400 border-b-purple-600 rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '0.8s' }}></div>
+                      <div className="w-6 h-6 border-2 border-white/10 border-b-purple-600 rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '0.8s' }}></div>
                     </div>
                   </div>
                 </div>
@@ -2383,7 +2030,7 @@ function GeneralApp() {
                 <button
                   onClick={() => detectObjects(mainImage)}
                   disabled={isLoadingObjects || !mainImage || isProcessing || !currentHistoryId}
-                  className="w-8 h-8 bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 rounded-full flex items-center justify-center transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-8 h-8 bg-white/5 hover:bg-white/5 text-gray-300 hover:text-gray-100 rounded-full flex items-center justify-center transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   title={currentHistoryId ? "רענן רשימת אובייקטים" : "בחר תמונה מההיסטוריה תחילה"}
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2399,7 +2046,7 @@ function GeneralApp() {
                     <div className="text-gray-400 mb-2">
                       <Sparkles className="w-8 h-8 mx-auto" />
                     </div>
-                    <p className="text-sm text-gray-500">אין אובייקטים זוהו</p>
+                    <p className="text-sm text-gray-400">אין אובייקטים זוהו</p>
                     <p className="text-xs text-gray-400 mt-1">
                       האובייקטים יופיעו כאן
                     </p>
@@ -2410,9 +2057,9 @@ function GeneralApp() {
                       <div
                         key={index}
                         onClick={() => handleObjectSelect(object)}
-                        className="rounded-lg p-3 transition-colors duration-200 cursor-pointer bg-gray-50 hover:bg-gray-100 border-2 border-transparent"
+                        className="rounded-lg p-3 transition-colors duration-200 cursor-pointer bg-white/5 hover:bg-white/5 border-2 border-transparent"
                       >
-                        <p className="text-sm font-medium text-gray-700">
+                        <p className="text-sm font-medium text-gray-200">
                           {object}
                         </p>
                       </div>
@@ -2423,11 +2070,11 @@ function GeneralApp() {
               
               {/* Loading Overlay for Objects */}
               {isLoadingObjects && (
-                <div className="absolute inset-0 bg-white/80 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                <div className="absolute inset-0 bg-surface/90/80 backdrop-blur-sm rounded-xl flex items-center justify-center">
                   <div className="relative">
-                    <div className="w-12 h-12 border-4 border-gray-300 border-t-orange-500 rounded-full animate-spin"></div>
+                    <div className="w-12 h-12 border-4 border-white/10 border-t-orange-500 rounded-full animate-spin"></div>
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-6 h-6 border-2 border-gray-400 border-b-orange-600 rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '0.8s' }}></div>
+                      <div className="w-6 h-6 border-2 border-white/10 border-b-orange-600 rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '0.8s' }}></div>
                     </div>
                   </div>
                 </div>
@@ -2463,7 +2110,7 @@ function GeneralApp() {
                 <button
                   onClick={handleUploadClick}
                   disabled={isProcessing}
-                  className="absolute top-4 right-4 bg-blue-500/70 hover:bg-blue-500/90 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-sm flex items-center gap-2"
+                  className="absolute top-4 right-4 bg-primary-500/70 hover:bg-primary-500/90 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-sm flex items-center gap-2"
                 >
                   <Upload className="w-4 h-4" />
                   העלה תמונה
@@ -2505,28 +2152,6 @@ function GeneralApp() {
               {/* Custom Prompt Input */}
               <div className="mb-6">
                 <div className="flex gap-3">
-                  {/* Microphone Button - Outside Input - Desktop */}
-                  <button
-                    onClick={handleMicButtonClick}
-                    disabled={isProcessing || isProcessingSpeech}
-                    className={`flex-shrink-0 w-12 h-12 rounded-full border-2 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 select-none ${
-                      isListening ? 'bg-green-500 border-green-500 text-white animate-pulse' : 
-                      isProcessingSpeech ? 'bg-blue-500 border-blue-500 text-white' :
-                      'bg-green-500 border-green-500 hover:bg-green-600 hover:border-green-600 text-white'
-                    }`}
-                    title={isListening ? "לחץ כדי לעצור הקלטה" : 
-                           isProcessingSpeech ? "מעבד הקלטה..." : 
-                           "לחץ כדי להתחיל הקלטה קולית"}
-                  >
-                    {isProcessingSpeech ? (
-                      <Loader2 className="w-6 h-6 animate-spin" />
-                    ) : isListening ? (
-                      <MicOff className="w-6 h-6" />
-                    ) : (
-                      <Mic className="w-6 h-6" />
-                    )}
-                  </button>
-
                   <div className="flex-1 relative">
                     <input
                       type="text"
@@ -2534,7 +2159,7 @@ function GeneralApp() {
                       onChange={(e) => setCustomPrompt(e.target.value)}
                       placeholder="הקלד שינוי..."
                       disabled={isProcessing}
-                      className="w-full px-4 py-3 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed overflow-x-auto"
+                      className="w-full px-4 py-3 pr-10 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed overflow-x-auto"
                       style={{ 
                         textAlign: 'right',
                         direction: 'rtl',
@@ -2552,7 +2177,7 @@ function GeneralApp() {
                       <button
                         onClick={() => setCustomPrompt('')}
                         disabled={isProcessing}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         ×
                       </button>
@@ -2560,39 +2185,6 @@ function GeneralApp() {
                   </div>
                 </div>
 
-                {/* Speech Recognition Status Indicator - Desktop */}
-                {(isListening || isProcessingSpeech) && (
-                  <div className="mt-3 text-center">
-                    <div className={`inline-flex items-center gap-2 text-sm px-4 py-2 rounded-full ${
-                      isListening ? 'text-green-600 bg-green-50' : 'text-blue-600 bg-blue-50'
-                    }`}>
-                      <div className={`w-2 h-2 rounded-full animate-pulse ${
-                        isListening ? 'bg-green-500' : 'bg-blue-500'
-                      }`}></div>
-                      <span>{isListening ? 'מקשיב... לחץ על הכפתור כדי לעצור' : 'מעבד הקלטה...'}</span>
-                    </div>
-                  </div>
-                )}
-
-                {/* Microphone Permission Error - Desktop */}
-                {micPermissionError && (
-                  <div className="mt-3 text-center">
-                    <div className="inline-flex items-center gap-2 text-sm text-red-600 bg-red-50 px-4 py-2 rounded-full">
-                      <span>❌</span>
-                      <span>נדרשת הרשאה לגישה למיקרופון</span>
-                    </div>
-                  </div>
-                )}
-
-                {/* Audio Processing Error - Desktop */}
-                {audioProcessingError && (
-                  <div className="mt-3 text-center">
-                    <div className="inline-flex items-center gap-2 text-sm text-red-600 bg-red-50 px-4 py-2 rounded-full">
-                      <span>⚠️</span>
-                      <span>{audioProcessingError}</span>
-                    </div>
-                  </div>
-                )}
               </div>
 
               {/* Action Buttons */}
@@ -2604,7 +2196,7 @@ function GeneralApp() {
                       <img
                         src={objectImage}
                         alt="Object to add"
-                        className="w-6 h-6 object-cover rounded border border-gray-300"
+                        className="w-6 h-6 object-cover rounded border border-white/10"
                       />
                 <button 
                         onClick={handleRemoveObjectImage}
@@ -2618,10 +2210,10 @@ function GeneralApp() {
                     <button
                       onClick={isProcessing ? undefined : handleObjectUploadClick}
                       disabled={isProcessing}
-                      className={`flex-1 btn-secondary h-10 border-2 border-dashed border-blue-400 hover:border-blue-500 hover:bg-blue-50 flex items-center justify-center transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed`}
+                      className={`flex-1 btn-secondary h-10 border-2 border-dashed border-primary-400 hover:border-primary-500 hover:bg-primary-500/10 flex items-center justify-center transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
-                      <Plus className="w-4 h-4 text-blue-500 ml-2" />
-                      <span className="text-sm text-blue-600">הוסף אובייקט</span>
+                      <Plus className="w-4 h-4 text-primary-500 ml-2" />
+                      <span className="text-sm text-primary-600">הוסף אובייקט</span>
                     </button>
                   )}
                   
@@ -2646,7 +2238,7 @@ function GeneralApp() {
                   </button>
                   
                   {showSuggestionsDropdown && (
-                    <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 min-w-48">
+                    <div className="absolute top-full left-0 mt-1 bg-surface/90 border border-white/10 rounded-lg shadow-lg z-50 min-w-48">
                       {categoryActionButtons[selectedCategory]?.map((button, index) => (
                         <button
                           key={index}
@@ -2655,7 +2247,7 @@ function GeneralApp() {
                             setShowSuggestionsDropdown(false)
                           }}
                           disabled={isProcessing}
-                          className="w-full px-4 py-2 text-right hover:bg-gray-50 flex items-center justify-end gap-2 disabled:opacity-50 disabled:cursor-not-allowed border-b border-gray-100 last:border-b-0"
+                          className="w-full px-4 py-2 text-right hover:bg-white/5 flex items-center justify-end gap-2 disabled:opacity-50 disabled:cursor-not-allowed border-b border-white/10 last:border-b-0"
                         >
                           <span>{button.name}</span>
                           <button.icon className="w-4 h-4" />
@@ -2669,7 +2261,7 @@ function GeneralApp() {
                 <button
                   onClick={handleCustomPromptSubmit}
                   disabled={isProcessing || !customPrompt.trim()}
-                  className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center justify-center gap-2 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 px-4 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg flex items-center justify-center gap-2 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <span className="text-sm font-medium">בצע</span>
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2687,21 +2279,21 @@ function GeneralApp() {
               {/* Color Palette Modal */}
               {showColorPalette && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
-          <div className="bg-white rounded-xl shadow-2xl w-full mx-4 h-[85vh] overflow-hidden max-w-[95vw] md:max-w-6xl">
+          <div className="bg-surface/90 rounded-xl shadow-2xl w-full mx-4 h-[85vh] overflow-hidden max-w-[95vw] md:max-w-6xl">
             <div className="p-4 md:p-6">
                       <div className="flex justify-between items-center mb-6">
                         <h3 className="text-lg font-semibold text-text">בחר צבע RAL</h3>
                         <button
                           onClick={() => setShowColorPalette(false)}
                           disabled={isProcessing}
-                          className="text-gray-500 hover:text-gray-700 text-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="text-gray-400 hover:text-gray-200 text-xl disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           ×
                         </button>
                       </div>
                       
               {/* Color Category Tabs */}
-              <div className="flex flex-wrap gap-1 md:gap-2 mb-4 md:mb-6 border-b border-gray-200 pb-3 md:pb-4">
+              <div className="flex flex-wrap gap-1 md:gap-2 mb-4 md:mb-6 border-b border-white/10 pb-3 md:pb-4">
                 {Object.keys(colorPalette).map((category) => (
                   <button
                     key={category}
@@ -2709,12 +2301,12 @@ function GeneralApp() {
                     disabled={isProcessing}
                     className={`flex items-center gap-2 px-2 md:px-4 py-1 md:py-2 rounded-lg font-medium text-xs md:text-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
                       activeColorCategory === category
-                        ? 'bg-blue-600 text-white shadow-lg'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        ? 'bg-primary-600 text-white shadow-lg'
+                        : 'bg-white/5 text-gray-200 hover:bg-white/5'
                     }`}
                   >
                     <div 
-                      className="w-3 h-3 rounded-full border border-gray-300"
+                      className="w-3 h-3 rounded-full border border-white/10"
                       style={{ backgroundColor: colorCategoryColors[category] }}
                     ></div>
                     {category}
@@ -2730,16 +2322,16 @@ function GeneralApp() {
                                 key={index}
                                 onClick={() => handleColorSelect(color)}
                                 disabled={isProcessing}
-                                className="flex flex-col items-center p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200 border border-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="flex flex-col items-center p-3 rounded-lg hover:bg-white/5 transition-colors duration-200 border border-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
                               >
                                 <div 
-                        className="w-12 h-12 rounded-full border-2 border-gray-300 shadow-sm mb-2"
+                        className="w-12 h-12 rounded-full border-2 border-white/10 shadow-sm mb-2"
                                   style={{ backgroundColor: color.hex }}
                                 ></div>
                                 <span className="text-xs text-text font-medium text-center leading-tight">
                                   {color.ral}
                                 </span>
-                                <span className="text-xs text-gray-500 text-center leading-tight mt-1">
+                                <span className="text-xs text-gray-400 text-center leading-tight mt-1">
                                   {color.name}
                                 </span>
                               </button>
@@ -2754,14 +2346,14 @@ function GeneralApp() {
               {/* Angle Panel Modal */}
               {showAnglePanel && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
-          <div className="bg-white rounded-xl shadow-2xl w-full mx-4 max-h-[70vh] overflow-y-auto max-w-[95vw] md:max-w-2xl">
+          <div className="bg-surface/90 rounded-xl shadow-2xl w-full mx-4 max-h-[70vh] overflow-y-auto max-w-[95vw] md:max-w-2xl">
             <div className="p-4 md:p-6">
                       <div className="flex justify-between items-center mb-6">
                         <h3 className="text-lg font-semibold text-text">בחר זווית ופרספקטיבה</h3>
                         <button
                           onClick={() => setShowAnglePanel(false)}
                           disabled={isProcessing}
-                          className="text-gray-500 hover:text-gray-700 text-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="text-gray-400 hover:text-gray-200 text-xl disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           ×
                         </button>
@@ -2773,12 +2365,12 @@ function GeneralApp() {
                             key={index}
                             onClick={() => handleAngleSelect(angle)}
                             disabled={isProcessing}
-                            className="flex items-center p-4 rounded-lg hover:bg-gray-50 transition-colors duration-200 border border-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="flex items-center p-4 rounded-lg hover:bg-white/5 transition-colors duration-200 border border-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <span className="text-2xl ml-3">{angle.icon}</span>
                             <div className="text-right">
                               <div className="text-sm font-medium text-text">{angle.name}</div>
-                              <div className="text-xs text-gray-500">{angle.value}</div>
+                              <div className="text-xs text-gray-400">{angle.value}</div>
                             </div>
                           </button>
                         ))}
@@ -2791,14 +2383,14 @@ function GeneralApp() {
               {/* Lighting Options Modal */}
               {showLightingOptions && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
-          <div className="bg-white rounded-xl shadow-2xl w-full mx-4 max-h-[70vh] overflow-y-auto max-w-[95vw] md:max-w-2xl">
+          <div className="bg-surface/90 rounded-xl shadow-2xl w-full mx-4 max-h-[70vh] overflow-y-auto max-w-[95vw] md:max-w-2xl">
             <div className="p-4 md:p-6">
                       <div className="flex justify-between items-center mb-6">
                         <h3 className="text-lg font-semibold text-text">בחר סוג תאורה</h3>
                         <button
                           onClick={() => setShowLightingOptions(false)}
                           disabled={isProcessing}
-                          className="text-gray-500 hover:text-gray-700 text-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="text-gray-400 hover:text-gray-200 text-xl disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           ×
                         </button>
@@ -2810,12 +2402,12 @@ function GeneralApp() {
                             key={index}
                             onClick={() => handleLightingSelect(lighting)}
                             disabled={isProcessing}
-                            className="flex items-center p-4 rounded-lg hover:bg-gray-50 transition-colors duration-200 border border-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="flex items-center p-4 rounded-lg hover:bg-white/5 transition-colors duration-200 border border-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <span className="text-2xl ml-3">💡</span>
                             <div className="text-right">
                               <div className="text-sm font-medium text-text">{lighting.name}</div>
-                              <div className="text-xs text-gray-500">{lighting.value}</div>
+                              <div className="text-xs text-gray-400">{lighting.value}</div>
                             </div>
                           </button>
                         ))}
@@ -2828,14 +2420,14 @@ function GeneralApp() {
               {/* Furniture Options Modal */}
               {showFurnitureOptions && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
-          <div className="bg-white rounded-xl shadow-2xl w-full mx-4 max-h-[70vh] overflow-y-auto max-w-[95vw] md:max-w-2xl">
+          <div className="bg-surface/90 rounded-xl shadow-2xl w-full mx-4 max-h-[70vh] overflow-y-auto max-w-[95vw] md:max-w-2xl">
             <div className="p-4 md:p-6">
                       <div className="flex justify-between items-center mb-6">
                         <h3 className="text-lg font-semibold text-text">בחר סוג ריהוט</h3>
                         <button
                           onClick={() => setShowFurnitureOptions(false)}
                           disabled={isProcessing}
-                          className="text-gray-500 hover:text-gray-700 text-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="text-gray-400 hover:text-gray-200 text-xl disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           ×
                         </button>
@@ -2847,11 +2439,11 @@ function GeneralApp() {
                             key={index}
                             onClick={() => handleFurnitureSelect(furniture)}
                             disabled={isProcessing}
-                            className="flex items-center p-4 rounded-lg hover:bg-gray-50 transition-colors duration-200 border border-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="flex items-center p-4 rounded-lg hover:bg-white/5 transition-colors duration-200 border border-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <div className="text-right w-full">
                               <div className="text-sm font-medium text-text">{furniture.name}</div>
-                              <div className="text-xs text-gray-500">{furniture.value}</div>
+                              <div className="text-xs text-gray-400">{furniture.value}</div>
                             </div>
                           </button>
                         ))}
@@ -2864,14 +2456,14 @@ function GeneralApp() {
       {/* Repairs Options Modal */}
       {showRepairsOptions && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
-          <div className="bg-white rounded-xl shadow-2xl w-full mx-4 max-h-[70vh] overflow-y-auto max-w-[95vw] md:max-w-2xl">
+          <div className="bg-surface/90 rounded-xl shadow-2xl w-full mx-4 max-h-[70vh] overflow-y-auto max-w-[95vw] md:max-w-2xl">
             <div className="p-4 md:p-6">
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-lg font-semibold text-text">בחר סוג תיקון/נזק</h3>
                 <button
                   onClick={() => setShowRepairsOptions(false)}
                   disabled={isProcessing}
-                  className="text-gray-500 hover:text-gray-700 text-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="text-gray-400 hover:text-gray-200 text-xl disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   ×
                 </button>
@@ -2883,10 +2475,10 @@ function GeneralApp() {
                     key={repair.value}
                     onClick={() => handleRepairsSelect(repair)}
                     disabled={isProcessing}
-                    className="flex items-center gap-3 p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-right"
+                    className="flex items-center gap-3 p-4 rounded-lg border border-white/10 hover:border-primary-300 hover:bg-primary-500/10 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-right"
                   >
-                    <Hammer className="w-5 h-5 text-gray-600 flex-shrink-0" />
-                    <span className="text-sm font-medium text-gray-800">{repair.name}</span>
+                    <Hammer className="w-5 h-5 text-gray-300 flex-shrink-0" />
+                    <span className="text-sm font-medium text-gray-100">{repair.name}</span>
                   </button>
                 ))}
               </div>
@@ -2898,14 +2490,14 @@ function GeneralApp() {
       {/* Style Options Modal */}
       {showStyleOptions && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
-          <div className="bg-white rounded-xl shadow-2xl w-full mx-4 max-h-[80vh] overflow-y-auto max-w-[95vw] md:max-w-3xl">
+          <div className="bg-surface/90 rounded-xl shadow-2xl w-full mx-4 max-h-[80vh] overflow-y-auto max-w-[95vw] md:max-w-3xl">
             <div className="p-4 md:p-6">
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-lg font-semibold text-text">בחר סגנון עיצוב</h3>
                 <button
                   onClick={() => setShowStyleOptions(false)}
                   disabled={isProcessing}
-                  className="text-gray-500 hover:text-gray-700 text-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="text-gray-400 hover:text-gray-200 text-xl disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   ×
                 </button>
@@ -2917,12 +2509,12 @@ function GeneralApp() {
                     key={style.value}
                     onClick={() => handleStyleSelect(style)}
                     disabled={isProcessing}
-                    className="flex flex-col items-center gap-3 p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-center"
+                    className="flex flex-col items-center gap-3 p-4 rounded-lg border border-white/10 hover:border-primary-300 hover:bg-primary-500/10 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-center"
                   >
-                    <FreeStyle className="w-6 h-6 text-blue-600 flex-shrink-0" />
+                    <FreeStyle className="w-6 h-6 text-primary-600 flex-shrink-0" />
                     <div>
-                      <div className="text-sm font-medium text-gray-800 mb-1">{style.name}</div>
-                      <div className="text-xs text-gray-500">{style.value}</div>
+                      <div className="text-sm font-medium text-gray-100 mb-1">{style.name}</div>
+                      <div className="text-xs text-gray-400">{style.value}</div>
                     </div>
                   </button>
                 ))}
@@ -2935,14 +2527,14 @@ function GeneralApp() {
       {/* Doors/Windows Options Modal */}
       {showDoorsWindowsOptions && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
-          <div className="bg-white rounded-xl shadow-2xl w-full mx-4 max-h-[80vh] overflow-y-auto max-w-[95vw] md:max-w-4xl">
+          <div className="bg-surface/90 rounded-xl shadow-2xl w-full mx-4 max-h-[80vh] overflow-y-auto max-w-[95vw] md:max-w-4xl">
             <div className="p-4 md:p-6">
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-lg font-semibold text-text">דלתות וחלונות</h3>
                 <button
                   onClick={() => setShowDoorsWindowsOptions(false)}
                   disabled={isProcessing}
-                  className="text-gray-500 hover:text-gray-700 text-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="text-gray-400 hover:text-gray-200 text-xl disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   ×
                 </button>
@@ -2951,7 +2543,7 @@ function GeneralApp() {
               <div className="space-y-6">
                 {/* Window Options */}
                 <div>
-                  <h4 className="text-md font-semibold text-gray-800 mb-3">אפשרויות חלונות</h4>
+                  <h4 className="text-md font-semibold text-gray-100 mb-3">אפשרויות חלונות</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {[
                       { name: 'חלון מפרץ/קשת', value: 'הוסף חלון מפרץ או קשת שמגדיל את החלל', hebrew: 'הוסף חלון מפרץ או קשת שמגדיל את החלל' },
@@ -2968,12 +2560,12 @@ function GeneralApp() {
                           setShowDoorsWindowsOptions(false)
                         }}
                         disabled={isProcessing}
-                        className="flex items-center gap-3 p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-right"
+                        className="flex items-center gap-3 p-4 rounded-lg border border-white/10 hover:border-primary-300 hover:bg-primary-500/10 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-right"
                       >
-                        <Home className="w-5 h-5 text-gray-600 flex-shrink-0" />
+                        <Home className="w-5 h-5 text-gray-300 flex-shrink-0" />
                         <div>
-                          <div className="text-sm font-medium text-gray-800">{option.name}</div>
-                          <div className="text-xs text-gray-500">{option.hebrew}</div>
+                          <div className="text-sm font-medium text-gray-100">{option.name}</div>
+                          <div className="text-xs text-gray-400">{option.hebrew}</div>
                         </div>
                       </button>
                     ))}
@@ -2982,7 +2574,7 @@ function GeneralApp() {
 
                 {/* Door Options */}
                 <div>
-                  <h4 className="text-md font-semibold text-gray-800 mb-3">אפשרויות דלתות</h4>
+                  <h4 className="text-md font-semibold text-gray-100 mb-3">אפשרויות דלתות</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {[
                       { name: 'דלתות צרפתיות', value: 'French Doors: Glass pane entry.', hebrew: 'הוסף דלתות צרפתיות עם זכוכית' },
@@ -2997,12 +2589,12 @@ function GeneralApp() {
                           setShowDoorsWindowsOptions(false)
                         }}
                         disabled={isProcessing}
-                        className="flex items-center gap-3 p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-right"
+                        className="flex items-center gap-3 p-4 rounded-lg border border-white/10 hover:border-primary-300 hover:bg-primary-500/10 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-right"
                       >
-                        <Home className="w-5 h-5 text-gray-600 flex-shrink-0" />
+                        <Home className="w-5 h-5 text-gray-300 flex-shrink-0" />
                         <div>
-                          <div className="text-sm font-medium text-gray-800">{option.name}</div>
-                          <div className="text-xs text-gray-500">{option.hebrew}</div>
+                          <div className="text-sm font-medium text-gray-100">{option.name}</div>
+                          <div className="text-xs text-gray-400">{option.hebrew}</div>
                         </div>
                       </button>
                     ))}
@@ -3017,14 +2609,14 @@ function GeneralApp() {
       {/* Bathroom Options Modal */}
       {showBathroomOptions && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
-          <div className="bg-white rounded-xl shadow-2xl w-full mx-4 max-h-[80vh] overflow-y-auto max-w-[95vw] md:max-w-4xl">
+          <div className="bg-surface/90 rounded-xl shadow-2xl w-full mx-4 max-h-[80vh] overflow-y-auto max-w-[95vw] md:max-w-4xl">
             <div className="p-4 md:p-6">
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-lg font-semibold text-text">אפשרויות רחצה</h3>
                 <button
                   onClick={() => setShowBathroomOptions(false)}
                   disabled={isProcessing}
-                  className="text-gray-500 hover:text-gray-700 text-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="text-gray-400 hover:text-gray-200 text-xl disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   ×
                 </button>
@@ -3033,7 +2625,7 @@ function GeneralApp() {
               <div className="space-y-6">
                 {/* Toilet Options */}
                 <div>
-                  <h4 className="text-md font-semibold text-gray-800 mb-3">אפשרויות אסלה</h4>
+                  <h4 className="text-md font-semibold text-gray-100 mb-3">אפשרויות אסלה</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {[
                       { name: 'מושב אסלה', value: 'Toilet Seat: Slow-close lid', hebrew: 'הוסף מושב אסלה עם מכסה שנסגר לאט' },
@@ -3046,12 +2638,12 @@ function GeneralApp() {
                           setShowBathroomOptions(false)
                         }}
                         disabled={isProcessing}
-                        className="flex items-center gap-3 p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-right"
+                        className="flex items-center gap-3 p-4 rounded-lg border border-white/10 hover:border-primary-300 hover:bg-primary-500/10 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-right"
                       >
-                        <Settings className="w-5 h-5 text-gray-600 flex-shrink-0" />
+                        <Settings className="w-5 h-5 text-gray-300 flex-shrink-0" />
                         <div>
-                          <div className="text-sm font-medium text-gray-800">{option.name}</div>
-                          <div className="text-xs text-gray-500">{option.hebrew}</div>
+                          <div className="text-sm font-medium text-gray-100">{option.name}</div>
+                          <div className="text-xs text-gray-400">{option.hebrew}</div>
                         </div>
                       </button>
                     ))}
@@ -3060,7 +2652,7 @@ function GeneralApp() {
 
                 {/* Bathtub Options */}
                 <div>
-                  <h4 className="text-md font-semibold text-gray-800 mb-3">אפשרויות אמבטיה</h4>
+                  <h4 className="text-md font-semibold text-gray-100 mb-3">אפשרויות אמבטיה</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {[
                       { name: 'אמבטיה עומדת', value: 'Bathtub: Freestanding oval soak', hebrew: 'הוסף אמבטיה עומדת אליפטית' },
@@ -3074,12 +2666,12 @@ function GeneralApp() {
                           setShowBathroomOptions(false)
                         }}
                         disabled={isProcessing}
-                        className="flex items-center gap-3 p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-right"
+                        className="flex items-center gap-3 p-4 rounded-lg border border-white/10 hover:border-primary-300 hover:bg-primary-500/10 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-right"
                       >
-                        <Settings className="w-5 h-5 text-gray-600 flex-shrink-0" />
+                        <Settings className="w-5 h-5 text-gray-300 flex-shrink-0" />
                         <div>
-                          <div className="text-sm font-medium text-gray-800">{option.name}</div>
-                          <div className="text-xs text-gray-500">{option.hebrew}</div>
+                          <div className="text-sm font-medium text-gray-100">{option.name}</div>
+                          <div className="text-xs text-gray-400">{option.hebrew}</div>
                         </div>
                       </button>
                     ))}
@@ -3088,7 +2680,7 @@ function GeneralApp() {
 
                 {/* Shower Options */}
                 <div>
-                  <h4 className="text-md font-semibold text-gray-800 mb-3">אפשרויות מקלחת</h4>
+                  <h4 className="text-md font-semibold text-gray-100 mb-3">אפשרויות מקלחת</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {[
                       { name: 'מקלחת זכוכית', value: 'Shower: Walk-in frameless glass', hebrew: 'הוסף מקלחת עם זכוכית ללא מסגרת' },
@@ -3102,12 +2694,12 @@ function GeneralApp() {
                           setShowBathroomOptions(false)
                         }}
                         disabled={isProcessing}
-                        className="flex items-center gap-3 p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-right"
+                        className="flex items-center gap-3 p-4 rounded-lg border border-white/10 hover:border-primary-300 hover:bg-primary-500/10 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-right"
                       >
-                        <Settings className="w-5 h-5 text-gray-600 flex-shrink-0" />
+                        <Settings className="w-5 h-5 text-gray-300 flex-shrink-0" />
                         <div>
-                          <div className="text-sm font-medium text-gray-800">{option.name}</div>
-                          <div className="text-xs text-gray-500">{option.hebrew}</div>
+                          <div className="text-sm font-medium text-gray-100">{option.name}</div>
+                          <div className="text-xs text-gray-400">{option.hebrew}</div>
                         </div>
                       </button>
                     ))}
@@ -3116,7 +2708,7 @@ function GeneralApp() {
 
                 {/* Sink Options */}
                 <div>
-                  <h4 className="text-md font-semibold text-gray-800 mb-3">אפשרויות כיור</h4>
+                  <h4 className="text-md font-semibold text-gray-100 mb-3">אפשרויות כיור</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {[
                       { name: 'כיור כלי', value: 'Sink (Vanity): Vessel bowl style', hebrew: 'הוסף כיור כלי בסגנון קערה' },
@@ -3130,12 +2722,12 @@ function GeneralApp() {
                           setShowBathroomOptions(false)
                         }}
                         disabled={isProcessing}
-                        className="flex items-center gap-3 p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-right"
+                        className="flex items-center gap-3 p-4 rounded-lg border border-white/10 hover:border-primary-300 hover:bg-primary-500/10 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-right"
                       >
-                        <Settings className="w-5 h-5 text-gray-600 flex-shrink-0" />
+                        <Settings className="w-5 h-5 text-gray-300 flex-shrink-0" />
                         <div>
-                          <div className="text-sm font-medium text-gray-800">{option.name}</div>
-                          <div className="text-xs text-gray-500">{option.hebrew}</div>
+                          <div className="text-sm font-medium text-gray-100">{option.name}</div>
+                          <div className="text-xs text-gray-400">{option.hebrew}</div>
                         </div>
                       </button>
                     ))}
@@ -3144,7 +2736,7 @@ function GeneralApp() {
 
                 {/* Jacuzzi/Spa Options */}
                 <div>
-                  <h4 className="text-md font-semibold text-gray-800 mb-3">אפשרויות ג\'קוזי/ספא</h4>
+                  <h4 className="text-md font-semibold text-gray-100 mb-3">אפשרויות ג\'קוזי/ספא</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {[
                       { name: 'ג\'קוזי נייד', value: 'Jacuzzi / Spa: Portable vinyl bubble', hebrew: 'הוסף ג\'קוזי נייד ויניל' },
@@ -3157,12 +2749,12 @@ function GeneralApp() {
                           setShowBathroomOptions(false)
                         }}
                         disabled={isProcessing}
-                        className="flex items-center gap-3 p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-right"
+                        className="flex items-center gap-3 p-4 rounded-lg border border-white/10 hover:border-primary-300 hover:bg-primary-500/10 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-right"
                       >
-                        <Settings className="w-5 h-5 text-gray-600 flex-shrink-0" />
+                        <Settings className="w-5 h-5 text-gray-300 flex-shrink-0" />
                         <div>
-                          <div className="text-sm font-medium text-gray-800">{option.name}</div>
-                          <div className="text-xs text-gray-500">{option.hebrew}</div>
+                          <div className="text-sm font-medium text-gray-100">{option.name}</div>
+                          <div className="text-xs text-gray-400">{option.hebrew}</div>
                         </div>
                       </button>
                     ))}
@@ -3171,7 +2763,7 @@ function GeneralApp() {
 
                 {/* Pool Options */}
                 <div>
-                  <h4 className="text-md font-semibold text-gray-800 mb-3">אפשרויות בריכה</h4>
+                  <h4 className="text-md font-semibold text-gray-100 mb-3">אפשרויות בריכה</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {[
                       { name: 'בריכה מעל הקרקע', value: 'Pool: Above-ground metal frame', hebrew: 'הוסף בריכה מעל הקרקע עם מסגרת מתכת' },
@@ -3184,12 +2776,12 @@ function GeneralApp() {
                           setShowBathroomOptions(false)
                         }}
                         disabled={isProcessing}
-                        className="flex items-center gap-3 p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-right"
+                        className="flex items-center gap-3 p-4 rounded-lg border border-white/10 hover:border-primary-300 hover:bg-primary-500/10 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-right"
                       >
-                        <Settings className="w-5 h-5 text-gray-600 flex-shrink-0" />
+                        <Settings className="w-5 h-5 text-gray-300 flex-shrink-0" />
                         <div>
-                          <div className="text-sm font-medium text-gray-800">{option.name}</div>
-                          <div className="text-xs text-gray-500">{option.hebrew}</div>
+                          <div className="text-sm font-medium text-gray-100">{option.name}</div>
+                          <div className="text-xs text-gray-400">{option.hebrew}</div>
                         </div>
                       </button>
                     ))}
@@ -3215,7 +2807,7 @@ function GeneralApp() {
             />
             <button
               onClick={handleCloseModal}
-              className="absolute top-4 right-4 bg-white/20 hover:bg-white/30 text-white p-3 rounded-full transition-colors duration-200 backdrop-blur-sm"
+              className="absolute top-4 right-4 bg-surface/90/20 hover:bg-surface/90/30 text-white p-3 rounded-full transition-colors duration-200 backdrop-blur-sm"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -3235,15 +2827,15 @@ function GeneralApp() {
           onClick={() => setShowSuggestionsModal(false)}
         >
           <div 
-            className="suggestions-modal bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col"
+            className="suggestions-modal bg-surface/90 rounded-xl shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-6 border-b border-gray-200">
+            <div className="p-6 border-b border-white/10">
               <div className="flex justify-between items-center">
                 <h3 className="text-lg font-semibold text-text">הצעות עבור {selectedCategory}</h3>
                 <button
                   onClick={() => setShowSuggestionsModal(false)}
-                  className="text-gray-500 hover:text-gray-700 text-xl"
+                  className="text-gray-400 hover:text-gray-200 text-xl"
                 >
                   ×
                 </button>
@@ -3260,19 +2852,19 @@ function GeneralApp() {
                       setShowSuggestionsModal(false)
                     }}
                     disabled={isProcessing}
-                    className="w-full px-4 py-3 text-right hover:bg-gray-50 flex items-center justify-start gap-3 disabled:opacity-50 disabled:cursor-not-allowed border border-gray-200 rounded-lg transition-colors duration-200"
+                    className="w-full px-4 py-3 text-right hover:bg-white/5 flex items-center justify-start gap-3 disabled:opacity-50 disabled:cursor-not-allowed border border-white/10 rounded-lg transition-colors duration-200"
                   >
-                    <button.icon className="w-5 h-5 text-gray-600" />
+                    <button.icon className="w-5 h-5 text-gray-300" />
                     <span className="text-sm font-medium">{button.name}</span>
                   </button>
                 ))}
               </div>
             </div>
             
-            <div className="p-6 border-t border-gray-200">
+            <div className="p-6 border-t border-white/10">
               <button
                 onClick={() => setShowSuggestionsModal(false)}
-                className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 px-4 rounded-lg transition-colors duration-200"
+                className="w-full bg-white/5 hover:bg-white/5 text-gray-200 font-medium py-3 px-4 rounded-lg transition-colors duration-200"
               >
                 סגור
               </button>
@@ -3284,23 +2876,23 @@ function GeneralApp() {
       {/* Logout Modal */}
       {showLogoutModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
-          <div className="bg-white rounded-xl shadow-2xl w-full mx-4 max-w-md">
+          <div className="bg-surface/90 rounded-xl shadow-2xl w-full mx-4 max-w-md">
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-lg font-semibold text-text">התנתקות</h3>
                 <button
                   onClick={() => setShowLogoutModal(false)}
-                  className="text-gray-500 hover:text-gray-700 text-xl"
+                  className="text-gray-400 hover:text-gray-200 text-xl"
                 >
                   ×
                 </button>
               </div>
               
               <div className="text-center mb-6">
-                <p className="text-gray-600 mb-4">
+                <p className="text-gray-300 mb-4">
                   האם אתה בטוח שברצונך להתנתק?
                 </p>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-400">
                   {currentUser?.email}
                 </p>
               </div>
@@ -3308,7 +2900,7 @@ function GeneralApp() {
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowLogoutModal(false)}
-                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg transition-colors duration-200"
+                  className="flex-1 bg-white/5 hover:bg-white/5 text-gray-200 font-medium py-2 px-4 rounded-lg transition-colors duration-200"
                 >
                   ביטול
                 </button>
@@ -3326,8 +2918,19 @@ function GeneralApp() {
 
       {/* Authentication Modal */}
       {showAuthModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
-          <div className="bg-white rounded-xl shadow-2xl w-full mx-4 max-w-md">
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[80]"
+          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowAuthModal(false)
+            }
+          }}
+        >
+          <div 
+            className="bg-surface/90 rounded-xl shadow-2xl w-full mx-4 max-w-md"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-lg font-semibold text-text">
@@ -3341,7 +2944,7 @@ function GeneralApp() {
                     setPassword('')
                     setAuthMode('signup')
                   }}
-                  className="text-gray-500 hover:text-gray-700 text-xl"
+                  className="text-gray-400 hover:text-gray-200 text-xl"
                 >
                   ×
                 </button>
@@ -3349,14 +2952,14 @@ function GeneralApp() {
               
               <form onSubmit={handleAuthSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-200 mb-2">
                     כתובת אימייל
                   </label>
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                     placeholder="example@email.com"
                     required
                   />
@@ -3364,14 +2967,14 @@ function GeneralApp() {
                 
                 {authMode === 'signup' && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-200 mb-2">
                       אישור כתובת אימייל
                     </label>
                     <input
                       type="email"
                       value={confirmEmail}
                       onChange={(e) => setConfirmEmail(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                       placeholder="הזן שוב את כתובת האימייל"
                       required
                     />
@@ -3379,14 +2982,14 @@ function GeneralApp() {
                 )}
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-200 mb-2">
                     סיסמה
                   </label>
                   <input
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                     placeholder="הזן סיסמה"
                     required
                     minLength={6}
@@ -3399,7 +3002,7 @@ function GeneralApp() {
                       type="button"
                       onClick={handlePasswordReset}
                       disabled={isResettingPassword || !email}
-                      className="text-blue-600 hover:text-blue-800 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="text-primary-600 hover:text-primary-800 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isResettingPassword ? 'שולח...' : 'שכחת סיסמה?'}
                     </button>
@@ -3409,7 +3012,7 @@ function GeneralApp() {
                 <button
                   type="submit"
                   disabled={isLoadingAuth || !email || !password || (authMode === 'signup' && !confirmEmail)}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isLoadingAuth ? 'מעבד...' : (authMode === 'login' ? 'התחבר' : 'צור חשבון')}
                 </button>
@@ -3418,7 +3021,7 @@ function GeneralApp() {
               <div className="mt-4 text-center">
                 <button
                   onClick={() => setAuthMode(authMode === 'login' ? 'signup' : 'login')}
-                  className="border border-blue-600 text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200"
+                  className="border border-primary-600 text-primary-600 hover:bg-primary-500/10 px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200"
                 >
                   {authMode === 'login' ? 'אין לך חשבון? צור חשבון חדש' : 'יש לך חשבון? התחבר'}
                 </button>
@@ -3429,10 +3032,10 @@ function GeneralApp() {
       )}
 
       {/* Footer */}
-      <footer className="bg-gray-50 border-t border-gray-200 py-6 mt-12">
+      <footer className="bg-white/5 border-t border-white/10 py-6 mt-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-            <div className="text-sm text-gray-500">
+            <div className="text-sm text-gray-400">
               © 2025 MoomHe. כל הזכויות שמורות.
             </div>
             <div className="flex space-x-6 space-x-reverse">
@@ -3440,7 +3043,7 @@ function GeneralApp() {
                 href="/eula.html"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-sm text-gray-600 hover:text-gray-900 transition-colors duration-200"
+                className="text-sm text-gray-300 hover:text-white transition-colors duration-200"
               >
                 הסכם שימוש
               </a>
@@ -3448,7 +3051,7 @@ function GeneralApp() {
                 href="/privacy.html"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-sm text-gray-600 hover:text-gray-900 transition-colors duration-200"
+                className="text-sm text-gray-300 hover:text-white transition-colors duration-200"
               >
                 מדיניות פרטיות
               </a>

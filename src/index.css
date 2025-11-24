@@ -4,55 +4,119 @@
 
 @layer base {
   body {
-    font-family: 'Segoe UI', 'Tahoma', 'Arial', sans-serif;
+    @apply font-sans antialiased text-text bg-background;
     direction: rtl;
-    background-color: #F4F4F4;
-    color: #333333;
+    background-color: #0f172a;
+    background-image: 
+      radial-gradient(at 0% 0%, rgba(115, 149, 189, 0.15) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, rgba(181, 146, 89, 0.1) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, rgba(115, 149, 189, 0.15) 0px, transparent 50%),
+      radial-gradient(at 0% 100%, rgba(181, 146, 89, 0.1) 0px, transparent 50%);
+    background-attachment: fixed;
+    min-height: 100vh;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply tracking-tight text-white font-semibold;
   }
 }
 
 @layer components {
+  .glass-panel {
+    @apply bg-surface/60 backdrop-blur-md border border-white/10 shadow-glass;
+  }
+
+  .glass-card {
+    @apply bg-surface/40 backdrop-blur-md border border-white/5 rounded-2xl shadow-glass-sm transition-all duration-300 hover:bg-surface/50 hover:border-white/10 hover:-translate-y-1;
+  }
+
   .btn-primary {
-    @apply bg-accent hover:bg-primary-600 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200;
+    @apply relative overflow-hidden bg-gradient-to-r from-primary-600 to-primary-500 text-white font-medium py-2.5 px-6 rounded-xl shadow-lg shadow-primary-900/20 transition-all duration-300 transform hover:-translate-y-0.5 hover:shadow-glow active:translate-y-0 active:shadow-none;
   }
   
   .btn-secondary {
-    @apply bg-white hover:bg-gray-50 text-text font-medium py-2 px-4 rounded-lg transition-colors duration-200 border border-gray-200;
+    @apply bg-surfaceHighlight/30 hover:bg-surfaceHighlight/50 text-white font-medium py-2.5 px-6 rounded-xl transition-all duration-300 border border-white/10 backdrop-blur-sm hover:border-white/20;
   }
   
-  .card {
-    @apply bg-white rounded-xl shadow-lg border border-gray-100;
+  .btn-icon {
+    @apply p-3 rounded-xl bg-surface/30 hover:bg-primary-500/20 text-textMuted hover:text-primary-300 transition-all duration-200 border border-transparent hover:border-primary-500/30 backdrop-blur-sm;
+  }
+
+  .btn-icon-active {
+    @apply bg-primary-500/20 text-primary-300 border-primary-500/30 shadow-glow;
   }
   
-  .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
+  .input-glass {
+    @apply bg-surface/30 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all duration-200 backdrop-blur-sm hover:bg-surface/40;
+  }
+
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary-300 via-white to-secondary-300;
+  }
+
+  /* Custom Scrollbar */
+  .scrollbar-custom {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+  }
+  
+  .scrollbar-custom::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  
+  .scrollbar-custom::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  .scrollbar-custom::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+  }
+  
+  .scrollbar-custom::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
   }
   
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
   
-  .scrollbar-visible {
-    scrollbar-width: thin;
-    scrollbar-color: #cbd5e0 #f7fafc;
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
-  
-  .scrollbar-visible::-webkit-scrollbar {
-    width: 8px;
-  }
-  
-  .scrollbar-visible::-webkit-scrollbar-track {
-    background: #f7fafc;
-    border-radius: 4px;
-  }
-  
-  .scrollbar-visible::-webkit-scrollbar-thumb {
-    background: #cbd5e0;
-    border-radius: 4px;
-  }
-  
-  .scrollbar-visible::-webkit-scrollbar-thumb:hover {
-    background: #a0aec0;
-  }
+}
+
+/* Loader */
+.loader-dots div {
+  animation-timing-function: cubic-bezier(0, 1, 1, 0);
+}
+.loader-dots div:nth-child(1) {
+  left: 8px;
+  animation: loader-dots1 0.6s infinite;
+}
+.loader-dots div:nth-child(2) {
+  left: 8px;
+  animation: loader-dots2 0.6s infinite;
+}
+.loader-dots div:nth-child(3) {
+  left: 32px;
+  animation: loader-dots2 0.6s infinite;
+}
+.loader-dots div:nth-child(4) {
+  left: 56px;
+  animation: loader-dots3 0.6s infinite;
+}
+@keyframes loader-dots1 {
+  0% { transform: scale(0); }
+  100% { transform: scale(1); }
+}
+@keyframes loader-dots3 {
+  0% { transform: scale(1); }
+  100% { transform: scale(0); }
+}
+@keyframes loader-dots2 {
+  0% { transform: translate(0, 0); }
+  100% { transform: translate(24px, 0); }
 }

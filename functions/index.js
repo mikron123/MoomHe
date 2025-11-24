@@ -667,4 +667,53 @@ exports.speechToText = onRequest({ cors: true }, async (req, res) => {
 exports.healthCheck = onRequest({ cors: true }, (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+
+// HTTP function for payment webhook
+exports.paymentWebhook = onRequest({ cors: true }, async (req, res) => {
+  // Set CORS headers
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+  
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: 'Method not allowed' });
+    return;
+  }
+  
+  try {
+    const webhookData = req.body;
+    
+    logger.info('Received payment webhook:', JSON.stringify(webhookData));
+    
+    // Create a new document in the paymentEvents collection
+    const timestamp = Date.now();
+    const eventId = `event_${timestamp}`;
+    
+    await db.collection('paymentEvents').doc(eventId).set({
+      ...webhookData,
+      receivedAt: admin.firestore.FieldValue.serverTimestamp(),
+      eventId: eventId
+    });
+    
+    logger.info(`Payment event saved with ID: ${eventId}`);
+    
+    res.json({
+      success: true,
+      eventId: eventId,
+      message: 'Payment event received and stored'
+    });
+    
+  } catch (error) {
+    logger.error('Payment webhook error:', error);
+    res.status(500).json({ 
+      error: error.message || 'Failed to process payment webhook',
+      success: false 
+    });
+  }
+});
 // Translation feature added
