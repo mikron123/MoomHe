@@ -1866,6 +1866,7 @@ function GeneralApp() {
                       ref={historyScrollRef}
                       className="flex gap-3 overflow-x-auto scrollbar-visible pb-2"
                       onScroll={(e) => {
+                        if (isProcessing) return
                         const { scrollLeft, scrollWidth, clientWidth } = e.target
                         if (scrollLeft + clientWidth >= scrollWidth - 10 && hasMoreHistory && !isLoadingMoreHistory) {
                           loadMoreHistory()
@@ -1889,7 +1890,7 @@ function GeneralApp() {
                     {(imageHistory || []).map((entry) => (
                       <div
                         key={entry.id}
-                        onClick={() => handleHistoryImageClick(entry)}
+                        onClick={() => !isProcessing && handleHistoryImageClick(entry)}
                         className="cursor-pointer group flex-shrink-0 w-24"
                       >
                         <div className="relative">
@@ -1957,8 +1958,9 @@ function GeneralApp() {
                 </div>
               ) : (
                 <div 
-                  className="space-y-3 max-h-96 overflow-y-auto scrollbar-visible"
+                  className={`space-y-3 max-h-96 overflow-y-auto scrollbar-visible ${isProcessing ? 'opacity-50 pointer-events-none' : ''}`}
                   onScroll={(e) => {
+                    if (isProcessing) return
                     const { scrollTop, scrollHeight, clientHeight } = e.target
                     if (scrollTop + clientHeight >= scrollHeight - 10 && hasMoreHistory && !isLoadingMoreHistory) {
                       loadMoreHistory()
@@ -1968,7 +1970,7 @@ function GeneralApp() {
                   {(imageHistory || []).map((entry) => (
                     <div
                       key={entry.id}
-                      onClick={() => handleHistoryImageClick(entry)}
+                      onClick={() => !isProcessing && handleHistoryImageClick(entry)}
                       className="cursor-pointer group"
                     >
                       <div className="relative">
@@ -1997,7 +1999,8 @@ function GeneralApp() {
                     <div className="flex justify-center py-4">
                       <button
                         onClick={loadMoreHistory}
-                        className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors duration-200 text-sm"
+                        disabled={isProcessing}
+                        className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors duration-200 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         טען עוד
                       </button>
@@ -2014,67 +2017,6 @@ function GeneralApp() {
                     <div className="w-12 h-12 border-4 border-white/10 border-t-purple-500 rounded-full animate-spin"></div>
                     <div className="absolute inset-0 flex items-center justify-center">
                       <div className="w-6 h-6 border-2 border-white/10 border-b-purple-600 rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '0.8s' }}></div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Objects Panel */}
-          <div className="lg:col-span-1 lg:order-3">
-            
-            <div className="card p-4 relative">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-lg font-semibold text-text">אובייקטים</h3>
-                <button
-                  onClick={() => detectObjects(mainImage)}
-                  disabled={isLoadingObjects || !mainImage || isProcessing || !currentHistoryId}
-                  className="w-8 h-8 bg-white/5 hover:bg-white/5 text-gray-300 hover:text-gray-100 rounded-full flex items-center justify-center transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                  title={currentHistoryId ? "רענן רשימת אובייקטים" : "בחר תמונה מההיסטוריה תחילה"}
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                </button>
-              </div>
-              <div className={`transition-opacity duration-300 ${
-                isLoadingObjects || isProcessing ? 'opacity-50 pointer-events-none' : ''
-              }`}>
-                {(detectedObjects || []).length === 0 ? (
-                  <div className="text-center py-8">
-                    <div className="text-gray-400 mb-2">
-                      <Sparkles className="w-8 h-8 mx-auto" />
-                    </div>
-                    <p className="text-sm text-gray-400">אין אובייקטים זוהו</p>
-                    <p className="text-xs text-gray-400 mt-1">
-                      האובייקטים יופיעו כאן
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-2 max-h-96 overflow-y-auto scrollbar-visible">
-                    {(detectedObjects || []).map((object, index) => (
-                      <div
-                        key={index}
-                        onClick={() => handleObjectSelect(object)}
-                        className="rounded-lg p-3 transition-colors duration-200 cursor-pointer bg-white/5 hover:bg-white/5 border-2 border-transparent"
-                      >
-                        <p className="text-sm font-medium text-gray-200">
-                          {object}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              
-              {/* Loading Overlay for Objects */}
-              {isLoadingObjects && (
-                <div className="absolute inset-0 bg-surface/90/80 backdrop-blur-sm rounded-xl flex items-center justify-center">
-                  <div className="relative">
-                    <div className="w-12 h-12 border-4 border-white/10 border-t-orange-500 rounded-full animate-spin"></div>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-6 h-6 border-2 border-white/10 border-b-orange-600 rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '0.8s' }}></div>
                     </div>
                   </div>
                 </div>

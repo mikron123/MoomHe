@@ -1,10 +1,19 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { Upload, Plus, Palette, RotateCcw, Download, Settings, Home, TreePine, Car, Heart, Hammer, Sparkles, Package, User, Share2, Palette as FreeStyle, Type, Loader2, RotateCw, Lightbulb, Sofa, Droplets, ArrowLeftRight, MessageCircle } from 'lucide-react'
+import { Upload, Plus, Palette, RotateCcw, Download, Settings, Home, TreePine, Car, Heart, Hammer, Sparkles, Package, User, Share2, Palette as FreeStyle, Type, Loader2, RotateCw, Lightbulb, Sofa, Droplets, ArrowLeftRight, MessageCircle, HelpCircle } from 'lucide-react'
 import { fileToGenerativePart, urlToFile, signInUser, createOrUpdateUser, saveImageToHistory, saveUploadToHistory, loadUserHistory, loadUserHistoryPaginated, auth, uploadImageForSharing, compressImage } from './firebase.js'
 import { aiService } from './aiService.js'
 import { onAuthStateChanged } from 'firebase/auth'
+import OnboardingOverlay from './OnboardingOverlay'
+import ColorApplicationDialog from './ColorApplicationDialog'
 
 function App() {
+  // Onboarding State
+  const [showOnboarding, setShowOnboarding] = useState(false)
+  const [onboardingStep, setOnboardingStep] = useState(0)
+  const uploadBtnRef = useRef(null)
+  const styleBtnRef = useRef(null)
+  const createBtnRef = useRef(null)
+
   const [selectedCategory, setSelectedCategory] = useState('עיצוב פנים וחוץ') // Fixed to interior design only
   const [uploadedImage, setUploadedImage] = useState(null)
   const [mainImage, setMainImage] = useState('/assets/design_img.jpg')
@@ -44,10 +53,77 @@ function App() {
   const [showSuggestionsDropdown, setShowSuggestionsDropdown] = useState(false)
   const [showSuggestionsModal, setShowSuggestionsModal] = useState(false)
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false)
+  const [pendingSubscription, setPendingSubscription] = useState(null)
+
+  useEffect(() => {
+    if (pendingSubscription && currentUser && !currentUser.isAnonymous) {
+      setShowSubscriptionModal(true)
+      setPendingSubscription(null)
+    }
+  }, [currentUser, pendingSubscription])
+
+  const handleSubscriptionClick = (url) => {
+    if (currentUser && !currentUser.isAnonymous) {
+       // Already logged in - open link
+       window.open(url, '_blank', 'noopener,noreferrer')
+    } else {
+      // Not logged in
+      setShowSubscriptionModal(false)
+      if (confirm('עליך להתחבר או ליצור חשבון כדי לרכוש מנוי. האם ברצונך להתחבר כעת?')) {
+        setPendingSubscription(url) // Save the URL to redirect later
+        setShowAuthModal(true)
+      }
+    }
+  }
+  
+  // Color Dialog State
+  const [showColorDialog, setShowColorDialog] = useState(false)
+  const [selectedColorForDialog, setSelectedColorForDialog] = useState(null)
+
   const fileInputRef = useRef(null)
   const suggestionsDropdownRef = useRef(null)
   const objectInputRef = useRef(null)
   const historyScrollRef = useRef(null)
+
+  // Onboarding Logic
+  useEffect(() => {
+    const hasSeenOnboarding = localStorage.getItem('hasSeenOnboarding_v2')
+    if (!hasSeenOnboarding) {
+      // Small delay to ensure UI is ready
+      setTimeout(() => setShowOnboarding(true), 1000)
+    }
+  }, [])
+
+  const handleOnboardingComplete = () => {
+    setShowOnboarding(false)
+    localStorage.setItem('hasSeenOnboarding_v2', 'true')
+  }
+
+  const handleOnboardingNext = () => {
+    if (onboardingStep < 2) {
+      setOnboardingStep(prev => prev + 1)
+    } else {
+      handleOnboardingComplete()
+    }
+  }
+
+  const onboardingSteps = [
+    {
+      title: 'העלה תמונה',
+      description: 'התחל בהעלאת תמונה של החדר שתרצה לעצב. אין לך תמונה? אל דאגה, נשתמש בתמונה לדוגמה.',
+      targetRef: uploadBtnRef
+    },
+    {
+      title: 'בחר עיצוב מחדש',
+      description: 'בחר את הסגנון המועדף עליך מהתפריט הצדדי. נסה "עיצוב מחדש" כדי לראות אפשרויות שונות.',
+      targetRef: styleBtnRef
+    },
+    {
+      title: 'צור עיצוב',
+      description: 'לחץ על "צור" וה-AI יעצב מחדש את החדר שלך תוך שניות!',
+      targetRef: createBtnRef
+    }
+  ]
 
 
   // Authentication and history loading
@@ -1173,11 +1249,36 @@ function App() {
   }
 
   const handleColorSelect = (color) => {
+    setSelectedColorForDialog(color)
+    setShowColorDialog(true)
+  }
+
+  const handleColorDialogApply = (prompt) => {
+    setShowColorDialog(false)
     setShowColorPalette(false)
-    const prompt = `צבע בצבע ${color.ral} את ה`
-    console.log('🎨 Color Selection - Prompt being added to input:', prompt)
-    console.log('🎨 Selected color:', color.ral, color.name)
-    addPromptToInput(prompt)
+    setSelectedColorForDialog(null)
+    
+    console.log('🎨 Color Selection - Prompt being added to input and executing:', prompt)
+    
+    // Add to input logic (similar to addPromptToInput but returning value)
+    const currentPrompt = customPrompt.trim()
+    let newPrompt
+    
+    if (!currentPrompt) {
+      newPrompt = prompt
+    } else if (currentPrompt.endsWith('את ה')) {
+      newPrompt = `${currentPrompt}${prompt}`
+    } else {
+      newPrompt = `${currentPrompt}, ${prompt}`
+    }
+    
+    setCustomPrompt(newPrompt)
+    
+    // Execute immediately
+    handleAIEdit(newPrompt)
+    
+    // Reset prompt after execution
+    setCustomPrompt('')
   }
 
   const angleOptions = [
@@ -1280,9 +1381,26 @@ function App() {
 
   const handleStyleSelect = (style) => {
     setShowStyleOptions(false)
-    console.log('🎨 Style Selection - Prompt being added to input:', style.prompt)
+    
+    console.log('🎨 Style Selection - Prompt being added to input and executing:', style.prompt)
     console.log('🎨 Selected style:', style.name, style.value)
-    addPromptToInput(style.prompt)
+    
+    // Add to input logic
+    const currentPrompt = customPrompt.trim()
+    let newPrompt
+    
+    if (!currentPrompt) {
+      newPrompt = style.prompt
+    } else if (currentPrompt.endsWith('את ה')) {
+      newPrompt = `${currentPrompt}${style.prompt}`
+    } else {
+      newPrompt = `${currentPrompt}, ${style.prompt}`
+    }
+    
+    setCustomPrompt(newPrompt)
+    
+    // Execute immediately
+    handleAIEdit(newPrompt)
   }
 
   const addPromptToInput = (prompt) => {
@@ -1443,6 +1561,13 @@ function App() {
             </div>
           </div>
           <button 
+            onClick={() => setShowOnboarding(true)}
+            className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-full transition-all mr-2"
+            title="הדרכה"
+          >
+            <HelpCircle className="w-5 h-5" />
+          </button>
+          <button 
             onClick={() => setShowSubscriptionModal(true)}
             className="hidden md:flex items-center gap-2 bg-gradient-to-r from-secondary-500 to-secondary-600 hover:from-secondary-400 hover:to-secondary-500 text-white px-4 py-1.5 rounded-full text-sm font-medium shadow-lg shadow-secondary-900/20 transition-all duration-300 hover:-translate-y-0.5"
           >
@@ -1515,6 +1640,7 @@ function App() {
         <aside className="hidden lg:flex flex-col gap-4 w-20 glass-panel rounded-2xl p-3 items-center overflow-y-auto scrollbar-hide animate-slide-in-right" style={{animationDelay: '0.1s'}}>
            <div className="flex flex-col gap-4 w-full">
              <button 
+               ref={uploadBtnRef}
                onClick={handleUploadClick}
                disabled={isProcessing}
                className="btn-icon w-full aspect-square flex flex-col items-center justify-center gap-1 group"
@@ -1522,16 +1648,6 @@ function App() {
              >
                <Upload className="w-6 h-6 group-hover:scale-110 transition-transform text-primary-400" />
                <span className="text-[10px]">העלאה</span>
-             </button>
-             
-             <button 
-               onClick={() => detectObjects(mainImage)}
-               disabled={isLoadingObjects || !mainImage || isProcessing}
-               className={`btn-icon w-full aspect-square flex flex-col items-center justify-center gap-1 group ${isLoadingObjects ? 'animate-pulse' : ''}`}
-               title="זהה אובייקטים"
-             >
-               <Package className="w-6 h-6 group-hover:scale-110 transition-transform text-secondary-400" />
-               <span className="text-[10px]">אובייקטים</span>
              </button>
 
              <div className="h-px w-full bg-white/10 my-2"></div>
@@ -1541,15 +1657,17 @@ function App() {
                { icon: Palette, label: 'צבעים', action: () => setShowColorPalette(!showColorPalette), active: showColorPalette },
                { icon: Sofa, label: 'ריהוט', action: () => setShowFurnitureOptions(!showFurnitureOptions), active: showFurnitureOptions },
                { icon: Lightbulb, label: 'תאורה', action: () => setShowLightingOptions(!showLightingOptions), active: showLightingOptions },
-               { icon: FreeStyle, label: 'סגנון', action: () => setShowStyleOptions(!showStyleOptions), active: showStyleOptions },
+               { icon: FreeStyle, label: 'עיצוב מחדש', action: () => setShowStyleOptions(!showStyleOptions), active: showStyleOptions },
                { icon: Home, label: 'מבנה', action: () => setShowDoorsWindowsOptions(!showDoorsWindowsOptions), active: showDoorsWindowsOptions },
                { icon: Droplets, label: 'אמבט', action: () => setShowBathroomOptions(!showBathroomOptions), active: showBathroomOptions },
                { icon: Hammer, label: 'תיקונים', action: () => setShowRepairsOptions(!showRepairsOptions), active: showRepairsOptions },
              ].map((tool, i) => (
                <button
                  key={i}
+                 ref={tool.label === 'עיצוב מחדש' ? styleBtnRef : null}
                  onClick={tool.action}
-                 className={`btn-icon w-full aspect-square flex flex-col items-center justify-center gap-1 group ${tool.active ? 'btn-icon-active' : ''}`}
+                 disabled={isProcessing}
+                 className={`btn-icon w-full aspect-square flex flex-col items-center justify-center gap-1 group ${tool.active ? 'btn-icon-active' : ''} disabled:opacity-50 disabled:cursor-not-allowed`}
                >
                  <tool.icon className={`w-5 h-5 group-hover:scale-110 transition-transform ${tool.active ? 'text-primary-300' : ''}`} />
                  <span className="text-[10px]">{tool.label}</span>
@@ -1560,7 +1678,7 @@ function App() {
 
         {/* Center Canvas */}
         <section className="flex-1 relative flex flex-col min-h-0 glass-card p-1 animate-fade-in">
-           <div className="flex-1 relative rounded-xl overflow-hidden bg-black/20 group">
+           <div className="flex-1 relative rounded-xl overflow-hidden bg-black/20 group flex items-start lg:items-center justify-center">
              
              {/* Image */}
              <img 
@@ -1569,6 +1687,7 @@ function App() {
                className={`w-full h-full object-contain transition-all duration-500 ${isProcessing ? 'scale-[1.02] blur-sm brightness-50' : 'group-hover:scale-[1.01]'}`}
                onClick={handleMainImageClick}
                onLoad={handleImageLoad}
+               style={{ objectPosition: 'center top' }}
              />
 
              {/* Loading Overlay */}
@@ -1583,13 +1702,20 @@ function App() {
              )}
 
              {/* Floating Actions on Canvas */}
-             <div className="absolute top-4 right-4 flex gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300">
-                <button onClick={handleDownload} className="p-2 bg-black/50 text-white rounded-lg backdrop-blur-md hover:bg-black/70 transition-colors" title="הורד תמונה">
-                  <Download className="w-5 h-5" />
-                </button>
-                <button onClick={handleWhatsAppShare} className="p-2 bg-black/50 text-white rounded-lg backdrop-blur-md hover:bg-green-600/70 transition-colors" title="שתף בווצאפ">
-                  <MessageCircle className="w-5 h-5" />
-                </button>
+             <div className="absolute top-4 right-4 flex flex-col gap-3 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 z-10">
+                <div className="flex flex-col items-center gap-1">
+                  <button onClick={handleDownload} className="p-2 bg-black/50 text-white rounded-lg backdrop-blur-md hover:bg-black/70 transition-colors shadow-lg border border-white/10" title="הורד תמונה">
+                    <Download className="w-5 h-5" />
+                  </button>
+                  <span className="text-[10px] text-white font-medium drop-shadow-md bg-black/30 px-1 rounded backdrop-blur-sm">הורדה</span>
+                </div>
+                
+                <div className="flex flex-col items-center gap-1">
+                  <button onClick={handleWhatsAppShare} className="p-2 bg-black/50 text-white rounded-lg backdrop-blur-md hover:bg-green-600/70 transition-colors shadow-lg border border-white/10" title="שתף בוואטסאפ">
+                    <MessageCircle className="w-5 h-5" />
+                  </button>
+                  <span className="text-[10px] text-white font-medium drop-shadow-md bg-black/30 px-1 rounded backdrop-blur-sm">וואטסאפ</span>
+                </div>
              </div>
 
              {/* Mobile Prompt Input Overlay (Bottom) - Visual Only, functional one is fixed */}
@@ -1604,14 +1730,16 @@ function App() {
                  value={customPrompt}
                  onChange={(e) => setCustomPrompt(e.target.value)}
                  placeholder="תאר את העיצוב המבוקש... (לדוגמה: שנה את הספה לצבע כחול, הוסף צמחייה בפינה)"
-                 className="w-full bg-surface/50 border border-white/10 rounded-xl px-4 py-3 pr-10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all"
-                 onKeyPress={(e) => e.key === 'Enter' && handleCustomPromptSubmit()}
+                 disabled={isProcessing}
+                 className="w-full bg-surface/50 border border-white/10 rounded-xl px-4 py-3 pr-10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                 onKeyPress={(e) => e.key === 'Enter' && !isProcessing && handleCustomPromptSubmit()}
                />
                <Sparkles className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary-400 pointer-events-none" />
                {customPrompt && (
                  <button 
-                   onClick={() => setCustomPrompt('')}
-                   className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white"
+                   onClick={() => !isProcessing && setCustomPrompt('')}
+                   disabled={isProcessing}
+                   className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                  >
                    ×
                  </button>
@@ -1619,6 +1747,7 @@ function App() {
              </div>
 
              <button
+               ref={createBtnRef}
                onClick={handleCustomPromptSubmit}
                disabled={isProcessing || !customPrompt.trim()}
                className="btn-primary flex items-center gap-2 px-8 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -1633,7 +1762,7 @@ function App() {
         <aside className="hidden lg:flex flex-col gap-4 w-80 glass-panel rounded-2xl p-4 animate-slide-in-right" style={{animationDelay: '0.2s'}}>
           <h3 className="text-sm font-semibold text-textMuted uppercase tracking-wider mb-2">היסטוריית עיצובים</h3>
           
-          <div className="flex-1 overflow-y-auto scrollbar-custom pr-1 -mr-1 space-y-3">
+          <div className={`flex-1 overflow-y-auto scrollbar-custom pr-1 -mr-1 space-y-3 ${isProcessing ? 'opacity-50 pointer-events-none' : ''}`}>
             {imageHistory.length === 0 ? (
               <div className="text-center py-10 opacity-50">
                 <Sparkles className="w-8 h-8 mx-auto mb-2" />
@@ -1643,7 +1772,7 @@ function App() {
               imageHistory.map((entry) => (
                 <div 
                   key={entry.id} 
-                  onClick={() => handleHistoryImageClick(entry)}
+                  onClick={() => !isProcessing && handleHistoryImageClick(entry)}
                   className="group relative rounded-xl overflow-hidden border border-white/5 hover:border-primary-500/30 transition-all cursor-pointer bg-surface/40"
                 >
                   <img 
@@ -1666,33 +1795,10 @@ function App() {
             )}
             
             {hasMoreHistory && !isLoadingHistory && imageHistory.length > 0 && (
-              <button onClick={loadMoreHistory} className="w-full py-2 text-xs text-primary-300 hover:text-primary-200 hover:bg-white/5 rounded-lg transition-colors border border-white/5">
+              <button onClick={loadMoreHistory} disabled={isProcessing} className="w-full py-2 text-xs text-primary-300 hover:text-primary-200 hover:bg-white/5 rounded-lg transition-colors border border-white/5 disabled:opacity-50 disabled:cursor-not-allowed">
                 טען עוד
               </button>
             )}
-          </div>
-
-          <div className="mt-auto pt-4 border-t border-white/10">
-            <div className="bg-surface/30 rounded-xl p-3 border border-white/5">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <Package className="w-4 h-4 text-secondary-400" />
-                  <span className="text-xs font-medium text-text">אובייקטים בתמונה</span>
-                </div>
-                <button onClick={() => detectObjects(mainImage)} disabled={isProcessing} className="text-[10px] text-primary-400 hover:text-primary-300">רענן</button>
-              </div>
-              <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto scrollbar-custom">
-                {detectedObjects.length > 0 ? detectedObjects.map((obj, i) => (
-                  <button 
-                    key={i} 
-                    onClick={() => addPromptToInput(obj)}
-                    className="text-[10px] px-2 py-1 bg-white/5 hover:bg-white/10 rounded-md text-textMuted border border-white/5 transition-colors text-right"
-                  >
-                    {obj}
-                  </button>
-                )) : <span className="text-[10px] text-gray-600 w-full text-center py-2">לחץ על רענן לזיהוי אובייקטים</span>}
-              </div>
-            </div>
           </div>
         </aside>
 
@@ -1708,13 +1814,14 @@ function App() {
                value={customPrompt}
                onChange={(e) => setCustomPrompt(e.target.value)}
                placeholder="מה לשנות?"
-               className="flex-1 bg-transparent border-none text-white placeholder-gray-500 focus:ring-0 px-2 text-sm py-2"
-               onKeyPress={(e) => e.key === 'Enter' && handleCustomPromptSubmit()}
+               disabled={isProcessing}
+               className="flex-1 bg-transparent border-none text-white placeholder-gray-500 focus:ring-0 px-2 text-sm py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+               onKeyPress={(e) => e.key === 'Enter' && !isProcessing && handleCustomPromptSubmit()}
             />
             <button 
               onClick={handleCustomPromptSubmit} 
               disabled={!customPrompt.trim() || isProcessing}
-              className="p-2 bg-primary-500 rounded-lg text-white shadow-lg shadow-primary-900/20 disabled:opacity-50"
+              className="p-2 bg-primary-500 rounded-lg text-white shadow-lg shadow-primary-900/20 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Sparkles className="w-4 h-4" />
             </button>
@@ -1722,14 +1829,11 @@ function App() {
           
           {/* Quick Tools Carousel */}
           <div className="flex gap-3 overflow-x-auto scrollbar-hide py-1 -mx-4 px-4">
-             <button onClick={() => setShowSuggestionsModal(true)} className="flex flex-col items-center gap-1 min-w-[60px]">
-               <div className="w-12 h-12 rounded-2xl bg-surfaceHighlight/30 flex items-center justify-center border border-white/10 active:scale-95 transition-transform">
-                 <Settings className="w-5 h-5 text-textMuted" />
-               </div>
-               <span className="text-[10px] text-textMuted">הגדרות</span>
-             </button>
-             
-             <button onClick={handleUploadClick} className="flex flex-col items-center gap-1 min-w-[60px]">
+             <button 
+               onClick={handleUploadClick} 
+               disabled={isProcessing}
+               className="flex flex-col items-center gap-1 min-w-[60px] disabled:opacity-50 disabled:cursor-not-allowed"
+             >
                <div className="w-12 h-12 rounded-2xl bg-surfaceHighlight/30 flex items-center justify-center border border-white/10 active:scale-95 transition-transform">
                  <Upload className="w-5 h-5 text-textMuted" />
                </div>
@@ -1740,10 +1844,17 @@ function App() {
                { icon: Palette, label: 'צבעים', action: () => setShowColorPalette(true) },
                { icon: Sofa, label: 'ריהוט', action: () => setShowFurnitureOptions(true) },
                { icon: Lightbulb, label: 'תאורה', action: () => setShowLightingOptions(true) },
-               { icon: FreeStyle, label: 'סגנון', action: () => setShowStyleOptions(true) },
+               { icon: FreeStyle, label: 'עיצוב מחדש', action: () => setShowStyleOptions(true) },
                { icon: Home, label: 'מבנה', action: () => setShowDoorsWindowsOptions(true) },
+               { icon: Droplets, label: 'אמבט', action: () => setShowBathroomOptions(true) },
+               { icon: Hammer, label: 'תיקונים', action: () => setShowRepairsOptions(true) },
              ].map((tool, i) => (
-               <button key={i} onClick={tool.action} className="flex flex-col items-center gap-1 min-w-[60px]">
+               <button 
+                 key={i} 
+                 onClick={tool.action} 
+                 disabled={isProcessing}
+                 className="flex flex-col items-center gap-1 min-w-[60px] disabled:opacity-50 disabled:cursor-not-allowed"
+               >
                  <div className="w-12 h-12 rounded-2xl bg-surfaceHighlight/30 flex items-center justify-center border border-white/10 active:scale-95 transition-transform">
                    <tool.icon className="w-5 h-5 text-textMuted" />
                  </div>
@@ -1754,11 +1865,12 @@ function App() {
 
           {/* Recent History Horizontal Scroll */}
           {imageHistory.length > 0 && (
-             <div className="pt-2 border-t border-white/5">
+             <div className={`pt-2 border-t border-white/5 ${isProcessing ? 'opacity-50 pointer-events-none' : ''}`}>
                <div className="text-[10px] text-textMuted mb-2">היסטוריה ({imageHistory.length})</div>
                <div 
                  className="flex gap-3 overflow-x-auto scrollbar-hide -mx-4 px-4"
                  onScroll={(e) => {
+                   if (isProcessing) return
                    const { scrollLeft, scrollWidth, clientWidth } = e.target
                    if (scrollLeft + clientWidth >= scrollWidth - 10 && hasMoreHistory && !isLoadingMoreHistory) {
                      loadMoreHistory()
@@ -1768,7 +1880,7 @@ function App() {
                  {imageHistory.map((entry) => (
                     <div 
                       key={entry.id} 
-                      onClick={() => handleHistoryImageClick(entry)}
+                      onClick={() => !isProcessing && handleHistoryImageClick(entry)}
                       className="flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border border-white/10 relative hover:border-primary-500/50 transition-colors"
                     >
                       <img src={entry.thumbnailUrl || entry.storageUrl || entry.imageUrl} alt="" className="w-full h-full object-cover" />
@@ -1786,7 +1898,8 @@ function App() {
                  {hasMoreHistory && !isLoadingMoreHistory && (
                    <button 
                      onClick={loadMoreHistory}
-                     className="flex-shrink-0 w-16 h-16 rounded-lg bg-white/5 border border-white/10 border-dashed flex flex-col items-center justify-center text-textMuted hover:bg-white/10 hover:border-primary-500/30 transition-all active:scale-95 gap-1"
+                     disabled={isProcessing}
+                     className="flex-shrink-0 w-16 h-16 rounded-lg bg-white/5 border border-white/10 border-dashed flex flex-col items-center justify-center text-textMuted hover:bg-white/10 hover:border-primary-500/30 transition-all active:scale-95 gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
                    >
                      <span className="text-[10px]">עוד</span>
                      <span className="text-lg">←</span>
@@ -1831,7 +1944,7 @@ function App() {
       {/* Color Palette Modal */}
       {showColorPalette && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-fade-in">
-          <div className="glass-card w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col bg-surface">
+          <div className="glass-card w-full max-w-2xl h-[600px] overflow-hidden flex flex-col bg-surface">
             <div className="p-4 border-b border-white/10 flex justify-between items-center">
               <h3 className="text-lg font-semibold text-white">פלטת צבעים</h3>
               <button onClick={() => setShowColorPalette(false)} className="text-textMuted hover:text-white p-2"><span className="text-2xl">×</span></button>
@@ -2074,14 +2187,12 @@ function App() {
                       </div>
                     </div>
 
-                    <a 
-                      href="https://pay.grow.link/f8f8414d5e65d2b80b262486d3ea3e3c-Mjc1ODQ5MA"
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <button 
+                      onClick={() => handleSubscriptionClick('https://pay.grow.link/f8f8414d5e65d2b80b262486d3ea3e3c-Mjc1ODQ5MA')}
                       className="w-full py-3 rounded-xl bg-white/5 hover:bg-white/10 text-white font-medium border border-white/10 transition-all block text-center"
                     >
                       בחר חבילה
-                    </a>
+                    </button>
                   </div>
                 </div>
 
@@ -2160,7 +2271,7 @@ function App() {
                       </div>
                       <div className="flex items-center gap-2 text-sm text-gray-300">
                         <div className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-secondary-400">✓</div>
-                        <span>תמיכה בווצאפ אישי</span>
+                        <span>תמיכה בוואטסאפ אישי</span>
                       </div>
                       <div className="flex items-center gap-2 text-sm text-gray-300">
                         <div className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-secondary-400">✓</div>
@@ -2168,14 +2279,12 @@ function App() {
                       </div>
                     </div>
 
-                    <a 
-                      href="https://pay.grow.link/31f92ee464c112077b30007432dc8226-Mjc1ODQ4NQ"
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <button 
+                      onClick={() => handleSubscriptionClick('https://pay.grow.link/31f92ee464c112077b30007432dc8226-Mjc1ODQ4NQ')}
                       className="w-full py-3 rounded-xl bg-white/5 hover:bg-white/10 text-white font-medium border border-white/10 transition-all block text-center"
                     >
                       בחר חבילה
-                    </a>
+                    </button>
                   </div>
                 </div>
 
@@ -2189,6 +2298,23 @@ function App() {
         </div>
       )}
 
+      {showOnboarding && (
+        <OnboardingOverlay 
+          step={onboardingStep} 
+          steps={onboardingSteps} 
+          onNext={handleOnboardingNext} 
+          onSkip={handleOnboardingComplete} 
+          onComplete={handleOnboardingComplete} 
+        />
+      )}
+
+      {showColorDialog && selectedColorForDialog && (
+        <ColorApplicationDialog 
+          color={selectedColorForDialog} 
+          onClose={() => setShowColorDialog(false)} 
+          onApply={handleColorDialogApply} 
+        />
+      )}
     </div>
   )
 }
