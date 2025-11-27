@@ -5,12 +5,34 @@ const ColorApplicationDialog = ({ color, onClose, onApply }) => {
   const [customTarget, setCustomTarget] = useState('')
   const [mode, setMode] = useState('all') // 'all' or 'custom'
 
+  // Helper function to convert hex to RGB
+  const hexToRgb = (hex) => {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+    return result ? {
+      r: parseInt(result[1], 16),
+      g: parseInt(result[2], 16),
+      b: parseInt(result[3], 16)
+    } : null
+  }
+
   const handleConfirm = () => {
+    const rgb = hexToRgb(color.hex)
+    const rgbString = rgb ? `RGB(${rgb.r}, ${rgb.g}, ${rgb.b})` : color.hex
+    
     if (mode === 'all') {
-      onApply(`צבע בצבע ${color.ral} את כל הקירות`)
+      // Send English prompt directly for better results
+      onApply(`Change the color of all walls to ${color.value} (${color.ral}, ${rgbString}) completely and opaquely, covering the original color entirely`)
     } else {
       if (customTarget.trim()) {
-        onApply(`צבע בצבע ${color.ral} את ה${customTarget}`)
+        // Check if the custom target contains Hebrew characters
+        const hasHebrew = /[\u0590-\u05FF]/.test(customTarget);
+        if (hasHebrew) {
+           // If Hebrew is used for the target, keep the Hebrew prompt structure but try to use English color name if possible
+           onApply(`צבע את ה${customTarget} בצבע ${color.value} (${color.ral}, ${rgbString}) באופן מלא ואטום, תוך כיסוי מוחלט של הצבע המקורי`)
+        } else {
+           // If target is English, send full English prompt
+           onApply(`Paint the ${customTarget} in ${color.value} (${color.ral}, ${rgbString}) color completely and opaquely, covering the original color entirely`)
+        }
       }
     }
   }

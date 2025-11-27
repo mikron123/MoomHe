@@ -53,6 +53,7 @@ function App() {
   const [showSuggestionsDropdown, setShowSuggestionsDropdown] = useState(false)
   const [showSuggestionsModal, setShowSuggestionsModal] = useState(false)
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false)
+  const [showLoginConfirmDialog, setShowLoginConfirmDialog] = useState(false)
   const [pendingSubscription, setPendingSubscription] = useState(null)
 
   useEffect(() => {
@@ -69,10 +70,8 @@ function App() {
     } else {
       // Not logged in
       setShowSubscriptionModal(false)
-      if (confirm('עליך להתחבר או ליצור חשבון כדי לרכוש מנוי. האם ברצונך להתחבר כעת?')) {
-        setPendingSubscription(url) // Save the URL to redirect later
-        setShowAuthModal(true)
-      }
+      setPendingSubscription(url) // Save the URL to redirect later
+      setShowLoginConfirmDialog(true)
     }
   }
   
@@ -1401,6 +1400,9 @@ function App() {
     
     // Execute immediately
     handleAIEdit(newPrompt)
+
+    // Clear the prompt input after execution
+    setCustomPrompt('')
   }
 
   const addPromptToInput = (prompt) => {
@@ -1677,8 +1679,8 @@ function App() {
         </aside>
 
         {/* Center Canvas */}
-        <section className="flex-1 relative flex flex-col min-h-0 glass-card p-1 animate-fade-in">
-           <div className="flex-1 relative rounded-xl overflow-hidden bg-black/20 group flex items-start lg:items-center justify-center">
+        <section className="flex-1 relative flex flex-col min-h-0 glass-card p-1 animate-fade-in mb-36 lg:mb-0">
+           <div className="flex-1 relative rounded-xl overflow-hidden bg-black/20 group flex items-center justify-center">
              
              {/* Image */}
              <img 
@@ -1687,7 +1689,7 @@ function App() {
                className={`w-full h-full object-contain transition-all duration-500 ${isProcessing ? 'scale-[1.02] blur-sm brightness-50' : 'group-hover:scale-[1.01]'}`}
                onClick={handleMainImageClick}
                onLoad={handleImageLoad}
-               style={{ objectPosition: 'center top' }}
+               style={{ objectPosition: 'center' }}
              />
 
              {/* Loading Overlay */}
@@ -1704,7 +1706,7 @@ function App() {
              {/* Floating Actions on Canvas */}
              <div className="absolute top-4 right-4 flex flex-col gap-3 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 z-10">
                 <div className="flex flex-col items-center gap-1">
-                  <button onClick={handleDownload} className="p-2 bg-black/50 text-white rounded-lg backdrop-blur-md hover:bg-black/70 transition-colors shadow-lg border border-white/10" title="הורד תמונה">
+                  <button onClick={handleDownload} className="p-2 bg-black/50 text-white rounded-lg backdrop-blur-md hover:bg-green-600/70 transition-colors shadow-lg border border-white/10" title="הורד תמונה">
                     <Download className="w-5 h-5" />
                   </button>
                   <span className="text-[10px] text-white font-medium drop-shadow-md bg-black/30 px-1 rounded backdrop-blur-sm">הורדה</span>
@@ -2139,6 +2141,45 @@ function App() {
       <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
       <input ref={objectInputRef} type="file" accept="image/*" onChange={handleObjectImageUpload} className="hidden" />
       
+      {/* Login Confirmation Dialog */}
+      {showLoginConfirmDialog && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[90] flex items-center justify-center p-4 animate-fade-in">
+          <div className="glass-card w-full max-w-md p-8 relative bg-surface border border-white/10 shadow-2xl flex flex-col rounded-2xl">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-secondary-500/20 rounded-full flex items-center justify-center mx-auto mb-4 text-secondary-400">
+                <User size={32} />
+              </div>
+              <h3 className="text-2xl font-bold text-white mb-2">נדרשת התחברות</h3>
+              <p className="text-gray-300">
+                עליך להתחבר או ליצור חשבון כדי לרכוש מנוי.
+                <br />
+                האם ברצונך לעבור להתחברות?
+              </p>
+            </div>
+            <div className="flex gap-4">
+              <button 
+                onClick={() => {
+                  setShowLoginConfirmDialog(false)
+                  setPendingSubscription(null)
+                }}
+                className="flex-1 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 transition-colors font-medium"
+              >
+                לא עכשיו
+              </button>
+              <button 
+                onClick={() => {
+                  setShowLoginConfirmDialog(false)
+                  setShowAuthModal(true)
+                }}
+                className="flex-1 py-3 rounded-xl bg-gradient-to-r from-secondary-500 to-secondary-600 hover:from-secondary-400 hover:to-secondary-500 text-white font-bold shadow-lg shadow-secondary-900/20 transition-all transform hover:-translate-y-0.5"
+              >
+                התחבר / הרשם
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Subscription Modal */}
       {showSubscriptionModal && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[80] flex items-center justify-center p-4 animate-fade-in">
@@ -2234,14 +2275,12 @@ function App() {
                       </div>
                     </div>
 
-                    <a 
-                      href="https://pay.grow.link/bf7845c990da58c287bf83a84a87e11c-MjcwMjgzNQ"
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <button 
+                      onClick={() => handleSubscriptionClick('https://pay.grow.link/bf7845c990da58c287bf83a84a87e11c-MjcwMjgzNQ')}
                       className="w-full py-3 rounded-xl bg-gradient-to-r from-secondary-500 to-secondary-600 hover:from-secondary-400 hover:to-secondary-500 text-white font-bold shadow-lg shadow-secondary-900/30 transition-all transform hover:-translate-y-0.5 block text-center"
                     >
                       בחר חבילה
-                    </a>
+                    </button>
                   </div>
                 </div>
 
