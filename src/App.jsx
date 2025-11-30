@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { Upload, Plus, Palette, RotateCcw, Download, Settings, Home, TreePine, Car, Heart, Hammer, Sparkles, Package, User, Share2, Palette as FreeStyle, Type, Loader2, RotateCw, Lightbulb, Sofa, Droplets, ArrowLeftRight, MessageCircle, HelpCircle } from 'lucide-react'
+import { Upload, Plus, Palette, RotateCcw, Download, Settings, Home, TreePine, Car, Heart, Hammer, Sparkles, Package, User, Share2, Wand2, Type, Loader2, RotateCw, Lightbulb, Sofa, Droplets, ArrowLeftRight, MessageCircle, HelpCircle } from 'lucide-react'
 import { fileToGenerativePart, urlToFile, signInUser, createOrUpdateUser, saveImageToHistory, saveUploadToHistory, loadUserHistory, loadUserHistoryPaginated, auth, uploadImageForSharing, compressImage } from './firebase.js'
 import { aiService } from './aiService.js'
 import { onAuthStateChanged } from 'firebase/auth'
@@ -10,6 +10,7 @@ function App() {
   // Onboarding State
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [onboardingStep, setOnboardingStep] = useState(0)
+  const [showNotification, setShowNotification] = useState(null)
   const uploadBtnRef = useRef(null)
   const styleBtnRef = useRef(null)
   const createBtnRef = useRef(null)
@@ -99,7 +100,7 @@ function App() {
   }
 
   const handleOnboardingNext = () => {
-    if (onboardingStep < 2) {
+    if (onboardingStep < 3) {
       setOnboardingStep(prev => prev + 1)
     } else {
       handleOnboardingComplete()
@@ -121,6 +122,11 @@ function App() {
       title: 'צור עיצוב',
       description: 'לחץ על "צור" וה-AI יעצב מחדש את החדר שלך תוך שניות!',
       targetRef: createBtnRef
+    },
+    {
+      title: 'טיפ נוסף: אובייקט מתמונה',
+      description: 'רוצה להוסיף רהיט ספציפי? השתמש בכפתור "אובייקט מתמונה" המופיע על התמונה לאחר טעינתה כדי להעלות תמונה של פריט ולשלב אותו בעיצוב.',
+      targetRef: null
     }
   ]
 
@@ -268,58 +274,58 @@ function App() {
 
   const categoryActionButtons = {
     'עיצוב פנים וחוץ': [
-      { name: 'שינוי טוטאלי', action: () => setShowStyleOptions(!showStyleOptions), icon: ArrowLeftRight },
-      { name: 'תיקונים/נזקים', action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer },
+      { name: 'עיצוב מחדש', action: () => setShowStyleOptions(!showStyleOptions), icon: Wand2 },
+      { name: 'תיקונים ונזקים', action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer },
       { name: 'שנה צבע', action: () => setShowColorPalette(!showColorPalette), icon: Palette },
       { name: 'זווית', action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
       { name: 'תאורה', action: () => setShowLightingOptions(!showLightingOptions), icon: Lightbulb },
       { name: 'ריהוט', action: () => setShowFurnitureOptions(!showFurnitureOptions), icon: Sofa },
-      { name: 'דלתות/חלונות', action: () => setShowDoorsWindowsOptions(!showDoorsWindowsOptions), icon: Home },
+      { name: 'חלונות ודלתות', action: () => setShowDoorsWindowsOptions(!showDoorsWindowsOptions), icon: Home },
       { name: 'רחצה', action: () => setShowBathroomOptions(!showBathroomOptions), icon: Droplets }
     ],
     'גינות ומרפסות': [
-      { name: 'שינוי טוטאלי', action: () => setShowStyleOptions(!showStyleOptions), icon: FreeStyle },
-      { name: 'תיקונים/נזקים', action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer },
+      { name: 'עיצוב מחדש', action: () => setShowStyleOptions(!showStyleOptions), icon: Wand2 },
+      { name: 'תיקונים ונזקים', action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer },
       { name: 'שנה צבע', action: () => setShowColorPalette(!showColorPalette), icon: Palette },
       { name: 'זווית', action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
       { name: 'הוסף צמחים', action: () => addPromptToInput("Add beautiful plants and flowers to this garden"), icon: TreePine },
       { name: 'שיפור תאורה', action: () => addPromptToInput("Enhance the outdoor lighting"), icon: Settings }
     ],
     'רכבים ודו גלגלי': [
-      { name: 'שינוי טוטאלי', action: () => setShowStyleOptions(!showStyleOptions), icon: FreeStyle },
-      { name: 'תיקונים/נזקים', action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer },
+      { name: 'עיצוב מחדש', action: () => setShowStyleOptions(!showStyleOptions), icon: Wand2 },
+      { name: 'תיקונים ונזקים', action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer },
       { name: 'שנה צבע', action: () => setShowColorPalette(!showColorPalette), icon: Palette },
       { name: 'זווית', action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
       { name: 'שיפור תאורה', action: () => addPromptToInput("Enhance the lighting and reflections on this vehicle"), icon: Settings },
       { name: 'הוסף אביזרים', action: () => addPromptToInput("Add accessories and modifications to this vehicle"), icon: Plus }
     ],
     'קעקועים': [
-      { name: 'שינוי טוטאלי', action: () => setShowStyleOptions(!showStyleOptions), icon: FreeStyle },
-      { name: 'תיקונים/נזקים', action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer },
+      { name: 'עיצוב מחדש', action: () => setShowStyleOptions(!showStyleOptions), icon: Wand2 },
+      { name: 'תיקונים ונזקים', action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer },
       { name: 'שנה צבע', action: () => setShowColorPalette(!showColorPalette), icon: Palette },
       { name: 'זווית', action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
       { name: 'שיפור תאורה', action: () => addPromptToInput("Enhance the lighting to show the tattoo details"), icon: Settings },
       { name: 'הוסף פרטים', action: () => addPromptToInput("Add more details and shading to this tattoo"), icon: Plus }
     ],
     'איפור וטיפוח': [
-      { name: 'שינוי טוטאלי', action: () => setShowStyleOptions(!showStyleOptions), icon: FreeStyle },
-      { name: 'תיקונים/נזקים', action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer },
+      { name: 'עיצוב מחדש', action: () => setShowStyleOptions(!showStyleOptions), icon: Wand2 },
+      { name: 'תיקונים ונזקים', action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer },
       { name: 'שנה צבע', action: () => setShowColorPalette(!showColorPalette), icon: Palette },
       { name: 'זווית', action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
       { name: 'שיפור תאורה', action: () => addPromptToInput("Enhance the lighting for better makeup visibility"), icon: Settings },
       { name: 'הוסף איפור', action: () => addPromptToInput("Add more makeup and beauty enhancements"), icon: Sparkles }
     ],
     'פרסום ומוצרים': [
-      { name: 'שינוי טוטאלי', action: () => setShowStyleOptions(!showStyleOptions), icon: FreeStyle },
-      { name: 'תיקונים/נזקים', action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer },
+      { name: 'עיצוב מחדש', action: () => setShowStyleOptions(!showStyleOptions), icon: Wand2 },
+      { name: 'תיקונים ונזקים', action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer },
       { name: 'שנה צבע', action: () => setShowColorPalette(!showColorPalette), icon: Palette },
       { name: 'זווית', action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
       { name: 'שיפור תאורה', action: () => addPromptToInput("Enhance the product lighting and presentation"), icon: Settings },
       { name: 'הוסף פרטים', action: () => addPromptToInput("Add product details and features"), icon: Plus }
     ],
     'פרופיל ותדמית': [
-      { name: 'שינוי טוטאלי', action: () => setShowStyleOptions(!showStyleOptions), icon: FreeStyle },
-      { name: 'תיקונים/נזקים', action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer },
+      { name: 'עיצוב מחדש', action: () => setShowStyleOptions(!showStyleOptions), icon: Wand2 },
+      { name: 'תיקונים ונזקים', action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer },
       { name: 'שנה צבע', action: () => setShowColorPalette(!showColorPalette), icon: Palette },
       { name: 'זווית', action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
       { name: 'שיפור תאורה', action: () => addPromptToInput("Enhance the portrait lighting"), icon: Settings },
@@ -573,8 +579,52 @@ function App() {
     if (file) {
       const reader = new FileReader()
       reader.onload = (e) => {
-        setObjectImage(e.target.result)
-        setObjectImageFile(file)
+        // Resize image if needed
+        const img = new Image()
+        img.onload = () => {
+          const canvas = document.createElement('canvas')
+          let width = img.width
+          let height = img.height
+          const maxDimension = 1200
+
+          if (width > maxDimension || height > maxDimension) {
+            if (width > height) {
+              height = Math.round((height * maxDimension) / width)
+              width = maxDimension
+            } else {
+              width = Math.round((width * maxDimension) / height)
+              height = maxDimension
+            }
+          }
+
+          canvas.width = width
+          canvas.height = height
+          const ctx = canvas.getContext('2d')
+          ctx.drawImage(img, 0, 0, width, height)
+
+          const resizedDataUrl = canvas.toDataURL('image/jpeg', 0.9)
+          setObjectImage(resizedDataUrl)
+          
+          // Create file from resized data URL
+          fetch(resizedDataUrl)
+            .then(res => res.blob())
+            .then(blob => {
+              const resizedFile = new File([blob], file.name, { type: 'image/jpeg' })
+              setObjectImageFile(resizedFile)
+            })
+        }
+        img.src = e.target.result
+
+        showToast('תמונת אובייקט נטענה! תאר בשורת הפרומפט איפה להוסיף אותו.')
+        
+        // Add default prompt if input is empty or append it
+        const defaultPrompt = "הוסף את הפריט המצורף לתמונה"
+        const currentPrompt = customPrompt.trim()
+        if (!currentPrompt) {
+          setCustomPrompt(defaultPrompt)
+        } else if (!currentPrompt.includes(defaultPrompt)) {
+          setCustomPrompt(`${currentPrompt} ${defaultPrompt}`)
+        }
       }
       reader.readAsDataURL(file)
     }
@@ -1405,6 +1455,38 @@ function App() {
     setCustomPrompt('')
   }
 
+  const handleImmediateOptionClick = (prompt) => {
+    // Close all modals
+    setShowDoorsWindowsOptions(false)
+    setShowBathroomOptions(false)
+    setShowRepairsOptions(false)
+    
+    // Add to input logic
+    const currentPrompt = customPrompt.trim()
+    let newPrompt
+    
+    if (!currentPrompt) {
+      newPrompt = prompt
+    } else if (currentPrompt.endsWith('את ה')) {
+      newPrompt = `${currentPrompt}${prompt}`
+    } else {
+      newPrompt = `${currentPrompt}, ${prompt}`
+    }
+    
+    setCustomPrompt(newPrompt)
+    
+    // Execute immediately
+    handleAIEdit(newPrompt)
+
+    // Clear the prompt input after execution
+    setCustomPrompt('')
+  }
+
+  const showToast = (message) => {
+    setShowNotification(message)
+    setTimeout(() => setShowNotification(null), 3000)
+  }
+
   const addPromptToInput = (prompt) => {
     const currentPrompt = customPrompt.trim()
     let newPrompt
@@ -1415,11 +1497,12 @@ function App() {
       // If current prompt ends with "את ה" (color prompt), don't add comma or space
       newPrompt = `${currentPrompt}${prompt}`
     } else {
-      // Normal case: add comma and space
-      newPrompt = `${currentPrompt}, ${prompt}`
+      // Normal case: add space
+      newPrompt = `${currentPrompt} ${prompt}`
     }
     
     setCustomPrompt(newPrompt)
+    showToast('שורת פרומפט עודכנה. לחץ על ׳צור׳ כדי לבצע')
   }
 
   const handleAIEdit = async (prompt) => {
@@ -1548,6 +1631,79 @@ function App() {
     }
   }
 
+  const doorsWindowsOptions = [
+    {
+      title: 'אפשרויות חלונות',
+      items: [
+        { name: 'חלון קבוע', description: 'הוסף חלון תמונה גדול עם נוף קבוע', icon: Home },
+        { name: 'חלון הזזה', description: 'הוסף חלון הזזה', icon: Home },
+        { name: 'חלון כנף', description: 'הוסף חלון כנף', icon: Home },
+        { name: 'חלון דריי-קיפ', description: 'הוסף חלון דריי-קיפ (הטיה ופתיחה)', icon: Home },
+        { name: 'חלון ציר עליון', description: 'הוסף חלון ציר עליון (אוונינג)', icon: Home },
+        { name: 'חלון גליוטינה', description: 'הוסף חלון גליוטינה', icon: Home },
+        { name: 'חלון כיס', description: 'הוסף חלון כיס', icon: Home },
+        { name: 'חלון קשת', description: 'הוסף חלון קשת שמגדיל את החלל', icon: Home },
+      ]
+    },
+    {
+      title: 'אפשרויות דלתות',
+      items: [
+        { name: 'דלת כיס', description: 'הוסף דלת כיס שנכנסת לתוך הקיר', icon: Home },
+        { name: 'דלתות צרפתיות', description: 'הוסף דלתות צרפתיות עם זכוכית', icon: Home },
+        { name: 'דלת לובר', description: 'הוסף דלת לובר עם סורגים לאוורור', icon: Home },
+        { name: 'דלת אסם', description: 'הוסף דלת אסם עם מסילה גלויה', icon: Home },
+      ]
+    }
+  ]
+
+  const bathroomOptions = [
+    {
+      title: 'אפשרויות אסלה',
+      items: [
+        { name: 'בידה מחומם', description: 'הוסף מושב אסלה עם בידה', icon: Droplets },
+        { name: 'מושב אסלה', description: 'הוסף מושב אסלה', icon: Droplets },
+      ]
+    },
+    {
+      title: 'אפשרויות אמבטיה',
+      items: [
+        { name: 'אמבטיה עומדת', description: 'הוסף אמבטיה עומדת', icon: Droplets },
+        { name: 'אמבטיה וינטג', description: 'הוסף אמבטיית vintage', icon: Droplets },
+        { name: 'אמבטיה סטנדרטית', description: 'הוסף אמבטיה סטנדרטית', icon: Droplets },
+      ]
+    },
+    {
+      title: 'אפשרויות מקלחת',
+      items: [
+        { name: 'מקלחת גשם', description: 'הוסף מקלחת עם מערכת ראש גשם', icon: Droplets },
+        { name: 'מקלחון', description: 'הוסף מקלחון', icon: Droplets },
+        { name: 'מקלחת דלתות', description: 'הוסף מקלחון עם דלתות הזזה', icon: Droplets },
+      ]
+    },
+    {
+      title: 'אפשרויות כיור',
+      items: [
+        { name: 'כיור עמוד', description: 'הוסף כיור עמוד בסגנון קלאסי', icon: Droplets },
+        { name: 'כיור נירוסטה', description: 'הוסף כיור נירוסטה', icon: Droplets },
+        { name: 'כיור מובנה', description: 'הוסף כיור מובנה קרמי לבן', icon: Droplets },
+      ]
+    },
+    {
+      title: 'אפשרויות ג\'קוזי/ספא',
+      items: [
+        { name: 'ג\'קוזי מובנה', description: 'הוסף ג\'קוזי מובנה עם אריחים', icon: Droplets },
+        { name: 'ג\'קוזי נייד', description: 'הוסף ג׳קוזי סטנדרטי', icon: Droplets },
+      ]
+    },
+    {
+      title: 'אפשרויות בריכה',
+      items: [
+        { name: 'בריכה בתוך הקרקע', description: 'הוסף בריכה בתוך הקרקע מבטון מותאמת אישית', icon: Droplets },
+        { name: 'בריכה מעל הקרקע', description: 'הוסף בריכה מעל הקרקע עם מסגרת מתכת', icon: Droplets },
+      ]
+    }
+  ]
+
   return (
     <div className="min-h-screen text-text font-sans selection:bg-primary-500/30 overflow-x-hidden">
       {/* Top Navigation Bar */}
@@ -1656,13 +1812,13 @@ function App() {
 
              {/* Tool Groups */}
              {[
+               { icon: Wand2, label: 'עיצוב מחדש', action: () => setShowStyleOptions(!showStyleOptions), active: showStyleOptions },
                { icon: Palette, label: 'צבעים', action: () => setShowColorPalette(!showColorPalette), active: showColorPalette },
                { icon: Sofa, label: 'ריהוט', action: () => setShowFurnitureOptions(!showFurnitureOptions), active: showFurnitureOptions },
                { icon: Lightbulb, label: 'תאורה', action: () => setShowLightingOptions(!showLightingOptions), active: showLightingOptions },
-               { icon: FreeStyle, label: 'עיצוב מחדש', action: () => setShowStyleOptions(!showStyleOptions), active: showStyleOptions },
-               { icon: Home, label: 'מבנה', action: () => setShowDoorsWindowsOptions(!showDoorsWindowsOptions), active: showDoorsWindowsOptions },
-               { icon: Droplets, label: 'אמבט', action: () => setShowBathroomOptions(!showBathroomOptions), active: showBathroomOptions },
-               { icon: Hammer, label: 'תיקונים', action: () => setShowRepairsOptions(!showRepairsOptions), active: showRepairsOptions },
+               { icon: Home, label: 'חלונות ודלתות', action: () => setShowDoorsWindowsOptions(!showDoorsWindowsOptions), active: showDoorsWindowsOptions },
+               { icon: Droplets, label: 'רחצה', action: () => setShowBathroomOptions(!showBathroomOptions), active: showBathroomOptions },
+               { icon: Hammer, label: 'תיקונים ונזקים', action: () => setShowRepairsOptions(!showRepairsOptions), active: showRepairsOptions },
              ].map((tool, i) => (
                <button
                  key={i}
@@ -1706,6 +1862,17 @@ function App() {
              {/* Floating Actions on Canvas */}
              <div className="absolute top-4 right-4 flex flex-col gap-3 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 z-10">
                 <div className="flex flex-col items-center gap-1">
+                   <button 
+                     onClick={() => objectInputRef.current.click()}
+                     className={`p-2 ${objectImageFile ? 'bg-primary-500' : 'bg-black/50'} text-white rounded-lg backdrop-blur-md hover:bg-primary-600/70 transition-colors shadow-lg border border-white/10`} 
+                     title="הוסף אובייקט מתמונה"
+                   >
+                     <Plus className="w-5 h-5" />
+                   </button>
+                   <span className="text-[10px] text-white font-medium drop-shadow-md bg-black/30 px-1 rounded backdrop-blur-sm w-20 text-center leading-3">אובייקט מתמונה</span>
+                </div>
+
+                <div className="flex flex-col items-center gap-1">
                   <button onClick={handleDownload} className="p-2 bg-black/50 text-white rounded-lg backdrop-blur-md hover:bg-green-600/70 transition-colors shadow-lg border border-white/10" title="הורד תמונה">
                     <Download className="w-5 h-5" />
                   </button>
@@ -1719,6 +1886,24 @@ function App() {
                   <span className="text-[10px] text-white font-medium drop-shadow-md bg-black/30 px-1 rounded backdrop-blur-sm">וואטסאפ</span>
                 </div>
              </div>
+
+             {/* Object Thumbnail on Stage (Desktop) */}
+             {objectImage && (
+               <div className="absolute bottom-4 right-4 z-20 animate-fade-in hidden lg:block">
+                 <div className="relative group">
+                   <div className="w-20 h-20 rounded-xl border-2 border-white/30 overflow-hidden shadow-lg bg-black/40 backdrop-blur-sm">
+                     <img src={objectImage} alt="Object" className="w-full h-full object-cover" />
+                   </div>
+                   <button 
+                     onClick={handleRemoveObjectImage}
+                     className="absolute -top-2 -left-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center shadow-md hover:bg-red-600 transition-colors"
+                     title="הסר אובייקט"
+                   >
+                     <span className="text-xs font-bold">✕</span>
+                   </button>
+                 </div>
+               </div>
+             )}
 
              {/* Mobile Prompt Input Overlay (Bottom) - Visual Only, functional one is fixed */}
              <div className="lg:hidden absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-black/80 to-transparent pointer-events-none"></div>
@@ -1804,13 +1989,45 @@ function App() {
           </div>
         </aside>
 
+
+      {/* Notification Toast */}
+      {showNotification && (
+        <div className="fixed bottom-36 lg:bottom-10 left-1/2 transform -translate-x-1/2 bg-emerald-600/90 text-white px-6 py-3 rounded-2xl shadow-lg z-[100] animate-fade-in-up flex items-center gap-2 backdrop-blur-md border border-white/10 text-center">
+          <Sparkles className="w-4 h-4 text-white flex-shrink-0" />
+          <span className="text-sm font-medium">
+            <span className="md:inline block">שורת פרומפט עודכנה.</span>
+            <span className="hidden md:inline"> </span>
+            <span className="md:inline block">לחץ על ׳צור׳ כדי לבצע</span>
+          </span>
+        </div>
+      )}
+
       </main>
 
       {/* Mobile Bottom Sheet / Controls */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface/95 backdrop-blur-xl border-t border-white/10 pb-safe pt-3 rounded-t-2xl shadow-[0_-10px_40px_rgba(0,0,0,0.5)] transition-transform duration-300 transform translate-y-0">
         <div className="px-4 space-y-3 pb-6">
           {/* Prompt Input */}
-          <div className="flex items-center gap-2 bg-black/20 rounded-xl p-1 border border-white/5">
+          <div className="relative">
+            {/* Object Thumbnail (Mobile) */}
+            {objectImage && (
+              <div className="absolute -top-20 right-0 z-20 animate-fade-in lg:hidden">
+                <div className="relative group">
+                   <div className="w-16 h-16 rounded-lg border border-white/30 overflow-hidden shadow-lg bg-black/40 backdrop-blur-sm">
+                     <img src={objectImage} alt="Object" className="w-full h-full object-cover" />
+                   </div>
+                   <button 
+                     onClick={handleRemoveObjectImage}
+                     className="absolute -top-2 -left-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center shadow-md hover:bg-red-600 transition-colors"
+                     title="הסר אובייקט"
+                   >
+                     <span className="text-xs font-bold">✕</span>
+                   </button>
+                 </div>
+              </div>
+            )}
+
+            <div className="flex items-center gap-2 bg-black/20 rounded-xl p-1 border border-white/5">
             <input 
                type="text" 
                value={customPrompt}
@@ -1820,13 +2037,23 @@ function App() {
                className="flex-1 bg-transparent border-none text-white placeholder-gray-500 focus:ring-0 px-2 text-sm py-2 disabled:opacity-50 disabled:cursor-not-allowed"
                onKeyPress={(e) => e.key === 'Enter' && !isProcessing && handleCustomPromptSubmit()}
             />
+            {customPrompt && (
+              <button 
+                onClick={() => !isProcessing && setCustomPrompt('')}
+                disabled={isProcessing}
+                className="text-gray-500 hover:text-white p-1 rounded-full hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                ×
+              </button>
+            )}
             <button 
               onClick={handleCustomPromptSubmit} 
               disabled={!customPrompt.trim() || isProcessing}
-              className="p-2 bg-primary-500 rounded-lg text-white shadow-lg shadow-primary-900/20 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-3 bg-primary-500 rounded-xl text-white shadow-lg shadow-primary-900/20 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Sparkles className="w-4 h-4" />
+              <Sparkles className="w-5 h-5" />
             </button>
+          </div>
           </div>
           
           {/* Quick Tools Carousel */}
@@ -1843,13 +2070,13 @@ function App() {
              </button>
              
              {[
+               { icon: Wand2, label: 'עיצוב מחדש', action: () => setShowStyleOptions(true) },
                { icon: Palette, label: 'צבעים', action: () => setShowColorPalette(true) },
                { icon: Sofa, label: 'ריהוט', action: () => setShowFurnitureOptions(true) },
                { icon: Lightbulb, label: 'תאורה', action: () => setShowLightingOptions(true) },
-               { icon: FreeStyle, label: 'עיצוב מחדש', action: () => setShowStyleOptions(true) },
-               { icon: Home, label: 'מבנה', action: () => setShowDoorsWindowsOptions(true) },
-               { icon: Droplets, label: 'אמבט', action: () => setShowBathroomOptions(true) },
-               { icon: Hammer, label: 'תיקונים', action: () => setShowRepairsOptions(true) },
+               { icon: Home, label: 'חלונות ודלתות', action: () => setShowDoorsWindowsOptions(true) },
+               { icon: Droplets, label: 'רחצה', action: () => setShowBathroomOptions(true) },
+               { icon: Hammer, label: 'תיקונים ונזקים', action: () => setShowRepairsOptions(true) },
              ].map((tool, i) => (
                <button 
                  key={i} 
@@ -2030,7 +2257,7 @@ function App() {
            <div className="glass-card w-full max-w-4xl max-h-[80vh] overflow-hidden flex flex-col bg-surface">
               <div className="p-4 border-b border-white/10 flex justify-between items-center">
                  <h3 className="text-lg font-semibold text-white">
-                   {showDoorsWindowsOptions ? 'דלתות וחלונות' : showBathroomOptions ? 'אפשרויות רחצה' : 'תיקונים'}
+                   {showDoorsWindowsOptions ? 'חלונות ודלתות' : showBathroomOptions ? 'אפשרויות רחצה' : 'בחר סוג תיקון/נזק'}
                  </h3>
                  <button onClick={() => {
                    setShowDoorsWindowsOptions(false); 
@@ -2039,12 +2266,71 @@ function App() {
                  }} className="text-textMuted hover:text-white p-2"><span className="text-2xl">×</span></button>
               </div>
               <div className="flex-1 overflow-y-auto p-6 scrollbar-custom">
-                 <p className="text-center text-gray-400">אנא השתמש בהקלדה חופשית לתיאור מדויק יותר של השינויים הרצויים, או בחר מהרשימה למטה.</p>
-                 {/* Placeholder for the detailed lists - in a real refactor I would map these properly */}
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                    {/* Example generic buttons just to show UI style */}
-                    <button onClick={() => { addPromptToInput('הוסף חלון בלגי גדול'); setShowDoorsWindowsOptions(false); }} className="p-4 bg-white/5 rounded-xl text-white hover:bg-white/10 text-right border border-white/5">חלון בלגי</button>
-                    <button onClick={() => { addPromptToInput('החלף דלת כניסה'); setShowDoorsWindowsOptions(false); }} className="p-4 bg-white/5 rounded-xl text-white hover:bg-white/10 text-right border border-white/5">דלת כניסה מעוצבת</button>
+                 <p className="text-center text-gray-400 mb-6">אנא בחר אפשרות מהרשימה למטה.</p>
+                 
+                 <div className="grid grid-cols-1 gap-6">
+                    {showDoorsWindowsOptions && doorsWindowsOptions.map((section, idx) => (
+                      <div key={idx}>
+                         <h4 className="text-white font-semibold mb-3 text-right">{section.title}</h4>
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                           {section.items.map((item, i) => (
+                             <button 
+                               key={i}
+                               onClick={() => { addPromptToInput(item.description); setShowDoorsWindowsOptions(false); }} 
+                               className="p-3 bg-white/5 rounded-xl text-white hover:bg-white/10 text-right border border-white/5 flex flex-col gap-1 group"
+                             >
+                                <div className="flex justify-between items-center w-full">
+                                  <span className="font-medium">{item.name}</span>
+                                  <item.icon className="w-4 h-4 text-gray-400 group-hover:text-white transition-colors" />
+                                </div>
+                                <span className="text-xs text-gray-400 group-hover:text-gray-300">{item.description}</span>
+                             </button>
+                           ))}
+                         </div>
+                      </div>
+                    ))}
+
+                    {showBathroomOptions && bathroomOptions.map((section, idx) => (
+                      <div key={idx}>
+                         <h4 className="text-white font-semibold mb-3 text-right">{section.title}</h4>
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                           {section.items.map((item, i) => (
+                             <button 
+                               key={i}
+                               onClick={() => { addPromptToInput(item.description); setShowBathroomOptions(false); }} 
+                               className="p-3 bg-white/5 rounded-xl text-white hover:bg-white/10 text-right border border-white/5 flex flex-col gap-1 group"
+                             >
+                                <div className="flex justify-between items-center w-full">
+                                  <span className="font-medium">{item.name}</span>
+                                  <item.icon className="w-4 h-4 text-gray-400 group-hover:text-white transition-colors" />
+                                </div>
+                                <span className="text-xs text-gray-400 group-hover:text-gray-300">{item.description}</span>
+                             </button>
+                           ))}
+                         </div>
+                      </div>
+                    ))}
+
+                    {showRepairsOptions && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <button onClick={() => handleImmediateOptionClick('תסדר ותקנה את הכל')} className="p-4 bg-white/5 rounded-xl text-white hover:bg-white/10 text-right border border-white/5 flex items-center justify-between group">
+                          <span>תסדר ותקנה את הכל</span>
+                          <Hammer className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" />
+                        </button>
+                        <button onClick={() => handleImmediateOptionClick('בצע תיקונים להכל')} className="p-4 bg-white/5 rounded-xl text-white hover:bg-white/10 text-right border border-white/5 flex items-center justify-between group">
+                          <span>בצע תיקונים להכל</span>
+                          <Hammer className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" />
+                        </button>
+                        <button onClick={() => handleImmediateOptionClick('תהרוס ותגרום נזקים להכל')} className="p-4 bg-white/5 rounded-xl text-white hover:bg-white/10 text-right border border-white/5 flex items-center justify-between group">
+                          <span>תהרוס ותגרום נזקים להכל</span>
+                          <Hammer className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" />
+                        </button>
+                         <button onClick={() => handleImmediateOptionClick('תבלגן את הכל')} className="p-4 bg-white/5 rounded-xl text-white hover:bg-white/10 text-right border border-white/5 flex items-center justify-between group">
+                          <span>תבלגן את הכל</span>
+                          <Hammer className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" />
+                        </button>
+                      </div>
+                    )}
                  </div>
               </div>
            </div>
