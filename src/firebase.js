@@ -66,24 +66,56 @@ async function signInUser() {
   }
 }
 
+// Helper to get or create a persistent device ID
+function getDeviceId() {
+  let deviceId = localStorage.getItem('moomhe_device_id');
+  if (!deviceId) {
+    deviceId = 'device_' + Date.now() + '_' + Math.random().toString(36).substring(2, 15);
+    localStorage.setItem('moomhe_device_id', deviceId);
+  }
+  return deviceId;
+}
+
 // User management functions
 async function createOrUpdateUser(user) {
+  const deviceId = getDeviceId();
+  const appVersion = '1.0.0'; // Hardcoded for now, can be moved to config
+
   const userData = {
     uid: user.uid,
+    email: user.email || null,
     lastActive: new Date(),
     os: navigator.platform,
     userAgent: navigator.userAgent,
+    deviceBrand: getDeviceBrand(),
+    appVersion: appVersion,
+    deviceId: deviceId,
     createdAt: user.metadata.creationTime,
     isAnonymous: user.isAnonymous
   };
 
   try {
+    // Using merge: true to update existing fields without overwriting everything
+    // Note: credits and subscription are protected by Firestore Rules and managed by server
     await setDoc(doc(db, 'users', user.uid), userData, { merge: true });
     return userData;
   } catch (error) {
     console.error('Error creating/updating user:', error);
     throw error;
   }
+}
+
+// Simple helper to guess device brand from user agent
+function getDeviceBrand() {
+  const ua = navigator.userAgent.toLowerCase();
+  if (ua.includes('iphone') || ua.includes('ipad') || ua.includes('macintosh')) return 'Apple';
+  if (ua.includes('samsung')) return 'Samsung';
+  if (ua.includes('xiaomi')) return 'Xiaomi';
+  if (ua.includes('huawei')) return 'Huawei';
+  if (ua.includes('pixel')) return 'Google';
+  if (ua.includes('android')) return 'Android Device';
+  if (ua.includes('windows')) return 'Windows PC';
+  return 'Unknown';
 }
 
 // Storage functions
@@ -593,6 +625,7 @@ export {
   storage,
   signInUser,
   createOrUpdateUser,
+  getDeviceId, // Exporting getDeviceId
   saveImageToHistory,
   saveUploadToHistory,
   loadUserHistory,

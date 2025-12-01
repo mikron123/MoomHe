@@ -4,7 +4,6 @@ const { logger } = require('firebase-functions');
 const admin = require('firebase-admin');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const sharp = require('sharp');
-const { doc, collection, setDoc } = require('firebase-admin/firestore');
 
 // Initialize Firebase Admin
 admin.initializeApp();
@@ -27,32 +26,100 @@ async function validateUserToken(authToken) {
 }
 
 // Helper function to check and update user generation count
-async function checkAndUpdateGenerationCount(userId) {
+async function checkAndUpdateGenerationCount(userId, deviceId) {
   const now = new Date();
+  const dateKey = now.toISOString().split('T')[0]; // Format: YYYY-MM-DD as requested by user "genCount/{date}"
+  // User previously used monthYear, but prompt says "genCount/{date}users/uid/". 
+  // I will assume daily limit tracking for genCount, but subscription credits are monthly.
+  // Wait, "it will be calculated by listening to the record genCount/{date}users/uid/ count field and substracting it from the users/ user record "credits" field"
+  // If credits is 4 (free) or 40 (monthly), and genCount is DAILY, then subtraction makes no sense unless credits are DAILY.
+  // BUT subscription credits (40/100/200) are typically MONTHLY.
+  // If I use daily genCount, then `Credits - DailyUsage` = Remaining for today? No, that contradicts monthly credits.
+  // If the user means `genCount` accumulates ALL usage for the billing period, then `{date}` is confusing.
+  // However, `genCount` usually implies a counter.
+  // Let's look at the requirement: "users/ user record 'credits' field" -> 40.
+  // "substracting it from the ... count field".
+  // This implies `credits` is the BALANCE. Or `credits` is the LIMIT.
+  // "credits are the number of allowed credits by the subscription type." -> LIMIT.
+  // So Usage must be tracked for the same period.
+  // If the user specified `{date}` path, maybe they mean the billing cycle start date?
+  // Or maybe they want daily limits?
+  // Given "4 images to create" default for new users, and "40/100/200" for subs.
+  // If I start with 4 free images. I use 1. genCount = 1. Remaining = 4 - 1 = 3.
+  // If genCount resets tomorrow (because of `{date}`), then I get 4 free images EVERY DAY?
+  // That seems generous but possible.
+  // OR, `credits` is a decremented balance?
+  // "users/ user record 'credits' field" ... "substracting it from the ... count field".
+  // If `credits` was a balance, we wouldn't subtract count. We would just read `credits`.
+  // So `credits` IS a limit.
+  // If `genCount` is daily, then the limit is daily.
+  // If the limit is monthly (40/100/200), then `genCount` MUST be monthly or cumulative.
+  // The user prompt says: "listening to the record genCount/{date}users/uid/".
+  // I will use the month-year format for `{date}` to align with standard monthly subscriptions.
+  // e.g., "2023-10".
+  // If the user explicitly wants daily, I'd need to know. "genCount/{date}" usually implies YYYY-MM-DD.
+  // But for "monthly_starter", monthly tracking makes sense.
+  // I'll stick to YYYY-MM (as existing code `monthYear`) but maybe the user *meant* that structure.
+  // Let's stick to existing `monthYear` logic which is safe for monthly subscriptions.
+  
   const monthYear = `${String(now.getMonth() + 1).padStart(2, '0')}-${now.getFullYear()}`;
-  const genCountRef = db.collection('genCount').doc(monthYear).collection('users').doc(userId);
+  
+  // References
+  const userGenRef = db.collection('genCount').doc(monthYear).collection('users').doc(userId);
+  const deviceGenRef = db.collection('genCount').doc(monthYear).collection('devices').doc(deviceId);
   
   try {
-    const doc = await genCountRef.get();
+    const [userDoc, deviceDoc, userProfileDoc] = await Promise.all([
+      userGenRef.get(),
+      deviceGenRef.get(),
+      db.collection('users').doc(userId).get()
+    ]);
     
-    if (!doc.exists) {
-      // Create new document with count 0
-      await genCountRef.set({ count: 0 });
-      return { count: 0, limit: 50 }; // Default limit of 50 generations per month
+    // Get User Limits
+    let creditLimit = 4; // Default free limit
+    let subscriptionStatus = 0;
+    
+    if (userProfileDoc.exists) {
+      const userData = userProfileDoc.data();
+      creditLimit = userData.credits || 4;
+      subscriptionStatus = userData.subscription || 0;
+    }
+
+    // Get Counts
+    const userCount = userDoc.exists ? (userDoc.data().count || 0) : 0;
+    const deviceCount = deviceDoc.exists ? (deviceDoc.data().count || 0) : 0;
+    
+    // Logic:
+    // If Subscription > 0, we trust the User ID limit (paying user).
+    // If Subscription == 0 (Free), we enforce the stricter of User Count OR Device Count against the limit (4).
+    // This prevents creating new users on same device to bypass limit.
+    
+    const effectiveCount = subscriptionStatus > 0 ? userCount : Math.max(userCount, deviceCount);
+    
+    logger.info(`Check Gen Count: User=${userId} (${userCount}), Device=${deviceId} (${deviceCount}), Limit=${creditLimit}, Sub=${subscriptionStatus}`);
+
+    if (effectiveCount >= creditLimit) {
+      throw new Error(`Generation limit reached (${effectiveCount}/${creditLimit})`);
     }
     
-    const data = doc.data();
-    const currentCount = data.count || 0;
-    const limit = data.limit || 50; // Default limit
+    // Increment counts
+    const batch = db.batch();
     
-    if (currentCount >= limit) {
-      throw new Error(`Monthly generation limit reached (${currentCount}/${limit})`);
+    if (!userDoc.exists) {
+      batch.set(userGenRef, { count: 1, lastUpdated: admin.firestore.FieldValue.serverTimestamp() });
+    } else {
+      batch.update(userGenRef, { count: admin.firestore.FieldValue.increment(1), lastUpdated: admin.firestore.FieldValue.serverTimestamp() });
     }
     
-    // Increment count
-    await genCountRef.update({ count: admin.firestore.FieldValue.increment(1) });
+    if (!deviceDoc.exists) {
+      batch.set(deviceGenRef, { count: 1, lastUpdated: admin.firestore.FieldValue.serverTimestamp() });
+    } else {
+      batch.update(deviceGenRef, { count: admin.firestore.FieldValue.increment(1), lastUpdated: admin.firestore.FieldValue.serverTimestamp() });
+    }
     
-    return { count: currentCount + 1, limit };
+    await batch.commit();
+    
+    return { count: effectiveCount + 1, limit: creditLimit };
   } catch (error) {
     logger.error('Error checking generation count:', error);
     throw error;
@@ -224,6 +291,31 @@ async function processImageWithGemini(prompt, imageData, isObjectDetection = fal
   }
 }
 
+// Cloud function triggered when a new user document is created
+exports.onUserCreated = onDocumentCreated('users/{userId}', async (event) => {
+  const snapshot = event.data;
+  if (!snapshot) {
+    return;
+  }
+  
+  const userData = snapshot.data();
+  
+  // Check if default fields are already set (idempotency)
+  if (userData.credits !== undefined && userData.subscription !== undefined) {
+    return;
+  }
+  
+  logger.info(`Setting default credits for new user: ${event.params.userId}`);
+  
+  // Set default credits (4) and subscription (0 - no subscription)
+  // Using set with merge to avoid overwriting other fields if they exist
+  return snapshot.ref.set({
+    credits: 4,
+    subscription: 0,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp()
+  }, { merge: true });
+});
+
 // Cloud function triggered when a new userHistory document is created
 exports.processImageRequest = onDocumentCreated('userHistory/{docId}', async (event) => {
   const docId = event.params.docId;
@@ -241,8 +333,11 @@ exports.processImageRequest = onDocumentCreated('userHistory/{docId}', async (ev
     const user = await validateUserToken(docData.authToken);
     const userId = user.uid;
     
+    // Get device ID from docData (client should send it) or fallback
+    const deviceId = docData.deviceId || 'unknown_device';
+
     // Check generation count
-    const { count, limit } = await checkAndUpdateGenerationCount(userId);
+    const { count, limit } = await checkAndUpdateGenerationCount(userId, deviceId);
     logger.info(`User ${userId} generation count: ${count}/${limit}`);
     
     let result;
@@ -455,7 +550,7 @@ exports.detectObjects = onRequest({ cors: true }, async (req, res) => {
   }
   
   try {
-    const { imageData, authToken, historyId } = req.body;
+    const { imageData, authToken, historyId, deviceId } = req.body; // Added deviceId
     
     if (!imageData || !authToken) {
       res.status(400).json({ error: 'Missing required fields: imageData, authToken' });
@@ -467,7 +562,9 @@ exports.detectObjects = onRequest({ cors: true }, async (req, res) => {
     const userId = user.uid;
     
     // Check generation count
-    const { count, limit } = await checkAndUpdateGenerationCount(userId);
+    // Use provided deviceId or fallback
+    const effectiveDeviceId = deviceId || 'unknown_device';
+    const { count, limit } = await checkAndUpdateGenerationCount(userId, effectiveDeviceId);
     logger.info(`User ${userId} generation count: ${count}/${limit}`);
     
     // Process image data
@@ -702,10 +799,58 @@ exports.paymentWebhook = onRequest({ cors: true }, async (req, res) => {
     
     logger.info(`Payment event saved with ID: ${eventId}`);
     
+    // Handle subscription update if success
+    if (webhookData.status == "1" && webhookData.data && webhookData.data.payerEmail && webhookData.err == "") {
+      const payerEmail = webhookData.data.payerEmail;
+      const description = webhookData.data.description || '';
+      
+      logger.info(`Processing subscription for email: ${payerEmail}, plan: ${description}`);
+      
+      // Find user by email
+      // Note: 'users' collection usually indexed by UID. We need to query by email field.
+      // This assumes 'email' field is maintained on user documents.
+      const usersRef = db.collection('users');
+      const querySnapshot = await usersRef.where('email', '==', payerEmail).limit(1).get();
+      
+      if (!querySnapshot.empty) {
+        const userDoc = querySnapshot.docs[0];
+        const userId = userDoc.id;
+        
+        let newSubscription = 0;
+        let newCredits = 4;
+        
+        // Map description to subscription code and credits
+        if (description.includes('moomhe_monthly_starter')) {
+          newSubscription = 1;
+          newCredits = 40;
+        } else if (description.includes('moomhe_monthly_budget')) {
+          newSubscription = 2;
+          newCredits = 100;
+        } else if (description.includes('moomhe_monthly_pro')) {
+          newSubscription = 3;
+          newCredits = 200;
+        }
+        
+        if (newSubscription > 0) {
+          await userDoc.ref.update({
+            subscription: newSubscription,
+            credits: newCredits,
+            lastPaymentEvent: eventId,
+            subscriptionUpdatedAt: admin.firestore.FieldValue.serverTimestamp()
+          });
+          logger.info(`Updated user ${userId} subscription to ${newSubscription}, credits: ${newCredits}`);
+        } else {
+          logger.warn(`Unknown subscription description: ${description}`);
+        }
+      } else {
+        logger.warn(`No user found with email: ${payerEmail}`);
+      }
+    }
+    
     res.json({
       success: true,
       eventId: eventId,
-      message: 'Payment event received and stored'
+      message: 'Payment event received and processed'
     });
     
   } catch (error) {

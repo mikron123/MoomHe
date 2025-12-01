@@ -8,7 +8,7 @@ class AIService {
   }
 
   // Submit a request for image generation
-  async submitImageGenerationRequest(user, prompt, imageData, objectImageData = null) {
+  async submitImageGenerationRequest(user, prompt, imageData, objectImageData = null, deviceId = null) {
     try {
       // Get user's auth token
       const authToken = await user.getIdToken();
@@ -19,6 +19,7 @@ class AIService {
         requestType: 'imageGeneration',
         userId: user.uid,
         authToken: authToken,
+        deviceId: deviceId, // Pass deviceId
         prompt: prompt,
         imageData: imageData,
         objectImageData: objectImageData,
@@ -40,7 +41,7 @@ class AIService {
   }
 
   // Submit a request for object detection (HTTP function)
-  async submitObjectDetectionRequest(user, imageData, historyId = null) {
+  async submitObjectDetectionRequest(user, imageData, historyId = null, deviceId = null) {
     try {
       // Get user's auth token
       const authToken = await user.getIdToken();
@@ -54,7 +55,8 @@ class AIService {
         body: JSON.stringify({
           imageData: imageData,
           authToken: authToken,
-          historyId: historyId
+          historyId: historyId,
+          deviceId: deviceId
         })
       });
       
@@ -131,26 +133,32 @@ class AIService {
     }
   }
 
-  // Get user's generation count for current month
+  // Get user's generation count for current month and limit
   async getUserGenerationCount(userId) {
     try {
       const now = new Date();
       const monthYear = `${String(now.getMonth() + 1).padStart(2, '0')}-${now.getFullYear()}`;
-      const genCountRef = doc(db, 'genCount', monthYear, 'users', userId);
-      const genCountDoc = await getDoc(genCountRef);
       
-      if (genCountDoc.exists()) {
-        const data = genCountDoc.data();
-        return {
-          count: data.count || 0,
-          limit: data.limit || 50
-        };
-      } else {
-        return { count: 0, limit: 50 };
-      }
+      // Parallel fetch: genCount and user profile
+      const genCountRef = doc(db, 'genCount', monthYear, 'users', userId);
+      const userRef = doc(db, 'users', userId);
+      
+      const [genCountDoc, userDoc] = await Promise.all([
+        getDoc(genCountRef),
+        getDoc(userRef)
+      ]);
+      
+      const count = genCountDoc.exists() ? (genCountDoc.data().count || 0) : 0;
+      
+      // Get limit from user profile (credits), default to 4 if not found/free
+      const userData = userDoc.exists() ? userDoc.data() : {};
+      const limit = userData.credits !== undefined ? userData.credits : 4;
+      
+      return { count, limit };
     } catch (error) {
       console.error('Error getting user generation count:', error);
-      return { count: 0, limit: 50 };
+      // Fallback
+      return { count: 0, limit: 4 };
     }
   }
 

@@ -3,7 +3,16 @@ service cloud.firestore {
   match /databases/{database}/documents {
     // Users can read/write their own user document
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null && request.auth.uid == userId;
+      // Allow update only if NOT modifying protected fields
+      allow update: if request.auth != null && request.auth.uid == userId && 
+                    (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['credits', 'subscription']));
+      // Allow create (handled by client initially) but validation could be added here if needed
+      // However, generally createOrUpdateUser calls setDoc with merge: true.
+      // If it's a new doc, the client creates it. Server trigger will add credits/sub.
+      // Client shouldn't be setting credits/sub on create either.
+      allow create: if request.auth != null && request.auth.uid == userId &&
+                    (!request.resource.data.keys().hasAny(['credits', 'subscription']));
     }
     
     // Users can read/write their own history
@@ -18,5 +27,9 @@ service cloud.firestore {
       allow read: if request.auth != null && request.auth.uid == userId;
       allow write: if false; // Only server can write
     }
+
+    // Allow reading genCount by deviceId if needed, but generally users query by UID
+    // If we wanted to enforce device limits on client side (unlikely), we'd need read access.
+    // Keeping it restricted for now.
   }
 }

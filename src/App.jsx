@@ -1,10 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { Upload, Plus, Palette, RotateCcw, Download, Settings, Home, TreePine, Car, Heart, Hammer, Sparkles, Package, User, Share2, Wand2, Type, Loader2, RotateCw, Lightbulb, Sofa, Droplets, ArrowLeftRight, MessageCircle, HelpCircle } from 'lucide-react'
-import { fileToGenerativePart, urlToFile, signInUser, createOrUpdateUser, saveImageToHistory, saveUploadToHistory, loadUserHistory, loadUserHistoryPaginated, auth, uploadImageForSharing, compressImage } from './firebase.js'
+import { Upload, Plus, Palette, RotateCcw, Download, Settings, Home, TreePine, Car, Heart, Hammer, Sparkles, Package, User, Share2, Wand2, Type, Loader2, RotateCw, Lightbulb, Sofa, Droplets, ArrowLeftRight, MessageCircle, HelpCircle, CheckCircle } from 'lucide-react'
+import { fileToGenerativePart, urlToFile, signInUser, createOrUpdateUser, saveImageToHistory, saveUploadToHistory, loadUserHistory, loadUserHistoryPaginated, auth, uploadImageForSharing, compressImage, db, getDeviceId } from './firebase.js'
 import { aiService } from './aiService.js'
 import { onAuthStateChanged } from 'firebase/auth'
+import { doc, onSnapshot, collection } from 'firebase/firestore'
 import OnboardingOverlay from './OnboardingOverlay'
 import ColorApplicationDialog from './ColorApplicationDialog'
+import LimitReachedModal from './LimitReachedModal'
+import WelcomePremiumModal from './WelcomePremiumModal'
 
 function App() {
   // Onboarding State
@@ -48,6 +51,17 @@ function App() {
   const [authMode, setAuthMode] = useState('signup') // 'login' or 'signup'
   const [email, setEmail] = useState('')
   const [confirmEmail, setConfirmEmail] = useState('')
+  
+  const [userCredits, setUserCredits] = useState(0)
+  const [userSubscription, setUserSubscription] = useState(0)
+  const [userUsage, setUserUsage] = useState(0)
+  
+  const subscriptionNames = {
+    0: 'חינם',
+    1: 'מתחיל',
+    2: 'משתלם',
+    3: 'מקצועי'
+  }
   const [password, setPassword] = useState('')
   const [isLoadingAuth, setIsLoadingAuth] = useState(false)
   const [isResettingPassword, setIsResettingPassword] = useState(false)
@@ -56,6 +70,9 @@ function App() {
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false)
   const [showLoginConfirmDialog, setShowLoginConfirmDialog] = useState(false)
   const [pendingSubscription, setPendingSubscription] = useState(null)
+  const [showLimitModal, setShowLimitModal] = useState(false)
+  const [showWelcomePremiumModal, setShowWelcomePremiumModal] = useState(false)
+  const [prevSubscription, setPrevSubscription] = useState(0)
 
   useEffect(() => {
     if (pendingSubscription && currentUser && !currentUser.isAnonymous) {
@@ -68,6 +85,7 @@ function App() {
     if (currentUser && !currentUser.isAnonymous) {
        // Already logged in - open link
        window.open(url, '_blank', 'noopener,noreferrer')
+       setShowSubscriptionModal(false) // Close modal
     } else {
       // Not logged in
       setShowSubscriptionModal(false)
@@ -135,6 +153,7 @@ function App() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
+        console.log('User UID:', user.uid)
         setCurrentUser(user)
         setIsAuthenticated(true)
         
@@ -150,6 +169,42 @@ function App() {
           setHasMoreHistory(historyResult.hasMore)
         } finally {
           setIsLoadingHistory(false)
+        }
+        
+        // Listen to user document for credits/subscription changes
+        const userDocRef = doc(db, 'users', user.uid)
+        const unsubscribeUser = onSnapshot(userDocRef, (docSnapshot) => {
+          if (docSnapshot.exists()) {
+            const userData = docSnapshot.data()
+            const newSubscription = userData.subscription || 0
+            
+            // Check for upgrade: if subscription changed from 0 to > 0
+            setUserSubscription(prevSub => {
+              if (prevSub === 0 && newSubscription > 0) {
+                setShowWelcomePremiumModal(true)
+              }
+              return newSubscription
+            })
+            
+            setUserCredits(userData.credits || 0)
+          }
+        })
+        
+        // Listen to genCount for usage
+        const now = new Date()
+        const monthYear = `${String(now.getMonth() + 1).padStart(2, '0')}-${now.getFullYear()}`
+        const genCountRef = doc(db, 'genCount', monthYear, 'users', user.uid)
+        const unsubscribeGenCount = onSnapshot(genCountRef, (docSnapshot) => {
+          if (docSnapshot.exists()) {
+            setUserUsage(docSnapshot.data().count || 0)
+          } else {
+            setUserUsage(0)
+          }
+        })
+        
+        return () => {
+          unsubscribeUser()
+          unsubscribeGenCount()
         }
       } else {
         // Sign in anonymously
@@ -646,9 +701,9 @@ function App() {
     e.preventDefault()
     if (!email || !password) return
     
-    // Validate email confirmation for signup
-    if (authMode === 'signup' && email !== confirmEmail) {
-      alert('כתובות האימייל אינן תואמות. נסה שוב.')
+    // Validate password confirmation for signup
+    if (authMode === 'signup' && password !== confirmEmail) {
+      alert('הסיסמאות אינן תואמות. נסה שוב.')
       return
     }
     
@@ -939,16 +994,16 @@ function App() {
   const handleCustomPromptSubmit = async () => {
     if (!customPrompt.trim()) return
     
-    // Check if user can make requests
-    if (isAuthenticated && currentUser) {
-      const canMakeRequest = await aiService.canMakeRequest(currentUser.uid)
-      if (!canMakeRequest) {
-        alert('הגעת למגבלת הדורות החודשית. נסה שוב בחודש הבא.')
-        return
+      // Check if user can make requests
+      if (isAuthenticated && currentUser) {
+        const canMakeRequest = await aiService.canMakeRequest(currentUser.uid)
+        if (!canMakeRequest) {
+          setShowLimitModal(true)
+          return
+        }
       }
-    }
-    
-    setIsProcessing(true)
+      
+      setIsProcessing(true)
     try {
       // For now, we'll use the prompt as-is (translation can be handled server-side)
       const finalPrompt = customPrompt
@@ -975,7 +1030,11 @@ function App() {
       }
     } catch (error) {
       console.error('Custom prompt failed:', error)
-      alert('שגיאה בעיבוד הבקשה. נסה שוב.')
+      if (error.message && (error.message.includes('limit reached') || error.message.includes('credits'))) {
+        setShowLimitModal(true)
+      } else {
+        alert('שגיאה בעיבוד הבקשה. נסה שוב.')
+      }
     } finally {
       setIsProcessing(false)
     }
@@ -1009,7 +1068,7 @@ function App() {
       if (isAuthenticated && currentUser) {
         const canMakeRequest = await aiService.canMakeRequest(currentUser.uid)
         if (!canMakeRequest) {
-          alert('הגעת למגבלת הדורות החודשית. נסה שוב בחודש הבא.')
+          setShowLimitModal(true)
           setIsLoadingObjects(false)
           return
         }
@@ -1519,7 +1578,7 @@ function App() {
       if (isAuthenticated && currentUser) {
         const canMakeRequest = await aiService.canMakeRequest(currentUser.uid)
         if (!canMakeRequest) {
-          alert('הגעת למגבלת הדורות החודשית. נסה שוב בחודש הבא.')
+          setShowLimitModal(true)
           setIsProcessing(false)
           return
         }
@@ -1727,20 +1786,35 @@ function App() {
           </button>
           <button 
             onClick={() => setShowSubscriptionModal(true)}
-            className="hidden md:flex items-center gap-2 bg-gradient-to-r from-secondary-500 to-secondary-600 hover:from-secondary-400 hover:to-secondary-500 text-white px-4 py-1.5 rounded-full text-sm font-medium shadow-lg shadow-secondary-900/20 transition-all duration-300 hover:-translate-y-0.5"
+            className={`hidden md:flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-medium shadow-lg transition-all duration-300 hover:-translate-y-0.5 ${
+              userSubscription > 0 
+                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30 shadow-emerald-900/20' 
+                : 'bg-gradient-to-r from-secondary-500 to-secondary-600 hover:from-secondary-400 hover:to-secondary-500 text-white shadow-secondary-900/20'
+            }`}
           >
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M5 16L3 5L8.5 7L12 4L15.5 7L21 5L19 16H5Z" fill="url(#crownGradient)" stroke="rgba(255,255,255,0.3)" strokeWidth="0.5"/>
-              <path d="M9 16L12 9L15 16H9Z" fill="rgba(255,255,255,0.2)"/>
-              <defs>
-                <linearGradient id="crownGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#FFD700" stopOpacity="0.9"/>
-                  <stop offset="50%" stopColor="#FFA500" stopOpacity="0.95"/>
-                  <stop offset="100%" stopColor="#FFD700" stopOpacity="0.9"/>
-                </linearGradient>
-              </defs>
-            </svg>
-            מנוי מקצועי
+            {userSubscription > 0 ? (
+              <CheckCircle className="w-5 h-5" />
+            ) : (
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M5 16L3 5L8.5 7L12 4L15.5 7L21 5L19 16H5Z" fill="url(#crownGradient)" stroke="rgba(255,255,255,0.3)" strokeWidth="0.5"/>
+                <path d="M9 16L12 9L15 16H9Z" fill="rgba(255,255,255,0.2)"/>
+                <defs>
+                  <linearGradient id="crownGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#FFD700" stopOpacity="0.9"/>
+                    <stop offset="50%" stopColor="#FFA500" stopOpacity="0.95"/>
+                    <stop offset="100%" stopColor="#FFD700" stopOpacity="0.9"/>
+                  </linearGradient>
+                </defs>
+              </svg>
+            )}
+            {userSubscription > 0 ? (
+              <div className="flex flex-col items-start leading-none">
+                <span>מנוי פעיל</span>
+                <span className="text-[10px] opacity-80">{userCredits - userUsage > 0 ? userCredits - userUsage : 0} קרדיטים</span>
+              </div>
+            ) : (
+              'מנוי מקצועי'
+            )}
           </button>
         </div>
         
@@ -1768,16 +1842,35 @@ function App() {
              onClick={() => currentUser && !currentUser.isAnonymous ? setShowLogoutModal(true) : setShowAuthModal(true)}
              className="flex items-center gap-3 px-3 sm:px-4 py-2 rounded-full bg-surface/50 hover:bg-surfaceHighlight/50 border border-white/5 hover:border-white/20 transition-all duration-300 group"
            >
-             {currentUser && !currentUser.isAnonymous ? (
+             {isAuthenticated ? (
                <>
+                 <div className="flex flex-col items-end mr-2 hidden sm:flex">
+                   <span className="text-xs text-gray-400">
+                     {userCredits - userUsage > 0 ? userCredits - userUsage : 0} קרדיטים
+                   </span>
+                   {userSubscription >= 0 && (
+                     <span className={`text-[10px] font-medium ${userSubscription > 0 ? 'text-emerald-400' : 'text-gray-500'}`}>
+                       {subscriptionNames[userSubscription]}
+                     </span>
+                   )}
+                 </div>
+                 
+                 {/* Mobile credits display */}
+                 <div className="flex flex-col items-end mr-1 sm:hidden">
+                   <span className="text-[10px] text-gray-400 font-medium">
+                     {userCredits - userUsage > 0 ? userCredits - userUsage : 0}
+                   </span>
+                 </div>
+
                  <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-primary-500 to-secondary-500 p-0.5">
                    <div className="w-full h-full rounded-full bg-surface flex items-center justify-center text-xs font-bold text-white">
-                     {(currentUser.email || 'U')[0].toUpperCase()}
+                     {(currentUser?.email || 'U')[0].toUpperCase()}
                    </div>
                  </div>
+                 
                  <div className="text-right hidden sm:block">
-                   <div className="text-xs text-textMuted">מחובר כ-</div>
-                   <div className="text-sm font-medium leading-none text-white">{(currentUser.email || '').split('@')[0]}</div>
+                   {!currentUser?.isAnonymous && <div className="text-xs text-textMuted">מחובר כ-</div>}
+                   <div className="text-sm font-medium leading-none text-white">{(currentUser?.email || '').split('@')[0] || 'אורח'}</div>
                  </div>
                </>
              ) : (
@@ -2428,6 +2521,21 @@ function App() {
       <input ref={objectInputRef} type="file" accept="image/*" onChange={handleObjectImageUpload} className="hidden" />
       
       {/* Login Confirmation Dialog */}
+      <LimitReachedModal 
+        isOpen={showLimitModal} 
+        onClose={() => setShowLimitModal(false)} 
+        onShowPricing={() => setShowSubscriptionModal(true)}
+        userSubscription={userSubscription}
+        currentUsage={userUsage}
+        limit={userCredits}
+      />
+
+      <WelcomePremiumModal 
+        isOpen={showWelcomePremiumModal}
+        onClose={() => setShowWelcomePremiumModal(false)}
+        subscriptionName={subscriptionNames[userSubscription]}
+      />
+
       {showLoginConfirmDialog && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[90] flex items-center justify-center p-4 animate-fade-in">
           <div className="glass-card w-full max-w-md p-8 relative bg-surface border border-white/10 shadow-2xl flex flex-col rounded-2xl">
@@ -2516,9 +2624,21 @@ function App() {
 
                     <button 
                       onClick={() => handleSubscriptionClick('https://pay.grow.link/f8f8414d5e65d2b80b262486d3ea3e3c-Mjc1ODQ5MA')}
-                      className="w-full py-3 rounded-xl bg-white/5 hover:bg-white/10 text-white font-medium border border-white/10 transition-all block text-center"
+                      disabled={userSubscription === 1}
+                      className={`w-full py-3 rounded-xl font-medium border transition-all block text-center ${
+                        userSubscription === 1 
+                          ? 'bg-emerald-600/20 border-emerald-500/50 text-emerald-400 cursor-not-allowed' 
+                          : 'bg-white/5 hover:bg-white/10 text-white border-white/10'
+                      }`}
                     >
-                      בחר חבילה
+                      {userSubscription === 1 ? (
+                        <span className="flex items-center justify-center gap-2">
+                          <CheckCircle className="w-5 h-5" />
+                          המנוי הנוכחי שלך
+                        </span>
+                      ) : (
+                        'בחר חבילה'
+                      )}
                     </button>
                   </div>
                 </div>
@@ -2563,9 +2683,21 @@ function App() {
 
                     <button 
                       onClick={() => handleSubscriptionClick('https://pay.grow.link/bf7845c990da58c287bf83a84a87e11c-MjcwMjgzNQ')}
-                      className="w-full py-3 rounded-xl bg-gradient-to-r from-secondary-500 to-secondary-600 hover:from-secondary-400 hover:to-secondary-500 text-white font-bold shadow-lg shadow-secondary-900/30 transition-all transform hover:-translate-y-0.5 block text-center"
+                      disabled={userSubscription === 2}
+                      className={`w-full py-3 rounded-xl font-bold shadow-lg transition-all transform block text-center ${
+                        userSubscription === 2
+                          ? 'bg-emerald-600/20 border-2 border-emerald-500/50 text-emerald-400 cursor-not-allowed shadow-emerald-900/30'
+                          : 'bg-gradient-to-r from-secondary-500 to-secondary-600 hover:from-secondary-400 hover:to-secondary-500 text-white shadow-secondary-900/30 hover:-translate-y-0.5'
+                      }`}
                     >
-                      בחר חבילה
+                      {userSubscription === 2 ? (
+                        <span className="flex items-center justify-center gap-2">
+                          <CheckCircle className="w-5 h-5" />
+                          המנוי הנוכחי שלך
+                        </span>
+                      ) : (
+                        'בחר חבילה'
+                      )}
                     </button>
                   </div>
                 </div>
@@ -2606,9 +2738,21 @@ function App() {
 
                     <button 
                       onClick={() => handleSubscriptionClick('https://pay.grow.link/31f92ee464c112077b30007432dc8226-Mjc1ODQ4NQ')}
-                      className="w-full py-3 rounded-xl bg-white/5 hover:bg-white/10 text-white font-medium border border-white/10 transition-all block text-center"
+                      disabled={userSubscription === 3}
+                      className={`w-full py-3 rounded-xl font-medium border transition-all block text-center ${
+                        userSubscription === 3
+                          ? 'bg-emerald-600/20 border-emerald-500/50 text-emerald-400 cursor-not-allowed'
+                          : 'bg-white/5 hover:bg-white/10 text-white border-white/10'
+                      }`}
                     >
-                      בחר חבילה
+                      {userSubscription === 3 ? (
+                        <span className="flex items-center justify-center gap-2">
+                          <CheckCircle className="w-5 h-5" />
+                          המנוי הנוכחי שלך
+                        </span>
+                      ) : (
+                        'בחר חבילה'
+                      )}
                     </button>
                   </div>
                 </div>
@@ -2640,6 +2784,15 @@ function App() {
           onApply={handleColorDialogApply} 
         />
       )}
+
+      <LimitReachedModal 
+        isOpen={showLimitModal} 
+        onClose={() => setShowLimitModal(false)} 
+        onShowPricing={() => setShowSubscriptionModal(true)}
+        userSubscription={userSubscription}
+        currentUsage={userUsage}
+        limit={userCredits}
+      />
     </div>
   )
 }
