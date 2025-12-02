@@ -333,8 +333,13 @@ exports.processImageRequest = onDocumentCreated('userHistory/{docId}', async (ev
     const user = await validateUserToken(docData.authToken);
     const userId = user.uid;
     
-    // Get device ID from docData (client should send it) or fallback
-    const deviceId = docData.deviceId || 'unknown_device';
+    // Get device ID from docData (client should send it)
+    const deviceId = docData.deviceId;
+    
+    // Reject requests without a valid device ID to prevent abuse
+    if (!deviceId || deviceId === 'unknown_device') {
+      throw new Error('Valid device ID is required for generation requests');
+    }
 
     // Check generation count
     const { count, limit } = await checkAndUpdateGenerationCount(userId, deviceId);
@@ -562,9 +567,12 @@ exports.detectObjects = onRequest({ cors: true }, async (req, res) => {
     const userId = user.uid;
     
     // Check generation count
-    // Use provided deviceId or fallback
-    const effectiveDeviceId = deviceId || 'unknown_device';
-    const { count, limit } = await checkAndUpdateGenerationCount(userId, effectiveDeviceId);
+    // Use provided deviceId - reject if not provided
+    if (!deviceId || deviceId === 'unknown_device') {
+      res.status(400).json({ error: 'Valid device ID is required for generation requests', success: false });
+      return;
+    }
+    const { count, limit } = await checkAndUpdateGenerationCount(userId, deviceId);
     logger.info(`User ${userId} generation count: ${count}/${limit}`);
     
     // Process image data

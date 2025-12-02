@@ -64,7 +64,7 @@ const LimitReachedModal = ({ isOpen, onClose, onShowPricing, userSubscription, c
               onClose();
               onShowPricing();
             }}
-            className="w-full py-3.5 rounded-xl bg-gradient-to-r from-primary-500 to-secondary-600 text-white font-semibold shadow-lg shadow-primary-900/20 hover:shadow-primary-900/40 transform hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-center gap-2 mb-3"
+            className="w-full py-3.5 rounded-xl bg-gradient-to-r from-primary-500 to-secondary-600 text-white font-semibold shadow-lg shadow-primary-900/20 flex items-center justify-center gap-2 mb-3"
           >
             <Crown className="w-5 h-5" />
             {userSubscription > 0 ? 'שדרג חבילה' : 'עבור למנוי מקצועי'}

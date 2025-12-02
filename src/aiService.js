@@ -150,15 +150,16 @@ class AIService {
       
       const count = genCountDoc.exists() ? (genCountDoc.data().count || 0) : 0;
       
-      // Get limit from user profile (credits), default to 4 if not found/free
+      // Get limit from user profile (credits), default to 0 if not found (previously was 4)
       const userData = userDoc.exists() ? userDoc.data() : {};
-      const limit = userData.credits !== undefined ? userData.credits : 4;
+      // If credits field is missing or undefined, treat as 0 to prevent unauthorized usage
+      const limit = userData.credits !== undefined ? userData.credits : 0;
       
       return { count, limit };
     } catch (error) {
       console.error('Error getting user generation count:', error);
-      // Fallback
-      return { count: 0, limit: 4 };
+      // Fallback - stricter failure mode: 0 credits on error
+      return { count: 0, limit: 0 };
     }
   }
 

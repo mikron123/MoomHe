@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Upload, Plus, Palette, RotateCcw, Download, Settings, Home, TreePine, Car, Heart, Hammer, Sparkles, Package, User, Share2, Palette as FreeStyle, Type, Loader2, RotateCw, Lightbulb, Sofa, Droplets, ArrowLeftRight, MessageCircle, ArrowLeft } from 'lucide-react'
-import { fileToGenerativePart, urlToFile, signInUser, createOrUpdateUser, saveImageToHistory, saveUploadToHistory, loadUserHistory, loadUserHistoryPaginated, auth, uploadImageForSharing, compressImage } from './firebase.js'
+import { fileToGenerativePart, urlToFile, signInUser, createOrUpdateUser, saveImageToHistory, saveUploadToHistory, loadUserHistory, loadUserHistoryPaginated, auth, uploadImageForSharing, compressImage, getDeviceFingerprint } from './firebase.js'
 import { aiService } from './aiService.js'
 import { onAuthStateChanged } from 'firebase/auth'
+import LimitReachedModal from './LimitReachedModal'
 
 function GeneralApp() {
   const [selectedCategory, setSelectedCategory] = useState('עיצוב פנים וחוץ')
@@ -36,6 +37,7 @@ function GeneralApp() {
   const [isLoadingMoreHistory, setIsLoadingMoreHistory] = useState(false)
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [showLogoutModal, setShowLogoutModal] = useState(false)
+  const [showLimitModal, setShowLimitModal] = useState(false)
   
   // Debug: Log when showAuthModal changes
   useEffect(() => {
@@ -839,7 +841,7 @@ function GeneralApp() {
     if (isAuthenticated && currentUser) {
       const canMakeRequest = await aiService.canMakeRequest(currentUser.uid)
       if (!canMakeRequest) {
-        alert('הגעת למגבלת הדורות החודשית. נסה שוב בחודש הבא.')
+        setShowLimitModal(true)
         return
       }
     }
@@ -905,7 +907,7 @@ function GeneralApp() {
       if (isAuthenticated && currentUser) {
         const canMakeRequest = await aiService.canMakeRequest(currentUser.uid)
         if (!canMakeRequest) {
-          alert('הגעת למגבלת הדורות החודשית. נסה שוב בחודש הבא.')
+          setShowLimitModal(true)
           setIsLoadingObjects(false)
           return
         }
@@ -932,7 +934,8 @@ function GeneralApp() {
       
       // Submit request to server (HTTP function)
       console.log('Submitting object detection request for history ID:', historyId)
-      const result = await aiService.submitObjectDetectionRequest(currentUser, imageDataForServer, historyId)
+      const deviceId = await getDeviceFingerprint()
+      const result = await aiService.submitObjectDetectionRequest(currentUser, imageDataForServer, historyId, deviceId)
       
       console.log('Object detection result:', result)
       console.log('Objects will be saved to history ID:', historyId)
@@ -1185,7 +1188,7 @@ function GeneralApp() {
       { name: 'Signal white', value: 'signal white', hex: '#F4F4F4', ral: 'RAL 9003' },
       { name: 'Signal black', value: 'signal black', hex: '#282828', ral: 'RAL 9004' },
       { name: 'Jet black', value: 'jet black', hex: '#0A0A0A', ral: 'RAL 9005' },
-      { name: 'Pure white', value: 'pure white', hex: '#FFFFFF', ral: 'RAL 9010' },
+      { name: 'Simply white', value: 'simply white', hex: '#FFFFFF', ral: 'RAL 9010' },
       { name: 'Graphite black', value: 'graphite black', hex: '#1C1C1C', ral: 'RAL 9011' },
       { name: 'Traffic white', value: 'traffic white', hex: '#F6F6F6', ral: 'RAL 9016' },
       { name: 'Traffic black', value: 'traffic black', hex: '#1E1E1E', ral: 'RAL 9017' },
@@ -1279,14 +1282,14 @@ function GeneralApp() {
   const styleOptions = [
     { name: 'מינימליסטי', value: 'minimalist', prompt: 'שנה את סגנון החדר למינימליסטי - נקי, פשוט, לא עמוס' },
     { name: 'בוהו', value: 'bohemian', prompt: 'שנה את סגנון החדר לבוהו - אקלקטי, מרקם, חופשי' },
-    { name: 'אינדוסטריאלי', value: 'industrial', prompt: 'שנה את סגנון החדר לאינדוסטריאלי - חומרים גולמיים וחשופים' },
+    { name: 'אינדוסטריאלי', value: 'industrial', prompt: 'שנה את סגנון החדר לסגנון תעשייתי - חומרים גולמיים וחשופים' },
     { name: 'מודרני אמצע המאה', value: 'mid-century modern', prompt: 'שנה את סגנון החדר למודרני אמצע המאה - חלק, רטרו, פונקציונלי' },
     { name: 'סקנדינבי', value: 'scandinavian', prompt: 'שנה את סגנון החדר לסקנדינבי - בהיר, נוח, פונקציונלי' },
     { name: 'מסורתי', value: 'traditional', prompt: 'שנה את סגנון החדר למסורתי - קלאסי, פורמלי, סימטרי' },
     { name: 'חווה מודרנית', value: 'modern farmhouse', prompt: 'שנה את סגנון החדר לחווה מודרנית - כפרי, ניטרלי, רגוע' },
     { name: 'עכשווי', value: 'contemporary', prompt: 'שנה את סגנון החדר לעכשווי - עדכני, חלק, מתוחכם' },
     { name: 'חופי', value: 'coastal', prompt: 'שנה את סגנון החדר לחופי - אוורירי, בהיר, רוחי' },
-    { name: 'אר דקו', value: 'art deco', prompt: 'שנה את סגנון החדר לאר דקו - גיאומטרי, מפואר, גלמור' }
+    { name: 'אר דקו', value: 'art deco', prompt: 'שנה את סגנון החדר לאר דקו - גיאומטרי, מפואר' }
   ]
 
   const handleAngleSelect = (angle) => {
@@ -1386,7 +1389,7 @@ function GeneralApp() {
       if (isAuthenticated && currentUser) {
         const canMakeRequest = await aiService.canMakeRequest(currentUser.uid)
         if (!canMakeRequest) {
-          alert('הגעת למגבלת הדורות החודשית. נסה שוב בחודש הבא.')
+          setShowLimitModal(true)
           setIsProcessing(false)
           return
         }
@@ -1422,11 +1425,13 @@ function GeneralApp() {
       }
       
       // Submit request to server
+      const deviceId = await getDeviceFingerprint()
       const requestId = await aiService.submitImageGenerationRequest(
         currentUser, 
         prompt, 
         imageDataForServer, 
-        objectImageData
+        objectImageData,
+        deviceId
       )
       
       // Wait for completion
@@ -1487,7 +1492,7 @@ function GeneralApp() {
       
       // Handle specific error types
       if (error.message?.includes('limit reached') || error.message?.includes('מגבלת הדורות')) {
-        alert('הגעת למגבלת הדורות החודשית. נסה שוב בחודש הבא.')
+        setShowLimitModal(true)
       } else if (error.message?.includes('timeout')) {
         alert('הבקשה ארכה יותר מדי זמן. נסה שוב.')
       } else {
@@ -1713,12 +1718,20 @@ function GeneralApp() {
                   העלה תמונה
                 </button>
 
-                {/* Download and WhatsApp Buttons - Mobile (Top Left) */}
+                {/* Download, WhatsApp and Add Object Buttons - Mobile (Top Left) */}
                 <div className="absolute top-3 left-3 flex gap-2">
+                  <button 
+                    onClick={() => objectInputRef.current?.click()}
+                    disabled={isProcessing}
+                    className="w-8 h-8 bg-black/50 hover:bg-primary-600/70 text-white rounded-full flex items-center justify-center transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-sm border border-white/10"
+                    title="אובייקט מתמונה"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
                   <button 
                     onClick={handleDownload}
                     disabled={isProcessing}
-                    className="w-8 h-8 bg-green-600/70 hover:bg-green-600/90 text-white rounded-full flex items-center justify-center transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-sm"
+                    className="w-8 h-8 bg-black/50 hover:bg-green-600/70 text-white rounded-full flex items-center justify-center transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-sm border border-white/10"
                     title="הורדה"
                   >
                     <Download className="w-4 h-4" />
@@ -1726,7 +1739,7 @@ function GeneralApp() {
                   <button 
                     onClick={handleWhatsAppShare}
                     disabled={isProcessing}
-                    className="w-8 h-8 bg-green-500/70 hover:bg-green-500/90 text-white rounded-full flex items-center justify-center transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-sm"
+                    className="w-8 h-8 bg-black/50 hover:bg-green-600/70 text-white rounded-full flex items-center justify-center transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-sm border border-white/10"
                     title="שיתוף בווטסאפ"
                   >
                     <MessageCircle className="w-4 h-4" />
@@ -2107,12 +2120,20 @@ function GeneralApp() {
                   העלה תמונה
                 </button>
 
-                {/* Download and WhatsApp Buttons - Desktop (Top Left) */}
+                {/* Download, WhatsApp and Add Object Buttons - Desktop (Top Left) */}
                 <div className="absolute top-4 left-4 flex gap-2">
+                  <button 
+                    onClick={() => objectInputRef.current?.click()}
+                    disabled={isProcessing}
+                    className="w-10 h-10 bg-black/50 hover:bg-primary-600/70 text-white rounded-full flex items-center justify-center transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-sm border border-white/10"
+                    title="אובייקט מתמונה"
+                  >
+                    <Plus className="w-5 h-5" />
+                  </button>
                   <button 
                     onClick={handleDownload}
                     disabled={isProcessing}
-                    className="w-10 h-10 bg-green-600/70 hover:bg-green-600/90 text-white rounded-full flex items-center justify-center transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-sm"
+                    className="w-10 h-10 bg-black/50 hover:bg-green-600/70 text-white rounded-full flex items-center justify-center transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-sm border border-white/10"
                     title="הורדה"
                   >
                     <Download className="w-5 h-5" />
@@ -2120,7 +2141,7 @@ function GeneralApp() {
                   <button 
                     onClick={handleWhatsAppShare}
                     disabled={isProcessing}
-                    className="w-10 h-10 bg-green-500/70 hover:bg-green-500/90 text-white rounded-full flex items-center justify-center transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-sm"
+                    className="w-10 h-10 bg-black/50 hover:bg-green-600/70 text-white rounded-full flex items-center justify-center transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-sm border border-white/10"
                     title="שיתוף בווטסאפ"
                   >
                     <MessageCircle className="w-5 h-5" />
@@ -2906,6 +2927,19 @@ function GeneralApp() {
           </div>
         </div>
       )}
+
+      <LimitReachedModal 
+        isOpen={showLimitModal} 
+        onClose={() => setShowLimitModal(false)} 
+        onShowPricing={() => {
+            setShowLimitModal(false)
+            // Optionally redirect to main app or show contact modal
+            setShowContactModal(true) 
+        }}
+        userSubscription={0}
+        currentUsage={4}
+        limit={4}
+      />
 
       {/* Authentication Modal */}
       {showAuthModal && (

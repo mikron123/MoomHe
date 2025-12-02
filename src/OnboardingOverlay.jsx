@@ -4,15 +4,27 @@ import { X, ChevronLeft } from 'lucide-react'
 const OnboardingOverlay = ({ step, steps, onNext, onSkip, onComplete }) => {
   const [targetRect, setTargetRect] = useState(null)
   const [windowSize, setWindowSize] = useState({ width: window.innerWidth, height: window.innerHeight })
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024)
   const currentStep = steps[step]
 
   useEffect(() => {
     const updateRect = () => {
+      const mobile = window.innerWidth < 1024
+      setIsMobile(mobile)
+      setWindowSize({ width: window.innerWidth, height: window.innerHeight })
+      
       if (currentStep.targetRef && currentStep.targetRef.current) {
         const rect = currentStep.targetRef.current.getBoundingClientRect()
-        setTargetRect(rect)
+        // Check if element is visible (has dimensions and is not hidden)
+        if (rect.width > 0 && rect.height > 0) {
+          setTargetRect(rect)
+        } else {
+          // Element is hidden, use null to trigger mobile-centered view
+          setTargetRect(null)
+        }
+      } else {
+        setTargetRect(null)
       }
-      setWindowSize({ width: window.innerWidth, height: window.innerHeight })
     }
 
     updateRect()
@@ -28,9 +40,54 @@ const OnboardingOverlay = ({ step, steps, onNext, onSkip, onComplete }) => {
     }
   }, [step, currentStep])
 
-  if (!targetRect) return null
-
   const isLastStep = step === steps.length - 1
+
+  // If no target rect (mobile or element hidden), show centered tooltip
+  if (!targetRect) {
+    return (
+      <div className="fixed inset-0 z-[100]">
+        {/* Dark overlay */}
+        <div className="absolute inset-0 bg-black/80" onClick={onSkip} />
+        
+        {/* Centered Tooltip for Mobile */}
+        <div className="absolute inset-0 flex items-center justify-center p-4">
+          <div 
+            className="bg-white text-gray-900 p-6 rounded-2xl shadow-2xl w-full max-w-[340px] animate-bounce-in"
+          >
+            <div className="flex justify-between items-start mb-3" dir="rtl">
+              <h3 className="font-bold text-xl text-primary-600">{currentStep.title}</h3>
+              <button onClick={onSkip} className="text-gray-400 hover:text-gray-600 transition-colors p-1">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <p className="text-sm text-gray-600 mb-6 leading-relaxed" dir="rtl">
+              {currentStep.description}
+            </p>
+
+            <div className="flex justify-between items-center" dir="rtl">
+              <div className="flex gap-1.5">
+                {steps.map((_, i) => (
+                  <div 
+                    key={i} 
+                    className={`h-2 rounded-full transition-all duration-300 ${i === step ? 'w-8 bg-primary-500' : 'w-2 bg-gray-200'}`}
+                  />
+                ))}
+              </div>
+              
+              <button 
+                onClick={isLastStep ? onComplete : onNext}
+                className="bg-primary-600 hover:bg-primary-700 text-white px-6 py-2.5 rounded-xl text-sm font-medium transition-all hover:shadow-lg flex items-center gap-2"
+              >
+                {isLastStep ? 'סיום' : 'הבא'}
+                {!isLastStep && <ChevronLeft size={16} />} 
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   // Positioning logic
   const tooltipWidth = 300

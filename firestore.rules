@@ -28,6 +28,12 @@ service cloud.firestore {
       allow write: if false; // Only server can write
     }
 
+    // Support messages - users can create messages with their own UID, no read/update/delete
+    match /supportMsgs/{messageId} {
+      allow create: if request.auth != null && request.resource.data.uid == request.auth.uid;
+      allow read, update, delete: if false; // Users cannot read or modify support messages
+    }
+
     // Allow reading genCount by deviceId if needed, but generally users query by UID
     // If we wanted to enforce device limits on client side (unlikely), we'd need read access.
     // Keeping it restricted for now.

@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { Upload, Plus, Palette, RotateCcw, Download, Settings, Home, TreePine, Car, Heart, Hammer, Sparkles, Package, User, Share2, Wand2, Type, Loader2, RotateCw, Lightbulb, Sofa, Droplets, ArrowLeftRight, MessageCircle, HelpCircle, CheckCircle } from 'lucide-react'
-import { fileToGenerativePart, urlToFile, signInUser, createOrUpdateUser, saveImageToHistory, saveUploadToHistory, loadUserHistory, loadUserHistoryPaginated, auth, uploadImageForSharing, compressImage, db, getDeviceId } from './firebase.js'
+import { Upload, Plus, Palette, RotateCcw, Download, Settings, Home, TreePine, Car, Heart, Hammer, Sparkles, Package, User, Share2, Wand2, Type, Loader2, RotateCw, Lightbulb, Sofa, Droplets, ArrowLeftRight, MessageCircle, HelpCircle, CheckCircle, Mail, History } from 'lucide-react'
+import { fileToGenerativePart, urlToFile, signInUser, createOrUpdateUser, saveImageToHistory, saveUploadToHistory, loadUserHistory, loadUserHistoryPaginated, auth, uploadImageForSharing, compressImage, db, getDeviceFingerprint } from './firebase.js'
 import { aiService } from './aiService.js'
 import { onAuthStateChanged } from 'firebase/auth'
-import { doc, onSnapshot, collection } from 'firebase/firestore'
+import { doc, onSnapshot, collection, setDoc } from 'firebase/firestore'
 import OnboardingOverlay from './OnboardingOverlay'
 import ColorApplicationDialog from './ColorApplicationDialog'
 import LimitReachedModal from './LimitReachedModal'
@@ -14,7 +14,17 @@ function App() {
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [onboardingStep, setOnboardingStep] = useState(0)
   const [showNotification, setShowNotification] = useState(null)
-  const uploadBtnRef = useRef(null)
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024)
+  const [showMobileHistory, setShowMobileHistory] = useState(false)
+
+  const uploadBtnDesktopRef = useRef(null)
+  const uploadBtnMobileRef = useRef(null)
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 1024)
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
   const styleBtnRef = useRef(null)
   const createBtnRef = useRef(null)
 
@@ -73,6 +83,15 @@ function App() {
   const [showLimitModal, setShowLimitModal] = useState(false)
   const [showWelcomePremiumModal, setShowWelcomePremiumModal] = useState(false)
   const [prevSubscription, setPrevSubscription] = useState(0)
+  
+  // Contact Form State
+  const [showContactModal, setShowContactModal] = useState(false)
+  const [contactPhone, setContactPhone] = useState('')
+  const [contactEmail, setContactEmail] = useState('')
+  const [contactMessage, setContactMessage] = useState('')
+  const [isSubmittingContact, setIsSubmittingContact] = useState(false)
+  const [showContactSuccess, setShowContactSuccess] = useState(false)
+  const [contactError, setContactError] = useState('')
 
   useEffect(() => {
     if (pendingSubscription && currentUser && !currentUser.isAnonymous) {
@@ -84,6 +103,7 @@ function App() {
   const handleSubscriptionClick = (url) => {
     if (currentUser && !currentUser.isAnonymous) {
        // Already logged in - open link
+       hasInitiatedCheckout.current = true
        window.open(url, '_blank', 'noopener,noreferrer')
        setShowSubscriptionModal(false) // Close modal
     } else {
@@ -102,6 +122,8 @@ function App() {
   const suggestionsDropdownRef = useRef(null)
   const objectInputRef = useRef(null)
   const historyScrollRef = useRef(null)
+  const isFirstSubscriptionLoad = useRef(true)
+  const hasInitiatedCheckout = useRef(false)
 
   // Onboarding Logic
   useEffect(() => {
@@ -129,7 +151,7 @@ function App() {
     {
       title: 'העלה תמונה',
       description: 'התחל בהעלאת תמונה של החדר שתרצה לעצב. אין לך תמונה? אל דאגה, נשתמש בתמונה לדוגמה.',
-      targetRef: uploadBtnRef
+      targetRef: isMobile ? uploadBtnMobileRef : uploadBtnDesktopRef
     },
     {
       title: 'בחר עיצוב מחדש',
@@ -176,17 +198,25 @@ function App() {
         const unsubscribeUser = onSnapshot(userDocRef, (docSnapshot) => {
           if (docSnapshot.exists()) {
             const userData = docSnapshot.data()
-            const newSubscription = userData.subscription || 0
+            const newSubscription = userData.subscription !== undefined ? userData.subscription : 0
             
             // Check for upgrade: if subscription changed from 0 to > 0
             setUserSubscription(prevSub => {
-              if (prevSub === 0 && newSubscription > 0) {
+              if (isFirstSubscriptionLoad.current) {
+                isFirstSubscriptionLoad.current = false
+                return newSubscription
+              }
+
+              // Only show modal if user actually upgraded in this session
+              if (prevSub === 0 && newSubscription > 0 && hasInitiatedCheckout.current) {
                 setShowWelcomePremiumModal(true)
+                // Reset checkout flag so we don't show it again unless they upgrade again (unlikely in same session but good hygiene)
+                hasInitiatedCheckout.current = false
               }
               return newSubscription
             })
             
-            setUserCredits(userData.credits || 0)
+            setUserCredits(userData.credits !== undefined ? userData.credits : 0)
           }
         })
         
@@ -556,6 +586,62 @@ function App() {
     } catch (error) {
       console.error('WhatsApp share failed:', error)
       alert('שגיאה בשיתוף לוואטסאפ. נסה שוב.')
+    }
+  }
+
+  // Contact Form Submit Handler
+  const handleContactSubmit = async () => {
+    // Validate that at least email or phone is provided
+    if (!contactEmail.trim() && !contactPhone.trim()) {
+      setContactError('נא להזין לפחות אימייל או טלפון')
+      return
+    }
+    
+    // Validate email format if provided
+    if (contactEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) {
+      setContactError('נא להזין כתובת אימייל תקינה')
+      return
+    }
+    
+    // Validate message is provided
+    if (!contactMessage.trim()) {
+      setContactError('נא להזין הודעה')
+      return
+    }
+    
+    setContactError('')
+    setIsSubmittingContact(true)
+    
+    try {
+      const messageId = `msg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+      const messageData = {
+        id: messageId,
+        uid: currentUser?.uid || 'anonymous',
+        email: contactEmail.trim() || null,
+        phone: contactPhone.trim() || null,
+        message: contactMessage.trim(),
+        createdAt: new Date(),
+        userEmail: currentUser?.email || null,
+        isAnonymous: currentUser?.isAnonymous || true
+      }
+      
+      await setDoc(doc(db, 'supportMsgs', messageId), messageData)
+      
+      // Clear form and show success
+      setContactPhone('')
+      setContactEmail('')
+      setContactMessage('')
+      setShowContactModal(false)
+      setShowContactSuccess(true)
+      
+      // Auto-hide success message after 5 seconds
+      setTimeout(() => setShowContactSuccess(false), 5000)
+      
+    } catch (error) {
+      console.error('Error submitting contact form:', error)
+      setContactError('שגיאה בשליחת ההודעה. נסה שוב.')
+    } finally {
+      setIsSubmittingContact(false)
     }
   }
 
@@ -1095,7 +1181,8 @@ function App() {
       
       // Submit request to server (HTTP function)
       console.log('Submitting object detection request for history ID:', historyId)
-      const result = await aiService.submitObjectDetectionRequest(currentUser, imageDataForServer, historyId)
+      const deviceId = await getDeviceFingerprint()
+      const result = await aiService.submitObjectDetectionRequest(currentUser, imageDataForServer, historyId, deviceId)
       
       console.log('Object detection result:', result)
       console.log('Objects will be saved to history ID:', historyId)
@@ -1348,7 +1435,7 @@ function App() {
       { name: 'Signal white', value: 'signal white', hex: '#F4F4F4', ral: 'RAL 9003' },
       { name: 'Signal black', value: 'signal black', hex: '#282828', ral: 'RAL 9004' },
       { name: 'Jet black', value: 'jet black', hex: '#0A0A0A', ral: 'RAL 9005' },
-      { name: 'Pure white', value: 'pure white', hex: '#FFFFFF', ral: 'RAL 9010' },
+      { name: 'Simply white', value: 'simply white', hex: '#FFFFFF', ral: 'RAL 9010' },
       { name: 'Graphite black', value: 'graphite black', hex: '#1C1C1C', ral: 'RAL 9011' },
       { name: 'Traffic white', value: 'traffic white', hex: '#F6F6F6', ral: 'RAL 9016' },
       { name: 'Traffic black', value: 'traffic black', hex: '#1E1E1E', ral: 'RAL 9017' },
@@ -1450,13 +1537,13 @@ function App() {
     { name: 'מינימליסטי', value: 'minimalist', prompt: 'שנה את סגנון החדר למינימליסטי - נקי, פשוט, לא עמוס' },
     { name: 'בוהו', value: 'bohemian', prompt: 'שנה את סגנון החדר לבוהו - אקלקטי, מרקם, חופשי' },
     { name: 'אינדוסטריאלי', value: 'industrial', prompt: 'שנה את סגנון החדר לאינדוסטריאלי - חומרים גולמיים וחשופים' },
-    { name: 'מודרני אמצע המאה', value: 'mid-century modern', prompt: 'שנה את סגנון החדר למודרני אמצע המאה - חלק, רטרו, פונקציונלי' },
-    { name: 'סקנדינבי', value: 'scandinavian', prompt: 'שנה את סגנון החדר לסקנדינבי - בהיר, נוח, פונקציונלי' },
+    { name: 'מודרני אמצע המאה', value: 'mid-century modern', prompt: 'שנה את סגנון החדר למודרני מאמצע המאה - חלק, רטרו, פונקציונלי' },
+    { name: 'סקנדינבי', value: 'scandinavian', prompt: 'שנה את סגנון החדר לסקנדינבי - צבעים בהירים, נוח, פונקציונלי' },
     { name: 'מסורתי', value: 'traditional', prompt: 'שנה את סגנון החדר למסורתי - קלאסי, פורמלי, סימטרי' },
     { name: 'חווה מודרנית', value: 'modern farmhouse', prompt: 'שנה את סגנון החדר לחווה מודרנית - כפרי, ניטרלי, רגוע' },
     { name: 'עכשווי', value: 'contemporary', prompt: 'שנה את סגנון החדר לעכשווי - עדכני, חלק, מתוחכם' },
     { name: 'חופי', value: 'coastal', prompt: 'שנה את סגנון החדר לחופי - אוורירי, בהיר, רוחי' },
-    { name: 'אר דקו', value: 'art deco', prompt: 'שנה את סגנון החדר לאר דקו - גיאומטרי, מפואר, גלמור' }
+    { name: 'אר דקו', value: 'art deco', prompt: 'שנה את סגנון החדר לאר דקו - גיאומטרי, מפואר' }
   ]
 
   const handleAngleSelect = (angle) => {
@@ -1614,11 +1701,13 @@ function App() {
       }
       
       // Submit request to server
+      const deviceId = await getDeviceFingerprint()
       const requestId = await aiService.submitImageGenerationRequest(
         currentUser, 
         prompt, 
         imageDataForServer, 
-        objectImageData
+        objectImageData,
+        deviceId
       )
       
       // Wait for completion
@@ -1679,7 +1768,7 @@ function App() {
       
       // Handle specific error types
       if (error.message?.includes('limit reached') || error.message?.includes('מגבלת הדורות')) {
-        alert('הגעת למגבלת הדורות החודשית. נסה שוב בחודש הבא.')
+        setShowLimitModal(true)
       } else if (error.message?.includes('timeout')) {
         alert('הבקשה ארכה יותר מדי זמן. נסה שוב.')
       } else {
@@ -1778,13 +1867,6 @@ function App() {
             </div>
           </div>
           <button 
-            onClick={() => setShowOnboarding(true)}
-            className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-full transition-all mr-2"
-            title="הדרכה"
-          >
-            <HelpCircle className="w-5 h-5" />
-          </button>
-          <button 
             onClick={() => setShowSubscriptionModal(true)}
             className={`hidden md:flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-medium shadow-lg transition-all duration-300 hover:-translate-y-0.5 ${
               userSubscription > 0 
@@ -1816,6 +1898,20 @@ function App() {
               'מנוי מקצועי'
             )}
           </button>
+          <button 
+            onClick={() => setShowOnboarding(true)}
+            className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-full transition-all"
+            title="הדרכה"
+          >
+            <HelpCircle className="w-5 h-5" />
+          </button>
+          <button 
+            onClick={() => setShowContactModal(true)}
+            className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-full transition-all"
+            title="צור קשר"
+          >
+            <Mail className="w-5 h-5" />
+          </button>
         </div>
         
         <div className="flex items-center gap-3">
@@ -1844,24 +1940,6 @@ function App() {
            >
              {isAuthenticated ? (
                <>
-                 <div className="flex flex-col items-end mr-2 hidden sm:flex">
-                   <span className="text-xs text-gray-400">
-                     {userCredits - userUsage > 0 ? userCredits - userUsage : 0} קרדיטים
-                   </span>
-                   {userSubscription >= 0 && (
-                     <span className={`text-[10px] font-medium ${userSubscription > 0 ? 'text-emerald-400' : 'text-gray-500'}`}>
-                       {subscriptionNames[userSubscription]}
-                     </span>
-                   )}
-                 </div>
-                 
-                 {/* Mobile credits display */}
-                 <div className="flex flex-col items-end mr-1 sm:hidden">
-                   <span className="text-[10px] text-gray-400 font-medium">
-                     {userCredits - userUsage > 0 ? userCredits - userUsage : 0}
-                   </span>
-                 </div>
-
                  <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-primary-500 to-secondary-500 p-0.5">
                    <div className="w-full h-full rounded-full bg-surface flex items-center justify-center text-xs font-bold text-white">
                      {(currentUser?.email || 'U')[0].toUpperCase()}
@@ -1891,14 +1969,14 @@ function App() {
         <aside className="hidden lg:flex flex-col gap-4 w-20 glass-panel rounded-2xl p-3 items-center overflow-y-auto scrollbar-hide animate-slide-in-right" style={{animationDelay: '0.1s'}}>
            <div className="flex flex-col gap-4 w-full">
              <button 
-               ref={uploadBtnRef}
+               ref={uploadBtnDesktopRef}
                onClick={handleUploadClick}
                disabled={isProcessing}
-               className="btn-icon w-full aspect-square flex flex-col items-center justify-center gap-1 group"
+               className="w-full aspect-square flex flex-col items-center justify-center gap-1 group bg-gradient-to-br from-blue-500/20 to-primary-500/20 hover:from-blue-500/30 hover:to-primary-500/30 border border-blue-400/30 hover:border-blue-400/50 rounded-xl transition-all duration-300 shadow-lg shadow-blue-500/10 hover:shadow-blue-500/20"
                title="העלה תמונה"
              >
-               <Upload className="w-6 h-6 group-hover:scale-110 transition-transform text-primary-400" />
-               <span className="text-[10px]">העלאה</span>
+               <Upload className="w-6 h-6 group-hover:scale-110 transition-transform text-blue-400" />
+               <span className="text-[10px] text-blue-300 font-medium">העלאה</span>
              </button>
 
              <div className="h-px w-full bg-white/10 my-2"></div>
@@ -1952,33 +2030,33 @@ function App() {
                </div>
              )}
 
-             {/* Floating Actions on Canvas */}
-             <div className="absolute top-4 right-4 flex flex-col gap-3 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 z-10">
-                <div className="flex flex-col items-center gap-1">
-                   <button 
-                     onClick={() => objectInputRef.current.click()}
-                     className={`p-2 ${objectImageFile ? 'bg-primary-500' : 'bg-black/50'} text-white rounded-lg backdrop-blur-md hover:bg-primary-600/70 transition-colors shadow-lg border border-white/10`} 
-                     title="הוסף אובייקט מתמונה"
-                   >
-                     <Plus className="w-5 h-5" />
-                   </button>
-                   <span className="text-[10px] text-white font-medium drop-shadow-md bg-black/30 px-1 rounded backdrop-blur-sm w-20 text-center leading-3">אובייקט מתמונה</span>
-                </div>
+             {/* Floating Actions on Canvas - Horizontal Layout Top Right */}
+             <div className="absolute top-4 right-4 flex flex-row gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 z-10">
+                <button 
+                  onClick={() => objectInputRef.current.click()}
+                  className={`p-2 ${objectImageFile ? 'bg-primary-500' : 'bg-black/50'} text-white rounded-lg backdrop-blur-md hover:bg-primary-600/70 transition-colors shadow-lg border border-white/10`} 
+                  title="הוסף אובייקט מתמונה"
+                >
+                  <Plus className="w-5 h-5" />
+                </button>
 
-                <div className="flex flex-col items-center gap-1">
-                  <button onClick={handleDownload} className="p-2 bg-black/50 text-white rounded-lg backdrop-blur-md hover:bg-green-600/70 transition-colors shadow-lg border border-white/10" title="הורד תמונה">
-                    <Download className="w-5 h-5" />
-                  </button>
-                  <span className="text-[10px] text-white font-medium drop-shadow-md bg-black/30 px-1 rounded backdrop-blur-sm">הורדה</span>
-                </div>
+                <button onClick={handleDownload} className="p-2 bg-black/50 text-white rounded-lg backdrop-blur-md hover:bg-green-600/70 transition-colors shadow-lg border border-white/10" title="הורד תמונה">
+                  <Download className="w-5 h-5" />
+                </button>
                 
-                <div className="flex flex-col items-center gap-1">
-                  <button onClick={handleWhatsAppShare} className="p-2 bg-black/50 text-white rounded-lg backdrop-blur-md hover:bg-green-600/70 transition-colors shadow-lg border border-white/10" title="שתף בוואטסאפ">
-                    <MessageCircle className="w-5 h-5" />
-                  </button>
-                  <span className="text-[10px] text-white font-medium drop-shadow-md bg-black/30 px-1 rounded backdrop-blur-sm">וואטסאפ</span>
-                </div>
+                <button onClick={handleWhatsAppShare} className="p-2 bg-black/50 text-white rounded-lg backdrop-blur-md hover:bg-green-600/70 transition-colors shadow-lg border border-white/10" title="שתף בוואטסאפ">
+                  <MessageCircle className="w-5 h-5" />
+                </button>
              </div>
+
+             {/* Mobile History Button - Top Left of Image */}
+             <button 
+               onClick={() => setShowMobileHistory(true)}
+               className="lg:hidden absolute top-4 left-4 p-2 bg-black/50 text-white rounded-lg backdrop-blur-md hover:bg-black/70 transition-colors shadow-lg border border-white/10 z-10"
+               title="היסטוריה"
+             >
+               <History className="w-5 h-5" />
+             </button>
 
              {/* Object Thumbnail on Stage (Desktop) */}
              {objectImage && (
@@ -2152,14 +2230,15 @@ function App() {
           {/* Quick Tools Carousel */}
           <div className="flex gap-3 overflow-x-auto scrollbar-hide py-1 -mx-4 px-4">
              <button 
+               ref={uploadBtnMobileRef}
                onClick={handleUploadClick} 
                disabled={isProcessing}
                className="flex flex-col items-center gap-1 min-w-[60px] disabled:opacity-50 disabled:cursor-not-allowed"
              >
-               <div className="w-12 h-12 rounded-2xl bg-surfaceHighlight/30 flex items-center justify-center border border-white/10 active:scale-95 transition-transform">
-                 <Upload className="w-5 h-5 text-textMuted" />
+               <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500/30 to-primary-500/30 flex items-center justify-center border border-blue-400/40 active:scale-95 transition-transform shadow-lg shadow-blue-500/20">
+                 <Upload className="w-5 h-5 text-blue-400" />
                </div>
-               <span className="text-[10px] text-textMuted">העלאה</span>
+               <span className="text-[10px] text-blue-300 font-medium">העלאה</span>
              </button>
              
              {[
@@ -2172,7 +2251,7 @@ function App() {
                { icon: Hammer, label: 'תיקונים ונזקים', action: () => setShowRepairsOptions(true) },
              ].map((tool, i) => (
                <button 
-                 key={i} 
+                 key={i}
                  onClick={tool.action} 
                  disabled={isProcessing}
                  className="flex flex-col items-center gap-1 min-w-[60px] disabled:opacity-50 disabled:cursor-not-allowed"
@@ -2185,7 +2264,8 @@ function App() {
              ))}
           </div>
 
-          {/* Recent History Horizontal Scroll */}
+          {/* Recent History Horizontal Scroll - Hidden on Mobile */}
+          <div className="hidden">
           {imageHistory.length > 0 && (
              <div className={`pt-2 border-t border-white/5 ${isProcessing ? 'opacity-50 pointer-events-none' : ''}`}>
                <div className="text-[10px] text-textMuted mb-2">היסטוריה ({imageHistory.length})</div>
@@ -2230,10 +2310,82 @@ function App() {
                </div>
              </div>
           )}
+          </div>
         </div>
       </div>
 
       {/* Modals Implementation */}
+
+      {/* Mobile History Drawer */}
+      {showMobileHistory && (
+        <>
+          {/* Backdrop for closing */}
+          <div 
+            className="fixed inset-0 z-[59] lg:hidden" 
+            onClick={() => setShowMobileHistory(false)}
+          />
+          
+          {/* History Panel - Floating on top left of image stage */}
+          <div className="fixed top-24 left-4 w-72 max-h-[60vh] bg-surface/95 backdrop-blur-md border border-white/10 shadow-2xl rounded-xl z-[60] flex flex-col lg:hidden animate-fade-in overflow-hidden">
+            <div className="flex justify-between items-center p-4 border-b border-white/10 bg-surface/50">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <History className="w-5 h-5 text-primary-400" />
+                היסטוריית עיצובים
+              </h3>
+              <button 
+                onClick={() => setShowMobileHistory(false)} 
+                className="p-1 rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+              >
+                <span className="text-xl leading-none">×</span>
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-3 scrollbar-custom space-y-2">
+              {imageHistory.length === 0 ? (
+                <div className="text-center py-8 opacity-50">
+                  <Sparkles className="w-6 h-6 mx-auto mb-2" />
+                  <p className="text-xs text-gray-400">אין היסטוריה עדיין</p>
+                </div>
+              ) : (
+                imageHistory.map((entry) => (
+                  <div 
+                    key={entry.id} 
+                    onClick={() => {
+                      if (!isProcessing) {
+                        handleHistoryImageClick(entry)
+                        setShowMobileHistory(false)
+                      }
+                    }}
+                    className="group relative rounded-lg overflow-hidden border border-white/5 hover:border-primary-500/30 transition-all cursor-pointer bg-surface/40 flex items-center gap-3 p-2"
+                  >
+                    <img 
+                      src={entry.thumbnailUrl || entry.storageUrl || entry.imageUrl} 
+                      alt="" 
+                      className="w-16 h-12 object-cover rounded-md" 
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-white line-clamp-1 mb-0.5">{entry.prompt || 'ללא תיאור'}</p>
+                      <p className="text-[10px] text-gray-400">{displayTimestamp(entry)}</p>
+                    </div>
+                  </div>
+                ))
+              )}
+              
+              {isLoadingHistory && (
+                 <div className="flex justify-center py-2">
+                   <Loader2 className="w-5 h-5 text-primary-400 animate-spin" />
+                 </div>
+              )}
+              
+              {hasMoreHistory && !isLoadingHistory && imageHistory.length > 0 && (
+                <button onClick={loadMoreHistory} disabled={isProcessing} className="w-full py-2 text-xs text-primary-300 hover:text-primary-200 hover:bg-white/5 rounded-lg transition-colors border border-white/5 disabled:opacity-50 disabled:cursor-not-allowed">
+                  טען עוד
+                </button>
+              )}
+            </div>
+          </div>
+        </>
+      )}
       
       {/* Image Modal - Full Size View */}
       {showImageModal && (
@@ -2565,7 +2717,7 @@ function App() {
                   setShowLoginConfirmDialog(false)
                   setShowAuthModal(true)
                 }}
-                className="flex-1 py-3 rounded-xl bg-gradient-to-r from-secondary-500 to-secondary-600 hover:from-secondary-400 hover:to-secondary-500 text-white font-bold shadow-lg shadow-secondary-900/20 transition-all transform hover:-translate-y-0.5"
+                className="flex-1 py-3 rounded-xl bg-gradient-to-r from-secondary-500 to-secondary-600 text-white font-bold shadow-lg shadow-secondary-900/20"
               >
                 התחבר / הרשם
               </button>
@@ -2576,29 +2728,29 @@ function App() {
 
       {/* Subscription Modal */}
       {showSubscriptionModal && (
-        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[80] flex items-center justify-center p-4 animate-fade-in">
-          <div className="glass-card w-full max-w-4xl p-0 relative bg-surface border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="p-6 sm:p-8 text-center border-b border-white/5 bg-gradient-to-b from-white/5 to-transparent">
-              <button onClick={() => setShowSubscriptionModal(false)} className="absolute top-4 left-4 text-gray-400 hover:text-white transition-colors">
-                 <span className="text-2xl">×</span>
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[80] flex items-center justify-center p-0 md:p-4 animate-fade-in">
+          <div className="glass-card w-full h-full md:h-auto md:max-w-4xl md:max-h-[90vh] p-0 relative bg-surface border border-white/10 shadow-2xl overflow-hidden flex flex-col">
+            <div className="p-6 sm:p-8 text-center border-b border-white/5 bg-gradient-to-b from-white/5 to-transparent flex-shrink-0">
+              <button onClick={() => setShowSubscriptionModal(false)} className="absolute top-4 left-4 text-gray-400 hover:text-white transition-colors p-2 z-10 bg-black/20 rounded-full md:bg-transparent">
+                 <span className="text-2xl leading-none">×</span>
               </button>
               
-              <h2 className="text-3xl font-bold text-white mb-2">מנוי מקצועי</h2>
-              <div className="inline-block px-4 py-1 rounded-full bg-gradient-to-r from-secondary-500 to-secondary-600 text-white text-sm font-medium shadow-glow mb-4">
+              <h2 className="text-2xl md:text-3xl font-bold text-white mb-2 mt-2 md:mt-0">מנוי מקצועי</h2>
+              <div className="inline-block px-4 py-1 rounded-full bg-gradient-to-r from-secondary-500 to-secondary-600 text-white text-sm font-medium shadow-glow mb-2 md:mb-4">
                 מחירי השקעה מיוחדים 🚀
               </div>
-              <p className="text-gray-300 max-w-lg mx-auto">
+              <p className="text-gray-300 max-w-lg mx-auto text-sm md:text-base">
                 שדרג את יכולות העיצוב שלך עם חבילות המנוי המשתלמות שלנו. בחר את החבילה המתאימה ביותר לצרכים שלך.
               </p>
             </div>
 
-            <div className="p-6 sm:p-8 overflow-y-auto scrollbar-custom">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-8 scrollbar-custom">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 pb-safe">
                 
                 {/* Starter Plan */}
-                <div className="relative group">
-                  <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent rounded-2xl transform transition-transform group-hover:scale-[1.02] duration-300"></div>
-                  <div className="relative bg-surfaceHighlight/20 border border-white/10 rounded-2xl p-6 flex flex-col h-full hover:border-white/20 transition-colors">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent rounded-2xl"></div>
+                  <div className="relative bg-surfaceHighlight/20 border border-white/10 rounded-2xl p-6 flex flex-col h-full">
                     <div className="mb-4">
                       <h3 className="text-xl font-bold text-white mb-1">מתחיל</h3>
                       <div className="flex items-baseline gap-1">
@@ -2625,10 +2777,10 @@ function App() {
                     <button 
                       onClick={() => handleSubscriptionClick('https://pay.grow.link/f8f8414d5e65d2b80b262486d3ea3e3c-Mjc1ODQ5MA')}
                       disabled={userSubscription === 1}
-                      className={`w-full py-3 rounded-xl font-medium border transition-all block text-center ${
+                      className={`w-full py-3 rounded-xl font-medium border block text-center ${
                         userSubscription === 1 
                           ? 'bg-emerald-600/20 border-emerald-500/50 text-emerald-400 cursor-not-allowed' 
-                          : 'bg-white/5 hover:bg-white/10 text-white border-white/10'
+                          : 'bg-white/5 text-white border-white/10'
                       }`}
                     >
                       {userSubscription === 1 ? (
@@ -2644,8 +2796,8 @@ function App() {
                 </div>
 
                 {/* Value Plan */}
-                <div className="relative group md:-mt-4 md:-mb-4 z-10">
-                  <div className="absolute inset-0 bg-gradient-to-b from-secondary-900/50 to-transparent rounded-2xl transform transition-transform group-hover:scale-[1.02] duration-300"></div>
+                <div className="relative md:-mt-4 md:-mb-4 z-10">
+                  <div className="absolute inset-0 bg-gradient-to-b from-secondary-900/50 to-transparent rounded-2xl"></div>
                   <div className="relative bg-surfaceHighlight/40 border border-secondary-500/50 rounded-2xl p-6 flex flex-col h-full shadow-lg shadow-secondary-900/20">
                     <div className="absolute top-0 right-1/2 transform translate-x-1/2 -translate-y-1/2 bg-secondary-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg whitespace-nowrap">
                       הכי משתלם
@@ -2684,10 +2836,10 @@ function App() {
                     <button 
                       onClick={() => handleSubscriptionClick('https://pay.grow.link/bf7845c990da58c287bf83a84a87e11c-MjcwMjgzNQ')}
                       disabled={userSubscription === 2}
-                      className={`w-full py-3 rounded-xl font-bold shadow-lg transition-all transform block text-center ${
+                      className={`w-full py-3 rounded-xl font-bold shadow-lg block text-center ${
                         userSubscription === 2
                           ? 'bg-emerald-600/20 border-2 border-emerald-500/50 text-emerald-400 cursor-not-allowed shadow-emerald-900/30'
-                          : 'bg-gradient-to-r from-secondary-500 to-secondary-600 hover:from-secondary-400 hover:to-secondary-500 text-white shadow-secondary-900/30 hover:-translate-y-0.5'
+                          : 'bg-gradient-to-r from-secondary-500 to-secondary-600 text-white shadow-secondary-900/30'
                       }`}
                     >
                       {userSubscription === 2 ? (
@@ -2703,9 +2855,9 @@ function App() {
                 </div>
 
                 {/* Pro Plan */}
-                <div className="relative group">
-                  <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent rounded-2xl transform transition-transform group-hover:scale-[1.02] duration-300"></div>
-                  <div className="relative bg-surfaceHighlight/20 border border-white/10 rounded-2xl p-6 flex flex-col h-full hover:border-white/20 transition-colors">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent rounded-2xl"></div>
+                  <div className="relative bg-surfaceHighlight/20 border border-white/10 rounded-2xl p-6 flex flex-col h-full">
                     <div className="mb-4">
                       <h3 className="text-xl font-bold text-white mb-1">מקצועי</h3>
                       <div className="flex items-baseline gap-1">
@@ -2739,10 +2891,10 @@ function App() {
                     <button 
                       onClick={() => handleSubscriptionClick('https://pay.grow.link/31f92ee464c112077b30007432dc8226-Mjc1ODQ4NQ')}
                       disabled={userSubscription === 3}
-                      className={`w-full py-3 rounded-xl font-medium border transition-all block text-center ${
+                      className={`w-full py-3 rounded-xl font-medium border block text-center ${
                         userSubscription === 3
                           ? 'bg-emerald-600/20 border-emerald-500/50 text-emerald-400 cursor-not-allowed'
-                          : 'bg-white/5 hover:bg-white/10 text-white border-white/10'
+                          : 'bg-white/5 text-white border-white/10'
                       }`}
                     >
                       {userSubscription === 3 ? (
@@ -2793,6 +2945,130 @@ function App() {
         currentUsage={userUsage}
         limit={userCredits}
       />
+
+      {/* Contact Form Modal */}
+      {showContactModal && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-gradient-to-br from-surface via-surface to-surfaceHighlight rounded-2xl shadow-2xl w-full max-w-md border border-white/10 overflow-hidden">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-primary-500/20 to-secondary-500/20 p-6 border-b border-white/10">
+              <div className="flex justify-between items-center">
+                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                  <Mail className="w-5 h-5 text-primary-400" />
+                  צור קשר
+                </h3>
+                <button 
+                  onClick={() => {
+                    setShowContactModal(false)
+                    setContactError('')
+                  }}
+                  className="text-gray-400 hover:text-white p-1 hover:bg-white/10 rounded-full transition-all"
+                >
+                  <span className="text-2xl leading-none">×</span>
+                </button>
+              </div>
+              <p className="text-gray-400 text-sm mt-2">נשמח לשמוע ממך! מלא את הפרטים ונחזור אליך בהקדם.</p>
+            </div>
+            
+            {/* Form */}
+            <div className="p-6 space-y-4">
+              {contactError && (
+                <div className="bg-red-500/20 border border-red-500/30 text-red-300 px-4 py-3 rounded-lg text-sm">
+                  {contactError}
+                </div>
+              )}
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">טלפון</label>
+                <input
+                  type="tel"
+                  value={contactPhone}
+                  onChange={(e) => setContactPhone(e.target.value)}
+                  placeholder="050-1234567"
+                  className="w-full bg-surface/50 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all"
+                  dir="ltr"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">אימייל</label>
+                <input
+                  type="email"
+                  value={contactEmail}
+                  onChange={(e) => setContactEmail(e.target.value)}
+                  placeholder="example@email.com"
+                  className="w-full bg-surface/50 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all"
+                  dir="ltr"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">הודעה</label>
+                <textarea
+                  value={contactMessage}
+                  onChange={(e) => setContactMessage(e.target.value)}
+                  placeholder="כתוב את הודעתך כאן..."
+                  rows={4}
+                  className="w-full bg-surface/50 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all resize-none"
+                  dir="rtl"
+                />
+              </div>
+              
+              <p className="text-xs text-gray-500 text-center">* נא להזין לפחות טלפון או אימייל</p>
+              
+              <button
+                onClick={handleContactSubmit}
+                disabled={isSubmittingContact}
+                className="w-full py-3 rounded-xl bg-gradient-to-r from-primary-500 to-secondary-500 text-white font-bold shadow-lg hover:shadow-primary-500/30 transform hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
+              >
+                {isSubmittingContact ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    שולח...
+                  </>
+                ) : (
+                  <>
+                    <Mail className="w-5 h-5" />
+                    שלח הודעה
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Contact Success Message */}
+      {showContactSuccess && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-gradient-to-br from-surface via-surface to-surfaceHighlight rounded-2xl shadow-2xl w-full max-w-md border border-white/10 overflow-hidden animate-fade-in">
+            {/* Success Icon */}
+            <div className="bg-gradient-to-r from-emerald-500/20 to-green-500/20 p-8 flex flex-col items-center">
+              <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-emerald-400/30 to-green-500/30 flex items-center justify-center mb-4 border border-emerald-500/30 shadow-lg shadow-emerald-500/20">
+                <CheckCircle className="w-10 h-10 text-emerald-400" />
+              </div>
+              <h3 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-200 via-emerald-400 to-green-400">
+                תודה רבה!
+              </h3>
+            </div>
+            
+            {/* Message */}
+            <div className="p-6 text-center">
+              <p className="text-gray-300 mb-6 leading-relaxed">
+                ההודעה שלך התקבלה בהצלחה.<br />
+                נחזור אליך בהקדם האפשרי.
+              </p>
+              
+              <button
+                onClick={() => setShowContactSuccess(false)}
+                className="px-8 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 text-white font-bold shadow-lg hover:shadow-emerald-500/30 transform hover:-translate-y-0.5 transition-all duration-200"
+              >
+                סגור
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

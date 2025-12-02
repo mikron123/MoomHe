@@ -5,6 +5,7 @@ import { getAI, getGenerativeModel, GoogleAIBackend, ResponseModality } from "fi
 import { getAuth, signInAnonymously, onAuthStateChanged } from "firebase/auth";
 import { getFirestore, doc, setDoc, getDoc, collection, query, orderBy, where, getDocs, limit, startAfter } from "firebase/firestore";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import FingerprintJS from '@fingerprintjs/fingerprintjs';
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -75,6 +76,80 @@ function getDeviceId() {
   }
   return deviceId;
 }
+
+// Browser fingerprint promise - initialized once
+let fingerprintPromise = null;
+let cachedFingerprint = null;
+
+// Initialize FingerprintJS and get the visitor ID
+async function initFingerprint() {
+  if (cachedFingerprint) {
+    return cachedFingerprint;
+  }
+  
+  if (!fingerprintPromise) {
+    fingerprintPromise = FingerprintJS.load()
+      .then(fp => fp.get())
+      .then(result => {
+        cachedFingerprint = result.visitorId;
+        // Also store in localStorage as backup
+        localStorage.setItem('moomhe_fingerprint', cachedFingerprint);
+        console.log('Browser fingerprint generated:', cachedFingerprint);
+        return cachedFingerprint;
+      })
+      .catch(error => {
+        console.error('FingerprintJS error, falling back to localStorage:', error);
+        // Fallback to stored fingerprint or generate a random one
+        let fallback = localStorage.getItem('moomhe_fingerprint');
+        if (!fallback) {
+          fallback = 'fallback_' + Date.now() + '_' + Math.random().toString(36).substring(2, 15);
+          localStorage.setItem('moomhe_fingerprint', fallback);
+        }
+        cachedFingerprint = fallback;
+        return fallback;
+      });
+  }
+  
+  return fingerprintPromise;
+}
+
+// Get fingerprint synchronously if available, otherwise return cached/stored value
+function getFingerprint() {
+  if (cachedFingerprint) {
+    return cachedFingerprint;
+  }
+  
+  // Try to get from localStorage as immediate fallback
+  const stored = localStorage.getItem('moomhe_fingerprint');
+  if (stored) {
+    cachedFingerprint = stored;
+    return stored;
+  }
+  
+  // If nothing available, return a temporary ID (will be replaced by async call)
+  return null;
+}
+
+// Async version that ensures fingerprint is ready
+async function getDeviceFingerprint() {
+  // First try cached value
+  if (cachedFingerprint) {
+    return cachedFingerprint;
+  }
+  
+  // Then try localStorage
+  const stored = localStorage.getItem('moomhe_fingerprint');
+  if (stored) {
+    cachedFingerprint = stored;
+    return stored;
+  }
+  
+  // Finally, generate new fingerprint
+  return await initFingerprint();
+}
+
+// Initialize fingerprint on module load
+initFingerprint();
 
 // User management functions
 async function createOrUpdateUser(user) {
@@ -625,7 +700,10 @@ export {
   storage,
   signInUser,
   createOrUpdateUser,
-  getDeviceId, // Exporting getDeviceId
+  getDeviceId, // Legacy - kept for backward compatibility
+  getDeviceFingerprint, // New async fingerprint function
+  getFingerprint, // Sync fingerprint getter
+  initFingerprint, // Initialize fingerprint
   saveImageToHistory,
   saveUploadToHistory,
   loadUserHistory,
