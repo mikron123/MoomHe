@@ -1,4 +1,4 @@
-const { onDocumentCreated } = require('firebase-functions/v2/firestore');
+const { onDocumentCreated, onDocumentUpdated } = require('firebase-functions/v2/firestore');
 const { onRequest } = require('firebase-functions/v2/https');
 const { logger } = require('firebase-functions');
 const admin = require('firebase-admin');
@@ -32,7 +32,7 @@ async function checkAndUpdateGenerationCount(userId, deviceId) {
   // User previously used monthYear, but prompt says "genCount/{date}users/uid/". 
   // I will assume daily limit tracking for genCount, but subscription credits are monthly.
   // Wait, "it will be calculated by listening to the record genCount/{date}users/uid/ count field and substracting it from the users/ user record "credits" field"
-  // If credits is 4 (free) or 40 (monthly), and genCount is DAILY, then subtraction makes no sense unless credits are DAILY.
+  // If credits is 3 (free) or 40 (monthly), and genCount is DAILY, then subtraction makes no sense unless credits are DAILY.
   // BUT subscription credits (40/100/200) are typically MONTHLY.
   // If I use daily genCount, then `Credits - DailyUsage` = Remaining for today? No, that contradicts monthly credits.
   // If the user means `genCount` accumulates ALL usage for the billing period, then `{date}` is confusing.
@@ -44,9 +44,9 @@ async function checkAndUpdateGenerationCount(userId, deviceId) {
   // So Usage must be tracked for the same period.
   // If the user specified `{date}` path, maybe they mean the billing cycle start date?
   // Or maybe they want daily limits?
-  // Given "4 images to create" default for new users, and "40/100/200" for subs.
-  // If I start with 4 free images. I use 1. genCount = 1. Remaining = 4 - 1 = 3.
-  // If genCount resets tomorrow (because of `{date}`), then I get 4 free images EVERY DAY?
+  // Given "3 images to create" default for new users, and "40/100/200" for subs.
+  // If I start with 3 free images. I use 1. genCount = 1. Remaining = 3 - 1 = 2.
+  // If genCount resets tomorrow (because of `{date}`), then I get 3 free images EVERY DAY?
   // That seems generous but possible.
   // OR, `credits` is a decremented balance?
   // "users/ user record 'credits' field" ... "substracting it from the ... count field".
@@ -76,12 +76,12 @@ async function checkAndUpdateGenerationCount(userId, deviceId) {
     ]);
     
     // Get User Limits
-    let creditLimit = 4; // Default free limit
+    let creditLimit = 3; // Default free limit
     let subscriptionStatus = 0;
     
     if (userProfileDoc.exists) {
       const userData = userProfileDoc.data();
-      creditLimit = userData.credits || 4;
+      creditLimit = userData.credits || 3;
       subscriptionStatus = userData.subscription || 0;
     }
 
@@ -91,7 +91,7 @@ async function checkAndUpdateGenerationCount(userId, deviceId) {
     
     // Logic:
     // If Subscription > 0, we trust the User ID limit (paying user).
-    // If Subscription == 0 (Free), we enforce the stricter of User Count OR Device Count against the limit (4).
+    // If Subscription == 0 (Free), we enforce the stricter of User Count OR Device Count against the limit (3).
     // This prevents creating new users on same device to bypass limit.
     
     const effectiveCount = subscriptionStatus > 0 ? userCount : Math.max(userCount, deviceCount);
@@ -307,10 +307,10 @@ exports.onUserCreated = onDocumentCreated('users/{userId}', async (event) => {
   
   logger.info(`Setting default credits for new user: ${event.params.userId}`);
   
-  // Set default credits (4) and subscription (0 - no subscription)
+  // Set default credits (3) and subscription (0 - no subscription)
   // Using set with merge to avoid overwriting other fields if they exist
   return snapshot.ref.set({
-    credits: 4,
+    credits: 3,
     subscription: 0,
     updatedAt: admin.firestore.FieldValue.serverTimestamp()
   }, { merge: true });
@@ -425,7 +425,7 @@ exports.processImageRequest = onDocumentCreated('userHistory/{docId}', async (ev
         .map(obj => String(obj).substring(0, 100)) // Limit each object to 100 chars
         .filter(obj => obj.length > 0);
       
-      // Update the document with results (don't store large raw response)
+      // Update the document with results and REMOVE large data fields
       await db.collection('userHistory').doc(docId).update({
         isDone: true,
         result: {
@@ -433,12 +433,16 @@ exports.processImageRequest = onDocumentCreated('userHistory/{docId}', async (ev
           objects: objects
         },
         processedAt: admin.firestore.FieldValue.serverTimestamp(),
-        generationCount: count
+        generationCount: count,
+        // Clean up large data fields to save storage and costs
+        imageData: admin.firestore.FieldValue.delete(),
+        authToken: admin.firestore.FieldValue.delete()
       });
       
     } else {
       // Image generation request
       let imageData;
+      let originalImageUrl = null; // Track original image URL for history
       
       logger.info(`Processing image generation - imageData type: ${typeof docData.imageData}, starts with data: ${docData.imageData?.startsWith('data:')}`);
       
@@ -454,9 +458,18 @@ exports.processImageRequest = onDocumentCreated('userHistory/{docId}', async (ev
           }
         };
         logger.info(`Data URL processed - mimeType: ${mimeType}, dataLength: ${base64Data.length}`);
+        
+        // Upload original image to storage to get a URL
+        const timestamp = Date.now();
+        const originalFilename = `original_${timestamp}.jpg`;
+        const originalBuffer = Buffer.from(base64Data, 'base64');
+        originalImageUrl = await uploadToStorage(userId, originalBuffer, originalFilename);
+        logger.info(`Original image uploaded to storage: ${originalImageUrl}`);
       } else if (docData.imageData.startsWith('http')) {
-        // URL format - fetch the image
-        logger.info(`Fetching image from URL: ${docData.imageData}`);
+        // URL format - already have the URL, just fetch for processing
+        originalImageUrl = docData.imageData; // Save the original URL
+        logger.info(`Using existing storage URL as original: ${originalImageUrl}`);
+        
         const response = await fetch(docData.imageData);
         const arrayBuffer = await response.arrayBuffer();
         const base64Data = Buffer.from(arrayBuffer).toString('base64');
@@ -477,6 +490,13 @@ exports.processImageRequest = onDocumentCreated('userHistory/{docId}', async (ev
           }
         };
         logger.info(`Base64 data processed - dataLength: ${docData.imageData.length}`);
+        
+        // Upload original image to storage to get a URL
+        const timestamp = Date.now();
+        const originalFilename = `original_${timestamp}.jpg`;
+        const originalBuffer = Buffer.from(docData.imageData, 'base64');
+        originalImageUrl = await uploadToStorage(userId, originalBuffer, originalFilename);
+        logger.info(`Original image uploaded to storage: ${originalImageUrl}`);
       }
       
       // Process object image if provided
@@ -504,7 +524,7 @@ exports.processImageRequest = onDocumentCreated('userHistory/{docId}', async (ev
         const imageUrl = await uploadToStorage(userId, imageBuffer, filename);
         const thumbnailUrl = await uploadToStorage(userId, thumbnailBuffer, thumbnailFilename);
         
-        // Update the document with results (don't store large base64 data in Firestore)
+        // Update the document with results and REMOVE large base64 data from Firestore
         await db.collection('userHistory').doc(docId).update({
           isDone: true,
           result: {
@@ -514,8 +534,14 @@ exports.processImageRequest = onDocumentCreated('userHistory/{docId}', async (ev
             filename: filename,
             thumbnailFilename: thumbnailFilename
           },
+          // Save the original image URL for reference
+          originalImageUrl: originalImageUrl,
           processedAt: admin.firestore.FieldValue.serverTimestamp(),
-          generationCount: count
+          generationCount: count,
+          // Clean up large data fields to save storage and costs
+          imageData: admin.firestore.FieldValue.delete(),
+          objectImageData: admin.firestore.FieldValue.delete(),
+          authToken: admin.firestore.FieldValue.delete()
         });
       } else {
         throw new Error('No image was generated');
@@ -527,12 +553,16 @@ exports.processImageRequest = onDocumentCreated('userHistory/{docId}', async (ev
   } catch (error) {
     logger.error(`Error processing request ${docId}:`, error);
     
-    // Update document with error
+    // Update document with error and clean up large data fields
     await db.collection('userHistory').doc(docId).update({
       isDone: true,
       isError: true,
       error: error.message,
-      processedAt: admin.firestore.FieldValue.serverTimestamp()
+      processedAt: admin.firestore.FieldValue.serverTimestamp(),
+      // Clean up large data fields even on error to save storage and costs
+      imageData: admin.firestore.FieldValue.delete(),
+      objectImageData: admin.firestore.FieldValue.delete(),
+      authToken: admin.firestore.FieldValue.delete()
     });
   }
 });
@@ -867,6 +897,89 @@ exports.paymentWebhook = onRequest({ cors: true }, async (req, res) => {
       error: error.message || 'Failed to process payment webhook',
       success: false 
     });
+  }
+});
+
+// Cloud function triggered when a user document is updated
+// Checks if email was set/changed and links any existing payment events
+exports.onUserEmailUpdate = onDocumentUpdated('users/{userId}', async (event) => {
+  const beforeData = event.data.before.data();
+  const afterData = event.data.after.data();
+  
+  // Check if email field was added or changed
+  const beforeEmail = beforeData?.email;
+  const afterEmail = afterData?.email;
+  
+  // Only proceed if email was added or changed
+  if (!afterEmail || beforeEmail === afterEmail) {
+    logger.info(`User ${event.params.userId}: No email change detected`);
+    return;
+  }
+  
+  logger.info(`User ${event.params.userId}: Email updated from "${beforeEmail}" to "${afterEmail}"`);
+  
+  try {
+    // Find payment events where data.payerEmail matches the user's email
+    const paymentEventsRef = db.collection('paymentEvents');
+    const querySnapshot = await paymentEventsRef
+      .where('data.payerEmail', '==', afterEmail)
+      .orderBy('receivedAt', 'desc')
+      .limit(1)
+      .get();
+    
+    if (querySnapshot.empty) {
+      logger.info(`No payment events found for email: ${afterEmail}`);
+      return;
+    }
+    
+    const paymentDoc = querySnapshot.docs[0];
+    const paymentData = paymentDoc.data();
+    
+    logger.info(`Found payment event ${paymentDoc.id} for email ${afterEmail}, status: ${paymentData.status}`);
+    
+    // Check if status is "1" (successful payment)
+    if (paymentData.status == "1") {
+      const description = paymentData.data?.description || '';
+      
+      let newSubscription = 0;
+      let newCredits = 4;
+      
+      // Map description to subscription code and credits (same logic as paymentWebhook)
+      if (description.includes('moomhe_monthly_starter')) {
+        newSubscription = 1;
+        newCredits = 40;
+      } else if (description.includes('moomhe_monthly_budget')) {
+        newSubscription = 2;
+        newCredits = 100;
+      } else if (description.includes('moomhe_monthly_pro')) {
+        newSubscription = 3;
+        newCredits = 200;
+      }
+      
+      if (newSubscription > 0) {
+        // Check if user already has a subscription from this payment
+        if (afterData.lastPaymentEvent === paymentDoc.id) {
+          logger.info(`User ${event.params.userId} already processed payment ${paymentDoc.id}`);
+          return;
+        }
+        
+        await event.data.after.ref.update({
+          subscription: newSubscription,
+          credits: newCredits,
+          lastPaymentEvent: paymentDoc.id,
+          subscriptionUpdatedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+        
+        logger.info(`Granted subscription ${newSubscription} (${newCredits} credits) to user ${event.params.userId} from payment event ${paymentDoc.id}`);
+      } else {
+        logger.warn(`Unknown subscription description for email ${afterEmail}: ${description}`);
+      }
+    } else {
+      logger.info(`Payment event ${paymentDoc.id} has status ${paymentData.status}, not granting subscription`);
+    }
+  } catch (error) {
+    logger.error(`Error processing email update for user ${event.params.userId}:`, error);
+    throw error;
   }
 });
 // Translation feature added

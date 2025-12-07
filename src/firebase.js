@@ -1,6 +1,6 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
+import { getAnalytics, logEvent } from "firebase/analytics";
 import { getAI, getGenerativeModel, GoogleAIBackend, ResponseModality } from "firebase/ai";
 import { getAuth, signInAnonymously, onAuthStateChanged } from "firebase/auth";
 import { getFirestore, doc, setDoc, getDoc, collection, query, orderBy, where, getDocs, limit, startAfter } from "firebase/firestore";
@@ -689,6 +689,92 @@ async function uploadImageForSharing(userId, imageDataUrl) {
 }
 
 
+// ==========================================
+// ANALYTICS HELPER FUNCTIONS
+// ==========================================
+
+/**
+ * Log a custom analytics event
+ * @param {string} eventName - The name of the event
+ * @param {Object} params - Optional parameters for the event
+ */
+function logAnalyticsEvent(eventName, params = {}) {
+  try {
+    logEvent(analytics, eventName, {
+      ...params,
+      timestamp: new Date().toISOString()
+    });
+    console.log(`📊 Analytics: ${eventName}`, params);
+  } catch (error) {
+    console.error('Analytics error:', error);
+  }
+}
+
+// Authentication Events
+const trackSignUp = (method = 'email') => logAnalyticsEvent('sign_up', { method });
+const trackLogin = (method = 'email') => logAnalyticsEvent('login', { method });
+const trackAnonymousSignIn = () => logAnalyticsEvent('anonymous_sign_in');
+const trackLogout = () => logAnalyticsEvent('logout');
+const trackAccountLink = (success) => logAnalyticsEvent('account_link', { success });
+
+// Image Events
+const trackImageUpload = (fileType) => logAnalyticsEvent('image_upload', { file_type: fileType });
+const trackObjectImageUpload = () => logAnalyticsEvent('object_image_upload');
+const trackImageDownload = () => logAnalyticsEvent('image_download');
+const trackImageShare = (platform) => logAnalyticsEvent('image_share', { platform });
+
+// AI Generation Events
+const trackGenerationStart = (promptType, hasObjectImage = false) => 
+  logAnalyticsEvent('generation_start', { prompt_type: promptType, has_object_image: hasObjectImage });
+const trackGenerationComplete = (promptType, durationMs) => 
+  logAnalyticsEvent('generation_complete', { prompt_type: promptType, duration_ms: durationMs });
+const trackGenerationError = (errorType) => 
+  logAnalyticsEvent('generation_error', { error_type: errorType });
+const trackLimitReached = (subscription, usage, limit) => 
+  logAnalyticsEvent('limit_reached', { subscription, usage, limit });
+
+// Object Detection Events
+const trackObjectDetection = (success, objectCount = 0) => 
+  logAnalyticsEvent('object_detection', { success, object_count: objectCount });
+
+// Feature Usage Events
+const trackFeatureUse = (feature, value = null) => 
+  logAnalyticsEvent('feature_use', { feature, value });
+const trackStyleSelect = (style) => logAnalyticsEvent('style_select', { style });
+const trackColorSelect = (color, category) => logAnalyticsEvent('color_select', { color, category });
+const trackAngleSelect = (angle) => logAnalyticsEvent('angle_select', { angle });
+const trackLightingSelect = (lighting) => logAnalyticsEvent('lighting_select', { lighting });
+const trackFurnitureSelect = (furniture) => logAnalyticsEvent('furniture_select', { furniture });
+const trackRepairsSelect = (repair) => logAnalyticsEvent('repairs_select', { repair });
+const trackDoorsWindowsSelect = (option) => logAnalyticsEvent('doors_windows_select', { option });
+const trackBathroomSelect = (option) => logAnalyticsEvent('bathroom_select', { option });
+
+// Onboarding Events
+const trackOnboardingStart = () => logAnalyticsEvent('onboarding_start');
+const trackOnboardingStep = (step) => logAnalyticsEvent('onboarding_step', { step });
+const trackOnboardingComplete = () => logAnalyticsEvent('onboarding_complete');
+const trackOnboardingSkip = (atStep) => logAnalyticsEvent('onboarding_skip', { at_step: atStep });
+
+// Subscription Events
+const trackSubscriptionModalView = () => logAnalyticsEvent('subscription_modal_view');
+const trackSubscriptionClick = (tier) => logAnalyticsEvent('subscription_click', { tier });
+const trackWelcomePremiumShow = () => logAnalyticsEvent('welcome_premium_show');
+
+// History Events
+const trackHistoryClick = () => logAnalyticsEvent('history_click');
+const trackHistoryLoadMore = (page) => logAnalyticsEvent('history_load_more', { page });
+
+// Contact Events
+const trackContactFormSubmit = () => logAnalyticsEvent('contact_form_submit');
+const trackContactFormSuccess = () => logAnalyticsEvent('contact_form_success');
+
+// Category Events
+const trackCategorySelect = (category) => logAnalyticsEvent('category_select', { category });
+
+// Page View / Session Events
+const trackPageView = (page) => logAnalyticsEvent('page_view', { page });
+const trackAppOpen = () => logAnalyticsEvent('app_open');
+
 export { 
   app, 
   analytics, 
@@ -710,5 +796,44 @@ export {
   loadUserHistoryPaginated,
   uploadImageForSharing,
   compressImage,
-  compressFile
+  compressFile,
+  // Analytics exports
+  logAnalyticsEvent,
+  trackSignUp,
+  trackLogin,
+  trackAnonymousSignIn,
+  trackLogout,
+  trackAccountLink,
+  trackImageUpload,
+  trackObjectImageUpload,
+  trackImageDownload,
+  trackImageShare,
+  trackGenerationStart,
+  trackGenerationComplete,
+  trackGenerationError,
+  trackLimitReached,
+  trackObjectDetection,
+  trackFeatureUse,
+  trackStyleSelect,
+  trackColorSelect,
+  trackAngleSelect,
+  trackLightingSelect,
+  trackFurnitureSelect,
+  trackRepairsSelect,
+  trackDoorsWindowsSelect,
+  trackBathroomSelect,
+  trackOnboardingStart,
+  trackOnboardingStep,
+  trackOnboardingComplete,
+  trackOnboardingSkip,
+  trackSubscriptionModalView,
+  trackSubscriptionClick,
+  trackWelcomePremiumShow,
+  trackHistoryClick,
+  trackHistoryLoadMore,
+  trackContactFormSubmit,
+  trackContactFormSuccess,
+  trackCategorySelect,
+  trackPageView,
+  trackAppOpen
 };

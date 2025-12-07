@@ -3034,6 +3034,13 @@ function GeneralApp() {
                   </div>
                 )}
                 
+                <div className="text-xs text-gray-400 text-center mt-2 mb-4 px-2">
+                  בהתחברותך אתה מסכים ל
+                  <a href="/eula.html" target="_blank" rel="noopener noreferrer" className="text-primary-300 hover:text-primary-200 mx-1 underline">תנאי השימוש</a>
+                  ול
+                  <a href="/privacy.html" target="_blank" rel="noopener noreferrer" className="text-primary-300 hover:text-primary-200 mx-1 underline">מדיניות הפרטיות</a>
+                </div>
+
                 <button
                   type="submit"
                   disabled={isLoadingAuth || !email || !password || (authMode === 'signup' && !confirmEmail)}

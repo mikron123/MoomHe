@@ -1,6 +1,20 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Upload, Plus, Palette, RotateCcw, Download, Settings, Home, TreePine, Car, Heart, Hammer, Sparkles, Package, User, Share2, Wand2, Type, Loader2, RotateCw, Lightbulb, Sofa, Droplets, ArrowLeftRight, MessageCircle, HelpCircle, CheckCircle, Mail, History } from 'lucide-react'
-import { fileToGenerativePart, urlToFile, signInUser, createOrUpdateUser, saveImageToHistory, saveUploadToHistory, loadUserHistory, loadUserHistoryPaginated, auth, uploadImageForSharing, compressImage, db, getDeviceFingerprint } from './firebase.js'
+import { 
+  fileToGenerativePart, urlToFile, signInUser, createOrUpdateUser, saveImageToHistory, 
+  saveUploadToHistory, loadUserHistory, loadUserHistoryPaginated, auth, uploadImageForSharing, 
+  compressImage, db, getDeviceFingerprint,
+  // Analytics imports
+  trackSignUp, trackLogin, trackAnonymousSignIn, trackLogout, trackAccountLink,
+  trackImageUpload, trackObjectImageUpload, trackImageDownload, trackImageShare,
+  trackGenerationStart, trackGenerationComplete, trackGenerationError, trackLimitReached,
+  trackObjectDetection, trackStyleSelect, trackColorSelect, trackAngleSelect,
+  trackLightingSelect, trackFurnitureSelect, trackRepairsSelect, trackDoorsWindowsSelect,
+  trackBathroomSelect, trackOnboardingStart, trackOnboardingStep, trackOnboardingComplete,
+  trackOnboardingSkip, trackSubscriptionModalView, trackSubscriptionClick, trackWelcomePremiumShow,
+  trackHistoryClick, trackHistoryLoadMore, trackContactFormSubmit, trackContactFormSuccess,
+  trackAppOpen, trackFeatureUse
+} from './firebase.js'
 import { aiService } from './aiService.js'
 import { onAuthStateChanged } from 'firebase/auth'
 import { doc, onSnapshot, collection, setDoc } from 'firebase/firestore'
@@ -80,6 +94,7 @@ function App() {
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false)
   const [showLoginConfirmDialog, setShowLoginConfirmDialog] = useState(false)
   const [pendingSubscription, setPendingSubscription] = useState(null)
+  const [showPostPaymentModal, setShowPostPaymentModal] = useState(false)
   const [showLimitModal, setShowLimitModal] = useState(false)
   const [showWelcomePremiumModal, setShowWelcomePremiumModal] = useState(false)
   const [prevSubscription, setPrevSubscription] = useState(0)
@@ -96,21 +111,24 @@ function App() {
   useEffect(() => {
     if (pendingSubscription && currentUser && !currentUser.isAnonymous) {
       setShowSubscriptionModal(true)
+      trackSubscriptionModalView()
       setPendingSubscription(null)
     }
   }, [currentUser, pendingSubscription])
 
   const handleSubscriptionClick = (url) => {
-    if (currentUser && !currentUser.isAnonymous) {
-       // Already logged in - open link
-       hasInitiatedCheckout.current = true
-       window.open(url, '_blank', 'noopener,noreferrer')
-       setShowSubscriptionModal(false) // Close modal
-    } else {
-      // Not logged in
-      setShowSubscriptionModal(false)
-      setPendingSubscription(url) // Save the URL to redirect later
-      setShowLoginConfirmDialog(true)
+    // Extract tier from URL for analytics
+    const tier = url.includes('starter') ? 'starter' : url.includes('value') ? 'value' : url.includes('pro') ? 'pro' : 'unknown'
+    trackSubscriptionClick(tier)
+    
+    // Always open the payment link regardless of login status
+    hasInitiatedCheckout.current = true
+    window.open(url, '_blank', 'noopener,noreferrer')
+    setShowSubscriptionModal(false) // Close pricing modal
+    
+    // If not logged in, show post-payment modal asking to sign up
+    if (!currentUser || currentUser.isAnonymous) {
+      setShowPostPaymentModal(true)
     }
   }
   
@@ -125,26 +143,47 @@ function App() {
   const isFirstSubscriptionLoad = useRef(true)
   const hasInitiatedCheckout = useRef(false)
 
+  // App Open tracking
+  useEffect(() => {
+    trackAppOpen()
+  }, [])
+
   // Onboarding Logic
   useEffect(() => {
     const hasSeenOnboarding = localStorage.getItem('hasSeenOnboarding_v2')
     if (!hasSeenOnboarding) {
       // Small delay to ensure UI is ready
-      setTimeout(() => setShowOnboarding(true), 1000)
+      setTimeout(() => {
+        setShowOnboarding(true)
+        trackOnboardingStart()
+      }, 1000)
     }
   }, [])
 
   const handleOnboardingComplete = () => {
     setShowOnboarding(false)
     localStorage.setItem('hasSeenOnboarding_v2', 'true')
+    trackOnboardingComplete()
   }
 
   const handleOnboardingNext = () => {
     if (onboardingStep < 3) {
-      setOnboardingStep(prev => prev + 1)
+      const nextStep = onboardingStep + 1
+      setOnboardingStep(nextStep)
+      trackOnboardingStep(nextStep)
     } else {
       handleOnboardingComplete()
     }
+  }
+  
+  const handleOnboardingSkip = () => {
+    trackOnboardingSkip(onboardingStep)
+    handleOnboardingComplete()
+  }
+  
+  const openSubscriptionModal = () => {
+    trackSubscriptionModalView()
+    setShowSubscriptionModal(true)
   }
 
   const onboardingSteps = [
@@ -210,6 +249,7 @@ function App() {
               // Only show modal if user actually upgraded in this session
               if (prevSub === 0 && newSubscription > 0 && hasInitiatedCheckout.current) {
                 setShowWelcomePremiumModal(true)
+                trackWelcomePremiumShow()
                 // Reset checkout flag so we don't show it again unless they upgrade again (unlikely in same session but good hygiene)
                 hasInitiatedCheckout.current = false
               }
@@ -243,6 +283,7 @@ function App() {
           setCurrentUser(userCredential)
           setIsAuthenticated(true)
           await createOrUpdateUser(userCredential)
+          trackAnonymousSignIn()
         } catch (error) {
           console.error('Failed to sign in anonymously:', error)
         }
@@ -421,6 +462,10 @@ function App() {
   const handleImageUpload = async (event) => {
     const file = event.target.files[0]
     if (file) {
+      // Track image upload
+      const fileType = file.type || file.name.split('.').pop().toLowerCase()
+      trackImageUpload(fileType)
+      
       // Check if it's a HEIC file and show user feedback
       const isHeicFile = file.type === 'image/heic' || file.type === 'image/heif' || file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')
       if (isHeicFile) {
@@ -508,6 +553,7 @@ function App() {
   }
 
   const handleDownload = async () => {
+    trackImageDownload()
     try {
       let imageUrl = mainImage
       
@@ -547,6 +593,7 @@ function App() {
   }
 
   const handleWhatsAppShare = async () => {
+    trackImageShare('whatsapp')
     try {
       let imageUrl = mainImage
       
@@ -611,6 +658,7 @@ function App() {
     
     setContactError('')
     setIsSubmittingContact(true)
+    trackContactFormSubmit()
     
     try {
       const messageId = `msg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
@@ -633,6 +681,7 @@ function App() {
       setContactMessage('')
       setShowContactModal(false)
       setShowContactSuccess(true)
+      trackContactFormSuccess()
       
       // Auto-hide success message after 5 seconds
       setTimeout(() => setShowContactSuccess(false), 5000)
@@ -655,6 +704,7 @@ function App() {
   }
 
   const handleHistoryImageClick = (historyEntry) => {
+    trackHistoryClick()
     // Use storageUrl if available (from Firebase), otherwise use imageUrl (local)
     const imageUrl = historyEntry.storageUrl || historyEntry.imageUrl
     setMainImage(imageUrl)
@@ -718,6 +768,7 @@ function App() {
   const handleObjectImageUpload = async (event) => {
     const file = event.target.files[0]
     if (file) {
+      trackObjectImageUpload()
       const reader = new FileReader()
       reader.onload = (e) => {
         // Resize image if needed
@@ -808,8 +859,11 @@ function App() {
             // Try to link the anonymous account
             const userCredential = await linkWithCredential(currentUser, credential)
             await createOrUpdateUser(userCredential.user)
+            trackAccountLink(true)
+            trackSignUp('email_link')
             alert('החשבון נוצר בהצלחה! כל הנתונים שלך נשמרו.')
           } catch (linkError) {
+            trackAccountLink(false)
             if (linkError.code === 'auth/email-already-in-use') {
               // Email already exists, create new account and migrate data
               const { createUserWithEmailAndPassword } = await import('firebase/auth')
@@ -819,6 +873,7 @@ function App() {
               await migrateUserData(currentUser.uid, newUserCredential.user.uid)
               
               await createOrUpdateUser(newUserCredential.user)
+              trackSignUp('email_migrate')
               alert('החשבון נוצר בהצלחה! כל הנתונים שלך הועברו לחשבון החדש.')
             } else {
               throw linkError
@@ -829,6 +884,7 @@ function App() {
           const { createUserWithEmailAndPassword } = await import('firebase/auth')
           const userCredential = await createUserWithEmailAndPassword(auth, email, password)
           await createOrUpdateUser(userCredential.user)
+          trackSignUp('email')
           alert('החשבון נוצר בהצלחה!')
         }
       } else {
@@ -836,6 +892,7 @@ function App() {
         const { signInWithEmailAndPassword } = await import('firebase/auth')
         const userCredential = await signInWithEmailAndPassword(auth, email, password)
         await createOrUpdateUser(userCredential.user)
+        trackLogin('email')
         alert('התחברת בהצלחה!')
       }
       
@@ -936,6 +993,7 @@ function App() {
 
   const handleLogout = async () => {
     try {
+      trackLogout()
       const { signOut } = await import('firebase/auth')
       await signOut(auth)
       // Clear local state
@@ -962,6 +1020,7 @@ function App() {
     setIsLoadingMoreHistory(true)
     try {
       const nextPage = historyPage + 1
+      trackHistoryLoadMore(nextPage)
       const result = await loadUserHistoryPaginated(currentUser.uid, nextPage, 7)
       
       console.log('Load more result:', { nextPage, historyCount: result.history.length, hasMore: result.hasMore })
@@ -1084,6 +1143,7 @@ function App() {
       if (isAuthenticated && currentUser) {
         const canMakeRequest = await aiService.canMakeRequest(currentUser.uid)
         if (!canMakeRequest) {
+          trackLimitReached(userSubscription, userUsage, userCredits)
           setShowLimitModal(true)
           return
         }
@@ -1193,6 +1253,7 @@ function App() {
         
         // Parse objects - handle array with comma-separated string in first element
         let objectsArray = result.objects;
+        trackObjectDetection(true, Array.isArray(result.objects) ? result.objects.length : 0)
         
         if (Array.isArray(result.objects) && result.objects.length > 0) {
           console.log('Objects is array, checking first element...')
@@ -1239,6 +1300,7 @@ function App() {
       }
     } catch (error) {
       console.error('Object detection failed:', error)
+      trackObjectDetection(false, 0)
       setDetectedObjects([])
       alert('שגיאה בזיהוי אובייקטים. נסה שוב.')
     } finally {
@@ -1444,6 +1506,7 @@ function App() {
   }
 
   const handleColorSelect = (color) => {
+    trackColorSelect(color.value, activeColorCategory)
     setSelectedColorForDialog(color)
     setShowColorDialog(true)
   }
@@ -1548,6 +1611,7 @@ function App() {
 
   const handleAngleSelect = (angle) => {
     setShowAnglePanel(false)
+    trackAngleSelect(angle.value)
     console.log('📐 Angle Selection - Prompt being added to input:', angle.prompt)
     console.log('📐 Selected angle:', angle.name, angle.value)
     addPromptToInput(angle.prompt)
@@ -1555,6 +1619,7 @@ function App() {
 
   const handleLightingSelect = (lighting) => {
     setShowLightingOptions(false)
+    trackLightingSelect(lighting.value)
     console.log('💡 Lighting Selection - Prompt being added to input:', lighting.prompt)
     console.log('💡 Selected lighting:', lighting.name, lighting.value)
     addPromptToInput(lighting.prompt)
@@ -1562,6 +1627,7 @@ function App() {
 
   const handleFurnitureSelect = (furniture) => {
     setShowFurnitureOptions(false)
+    trackFurnitureSelect(furniture.value)
     console.log('🪑 Furniture Selection - Prompt being added to input:', furniture.prompt)
     console.log('🪑 Selected furniture:', furniture.name, furniture.value)
     addPromptToInput(furniture.prompt)
@@ -1569,6 +1635,7 @@ function App() {
 
   const handleRepairsSelect = (repair) => {
     setShowRepairsOptions(false)
+    trackRepairsSelect(repair.value)
     console.log('🔨 Repairs Selection - Prompt being added to input:', repair.prompt)
     console.log('🔨 Selected repair:', repair.name, repair.value)
     addPromptToInput(repair.prompt)
@@ -1576,6 +1643,7 @@ function App() {
 
   const handleStyleSelect = (style) => {
     setShowStyleOptions(false)
+    trackStyleSelect(style.value)
     
     console.log('🎨 Style Selection - Prompt being added to input and executing:', style.prompt)
     console.log('🎨 Selected style:', style.name, style.value)
@@ -1601,7 +1669,16 @@ function App() {
     setCustomPrompt('')
   }
 
-  const handleImmediateOptionClick = (prompt) => {
+  const handleImmediateOptionClick = (prompt, optionType = 'other') => {
+    // Track the feature use
+    if (showDoorsWindowsOptions) {
+      trackDoorsWindowsSelect(prompt)
+    } else if (showBathroomOptions) {
+      trackBathroomSelect(prompt)
+    } else if (showRepairsOptions) {
+      trackRepairsSelect(prompt)
+    }
+    
     // Close all modals
     setShowDoorsWindowsOptions(false)
     setShowBathroomOptions(false)
@@ -1654,7 +1731,24 @@ function App() {
   const handleAIEdit = async (prompt) => {
     if (!mainImage) return
     
+    const startTime = Date.now()
     setIsProcessing(true)
+    
+    // Determine prompt type for analytics
+    const getPromptType = (p) => {
+      if (p.includes('סגנון') || p.includes('מינימליסטי') || p.includes('בוהו') || p.includes('מודרני')) return 'style'
+      if (p.includes('צבע') || p.includes('לצבע')) return 'color'
+      if (p.includes('תאורה') || p.includes('מנורה')) return 'lighting'
+      if (p.includes('ספה') || p.includes('כורסא') || p.includes('שולחן') || p.includes('ריהוט')) return 'furniture'
+      if (p.includes('זווית') || p.includes('סובב') || p.includes('זום')) return 'angle'
+      if (p.includes('תיקון') || p.includes('נזק')) return 'repairs'
+      if (p.includes('חלון') || p.includes('דלת')) return 'doors_windows'
+      if (p.includes('אמבט') || p.includes('מקלחת') || p.includes('כיור')) return 'bathroom'
+      return 'custom'
+    }
+    const promptType = getPromptType(prompt)
+    trackGenerationStart(promptType, !!objectImageFile)
+    
     try {
       // Debug: Log the prompt being sent to AI
       console.log('🎨 AI Image Alteration - Prompt being sent:', prompt)
@@ -1665,6 +1759,7 @@ function App() {
       if (isAuthenticated && currentUser) {
         const canMakeRequest = await aiService.canMakeRequest(currentUser.uid)
         if (!canMakeRequest) {
+          trackLimitReached(userSubscription, userUsage, userCredits)
           setShowLimitModal(true)
           setIsProcessing(false)
           return
@@ -1716,6 +1811,9 @@ function App() {
       console.log('AI Service result:', result)
       
       if (result && result.storageUrl) {
+        const durationMs = Date.now() - startTime
+        trackGenerationComplete(promptType, durationMs)
+        
         const imageDataUrl = result.storageUrl
         
         // Add to history
@@ -1768,10 +1866,14 @@ function App() {
       
       // Handle specific error types
       if (error.message?.includes('limit reached') || error.message?.includes('מגבלת הדורות')) {
+        trackGenerationError('limit_reached')
+        trackLimitReached(userSubscription, userUsage, userCredits)
         setShowLimitModal(true)
       } else if (error.message?.includes('timeout')) {
+        trackGenerationError('timeout')
         alert('הבקשה ארכה יותר מדי זמן. נסה שוב.')
       } else {
+        trackGenerationError('unknown')
         alert('שגיאה בעיבוד התמונה. אנא נסה שוב או עם תמונה אחרת.')
       }
     } finally {
@@ -1867,7 +1969,7 @@ function App() {
             </div>
           </div>
           <button 
-            onClick={() => setShowSubscriptionModal(true)}
+            onClick={openSubscriptionModal}
             className={`hidden md:flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-medium shadow-lg transition-all duration-300 hover:-translate-y-0.5 ${
               userSubscription > 0 
                 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30 shadow-emerald-900/20' 
@@ -1899,7 +2001,10 @@ function App() {
             )}
           </button>
           <button 
-            onClick={() => setShowOnboarding(true)}
+            onClick={() => {
+              setShowOnboarding(true)
+              trackOnboardingStart()
+            }}
             className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-full transition-all"
             title="הדרכה"
           >
@@ -1917,7 +2022,7 @@ function App() {
         <div className="flex items-center gap-3">
            {/* Mobile Subscription Button */}
            <button 
-            onClick={() => setShowSubscriptionModal(true)}
+            onClick={openSubscriptionModal}
             className="md:hidden flex items-center justify-center w-9 h-9 bg-gradient-to-r from-secondary-500 to-secondary-600 text-white rounded-full shadow-lg shadow-secondary-900/20"
            >
              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -2628,6 +2733,13 @@ function App() {
                 />
               )}
 
+              <div className="text-xs text-gray-400 text-center mt-2 mb-4 px-2">
+                בהתחברותך אתה מסכים ל
+                <a href="/eula.html" target="_blank" rel="noopener noreferrer" className="text-primary-300 hover:text-primary-200 mx-1 underline">תנאי השימוש</a>
+                ול
+                <a href="/privacy.html" target="_blank" rel="noopener noreferrer" className="text-primary-300 hover:text-primary-200 mx-1 underline">מדיניות הפרטיות</a>
+              </div>
+
               <button
                 onClick={handleAuth}
                 disabled={isLoadingAuth}
@@ -2676,7 +2788,7 @@ function App() {
       <LimitReachedModal 
         isOpen={showLimitModal} 
         onClose={() => setShowLimitModal(false)} 
-        onShowPricing={() => setShowSubscriptionModal(true)}
+        onShowPricing={openSubscriptionModal}
         userSubscription={userSubscription}
         currentUsage={userUsage}
         limit={userCredits}
@@ -2687,6 +2799,39 @@ function App() {
         onClose={() => setShowWelcomePremiumModal(false)}
         subscriptionName={subscriptionNames[userSubscription]}
       />
+
+      {/* Post-Payment Sign Up Modal */}
+      {showPostPaymentModal && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[90] flex items-center justify-center p-4 animate-fade-in">
+          <div className="glass-card w-full max-w-md p-8 relative bg-surface border border-white/10 shadow-2xl flex flex-col rounded-2xl">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-4 text-emerald-400">
+                <CheckCircle size={32} />
+              </div>
+              <h3 className="text-2xl font-bold text-white mb-2">תודה על הרכישה! 🎉</h3>
+              <p className="text-gray-300">
+                לאחר השלמת התשלום, הירשם עם <span className="text-secondary-400 font-medium">אותו המייל</span> שבו השתמשת בתשלום כדי לקבל את ההטבות שלך.
+              </p>
+            </div>
+            <button 
+              onClick={() => {
+                setShowPostPaymentModal(false)
+                setAuthMode('signup')
+                setShowAuthModal(true)
+              }}
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-secondary-500 to-secondary-600 text-white font-bold shadow-lg shadow-secondary-900/20 hover:shadow-secondary-900/40 transition-all"
+            >
+              הירשם עכשיו
+            </button>
+            <button 
+              onClick={() => setShowPostPaymentModal(false)}
+              className="w-full py-2 mt-3 text-gray-400 hover:text-white transition-colors text-sm"
+            >
+              אעשה זאת מאוחר יותר
+            </button>
+          </div>
+        </div>
+      )}
 
       {showLoginConfirmDialog && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[90] flex items-center justify-center p-4 animate-fade-in">
@@ -2924,7 +3069,7 @@ function App() {
           step={onboardingStep} 
           steps={onboardingSteps} 
           onNext={handleOnboardingNext} 
-          onSkip={handleOnboardingComplete} 
+          onSkip={handleOnboardingSkip} 
           onComplete={handleOnboardingComplete} 
         />
       )}
@@ -2940,7 +3085,7 @@ function App() {
       <LimitReachedModal 
         isOpen={showLimitModal} 
         onClose={() => setShowLimitModal(false)} 
-        onShowPricing={() => setShowSubscriptionModal(true)}
+        onShowPricing={openSubscriptionModal}
         userSubscription={userSubscription}
         currentUsage={userUsage}
         limit={userCredits}
