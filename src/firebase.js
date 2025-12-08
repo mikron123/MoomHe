@@ -29,13 +29,13 @@ const storage = getStorage(app);
 const ai = getAI(app, { backend: new GoogleAIBackend() });
 
 // Create a `GenerativeModel` instance with a model that supports your use case
-const model = getGenerativeModel(ai, {
-  model: "gemini-2.5-flash-image-preview",
-  // Configure the model to respond with text and images (required)
-  generationConfig: {
-    responseModalities: [ResponseModality.TEXT, ResponseModality.IMAGE],
-  },
-});
+// const model = getGenerativeModel(ai, {
+//   model: "gemini-2.5-flash-image",
+//   // Configure the model to respond with text and images (required)
+//   generationConfig: {
+//     responseModalities: [ResponseModality.TEXT, ResponseModality.IMAGE],
+//   },
+// });
 
 // Prepare an image for the model to edit
 async function fileToGenerativePart(file) {
@@ -546,6 +546,21 @@ async function loadUserHistory(userId) {
           historyEntry.thumbnailUrl = data.result.thumbnailUrl;
           historyEntry.filename = data.result.filename;
           historyEntry.thumbnailFilename = data.result.thumbnailFilename;
+          
+          // Also check for originalImageUrl in the result
+          if (data.result.originalImageUrl) {
+            historyEntry.originalImageUrl = data.result.originalImageUrl;
+          }
+        }
+        
+        // Also check at root level for originalImageUrl (for older records or different structure)
+        if (data.originalImageUrl) {
+          historyEntry.originalImageUrl = data.originalImageUrl;
+        } else if (data.imageData) {
+           // Fallback to imageData if it's a URL (for some older structures)
+           if (typeof data.imageData === 'string' && data.imageData.startsWith('http')) {
+             historyEntry.originalImageUrl = data.imageData;
+           }
         }
 
         // Preserve objects field if it exists (from object detection)
@@ -621,6 +636,21 @@ async function loadUserHistoryPaginated(userId, page = 1, pageSize = 7) {
           historyEntry.thumbnailUrl = data.result.thumbnailUrl;
           historyEntry.filename = data.result.filename;
           historyEntry.thumbnailFilename = data.result.thumbnailFilename;
+          
+          // Also check for originalImageUrl in the result
+          if (data.result.originalImageUrl) {
+            historyEntry.originalImageUrl = data.result.originalImageUrl;
+          }
+        }
+        
+        // Also check at root level for originalImageUrl (for older records or different structure)
+        if (data.originalImageUrl) {
+          historyEntry.originalImageUrl = data.originalImageUrl;
+        } else if (data.imageData) {
+           // Fallback to imageData if it's a URL (for some older structures)
+           if (typeof data.imageData === 'string' && data.imageData.startsWith('http')) {
+             historyEntry.originalImageUrl = data.imageData;
+           }
         }
 
         // Preserve objects field if it exists (from object detection)
@@ -778,7 +808,7 @@ const trackAppOpen = () => logAnalyticsEvent('app_open');
 export { 
   app, 
   analytics, 
-  model, 
+  // model, 
   fileToGenerativePart, 
   urlToFile,
   auth,

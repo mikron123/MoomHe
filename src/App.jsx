@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { Upload, Plus, Palette, RotateCcw, Download, Settings, Home, TreePine, Car, Heart, Hammer, Sparkles, Package, User, Share2, Wand2, Type, Loader2, RotateCw, Lightbulb, Sofa, Droplets, ArrowLeftRight, MessageCircle, HelpCircle, CheckCircle, Mail, History } from 'lucide-react'
+import { Upload, Plus, Palette, RotateCcw, Download, Settings, Home, TreePine, Car, Heart, Hammer, Sparkles, Package, User, Share2, Wand2, Type, Loader2, RotateCw, Lightbulb, Sofa, Droplets, ArrowLeftRight, MessageCircle, HelpCircle, CheckCircle, Mail, History, MoreHorizontal, X } from 'lucide-react'
 import { 
   fileToGenerativePart, urlToFile, signInUser, createOrUpdateUser, saveImageToHistory, 
   saveUploadToHistory, loadUserHistory, loadUserHistoryPaginated, auth, uploadImageForSharing, 
@@ -22,17 +22,25 @@ import OnboardingOverlay from './OnboardingOverlay'
 import ColorApplicationDialog from './ColorApplicationDialog'
 import LimitReachedModal from './LimitReachedModal'
 import WelcomePremiumModal from './WelcomePremiumModal'
+import BeforeAfterSlider from './BeforeAfterSlider'
+import DesignerAvatar from './DesignerAvatar'
 
 function App() {
   // Onboarding State
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [onboardingStep, setOnboardingStep] = useState(0)
   const [showNotification, setShowNotification] = useState(null)
+  const [showFirstUploadTip, setShowFirstUploadTip] = useState(false)
+  const [hasSeenFirstUploadTip, setHasSeenFirstUploadTip] = useState(() => {
+    return localStorage.getItem('hasSeenFirstUploadTip') === 'true'
+  })
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024)
   const [showMobileHistory, setShowMobileHistory] = useState(false)
 
   const uploadBtnDesktopRef = useRef(null)
   const uploadBtnMobileRef = useRef(null)
+  const addObjectBtnDesktopRef = useRef(null)
+  const addObjectBtnMobileRef = useRef(null)
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 1024)
@@ -40,7 +48,11 @@ function App() {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
   const styleBtnRef = useRef(null)
+  const styleBtnMobileRef = useRef(null)
   const createBtnRef = useRef(null)
+  const createBtnMobileRef = useRef(null)
+  const promptInputRef = useRef(null)
+  const promptInputMobileRef = useRef(null)
 
   const [selectedCategory, setSelectedCategory] = useState('עיצוב פנים וחוץ') // Fixed to interior design only
   const [uploadedImage, setUploadedImage] = useState(null)
@@ -54,14 +66,16 @@ function App() {
   const [showStyleOptions, setShowStyleOptions] = useState(false)
   const [showDoorsWindowsOptions, setShowDoorsWindowsOptions] = useState(false)
   const [showBathroomOptions, setShowBathroomOptions] = useState(false)
+  const [showMobileMoreTools, setShowMobileMoreTools] = useState(false)
   const [imageHistory, setImageHistory] = useState([])
   const [currentUser, setCurrentUser] = useState(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
   const [showImageModal, setShowImageModal] = useState(false)
-  const [detectedObjects, setDetectedObjects] = useState([])
-  const [isLoadingObjects, setIsLoadingObjects] = useState(false)
   const [currentHistoryId, setCurrentHistoryId] = useState(null)
+  const [avatarSuggestions, setAvatarSuggestions] = useState([])
+  const [isAvatarThinking, setIsAvatarThinking] = useState(false)
+  const [shouldAutoOpenAvatar, setShouldAutoOpenAvatar] = useState(false)
   const [customPrompt, setCustomPrompt] = useState('')
   const [imageAspectRatio, setImageAspectRatio] = useState(16/9) // Default to 16:9
   const [activeColorCategory, setActiveColorCategory] = useState('אדומים') // Default to reds
@@ -98,6 +112,10 @@ function App() {
   const [showLimitModal, setShowLimitModal] = useState(false)
   const [showWelcomePremiumModal, setShowWelcomePremiumModal] = useState(false)
   const [prevSubscription, setPrevSubscription] = useState(0)
+  
+  // Before/After Comparison
+  const [beforeImage, setBeforeImage] = useState(null)
+  const [showComparison, setShowComparison] = useState(false)
   
   // Contact Form State
   const [showContactModal, setShowContactModal] = useState(false)
@@ -195,17 +213,17 @@ function App() {
     {
       title: 'בחר עיצוב מחדש',
       description: 'בחר את הסגנון המועדף עליך מהתפריט הצדדי. נסה "עיצוב מחדש" כדי לראות אפשרויות שונות.',
-      targetRef: styleBtnRef
+      targetRef: isMobile ? styleBtnMobileRef : styleBtnRef
     },
     {
       title: 'צור עיצוב',
       description: 'לחץ על "צור" וה-AI יעצב מחדש את החדר שלך תוך שניות!',
-      targetRef: createBtnRef
+      targetRef: isMobile ? createBtnMobileRef : createBtnRef
     },
     {
-      title: 'טיפ נוסף: אובייקט מתמונה',
-      description: 'רוצה להוסיף רהיט ספציפי? השתמש בכפתור "אובייקט מתמונה" המופיע על התמונה לאחר טעינתה כדי להעלות תמונה של פריט ולשלב אותו בעיצוב.',
-      targetRef: null
+      title: 'טיפ נוסף: העלה פריט',
+      description: 'רוצה להוסיף רהיט ספציפי? השתמש בכפתור "העלה פריט" כדי להעלות תמונה של פריט ולשלב אותו בעיצוב.',
+      targetRef: isMobile ? addObjectBtnMobileRef : addObjectBtnDesktopRef
     }
   ]
 
@@ -293,15 +311,6 @@ function App() {
     return () => unsubscribe()
   }, [])
 
-  // Load default objects for initial category and when switching categories
-  useEffect(() => {
-    const isMobile = window.innerWidth < 1024
-    if (!isMobile) {
-      const defaultObjects = categoryDefaultObjects[selectedCategory] || []
-      setDetectedObjects(defaultObjects)
-      console.log('Loaded default objects for category:', selectedCategory, defaultObjects)
-    }
-  }, [selectedCategory])
 
   // Note: Object detection is now only triggered manually via refresh button or image uploads
 
@@ -333,69 +342,6 @@ function App() {
     'פרופיל ותדמית': '/assets/profile_img.jpg',
     'רכבים ודו גלגלי': '/assets/car_img.jpg',
     'קעקועים': '/assets/tattoo_img.jpg'
-  }
-
-  const categoryDefaultObjects = {
-    'עיצוב פנים וחוץ': [
-      "קירות בהירים",
-      "ספה אפורה",
-      "כורסא לבנה",
-      "שולחן קפה עגול",
-      "שתי מראות קש",
-      "שטיח בהיר",
-      "אגרטל לבן",
-      "מנורת רצפה",
-      "סלסלת קש",
-      "כריות נוי",
-      "שמיכת נוי",
-      "הדום קש"
-    ],
-    'גינות ומרפסות': [
-      "קיר בז'",
-      "דק עץ",
-      "עץ קטן",
-      "עץ גדול",
-      "כרית כחולה",
-      "עששית שחורה קטנה",
-      "עששית שחורה גדולה",
-      "שולחן עגול",
-      "קומקום כסף",
-      "סל קש",
-      "חלון גדול",
-      "עציץ קטן"
-    ],
-    'איפור וטיפוח': [
-      "פנים של אישה",
-      "שיער חום",
-      "כתפיים חשופות",
-      "רקע בהיר"
-    ],
-    'פרסום ומוצרים': [
-      "פחית שתייה",
-      "משטח עץ"
-    ],
-    'פרופיל ותדמית': [
-      "גבר מזוקן",
-      "שיער אפור",
-      "ז'קט בז'",
-      "חולצה בהירה",
-      "קיר זכוכית"
-    ],
-    'רכבים ודו גלגלי': [
-      "מכונית כתומה",
-      "עצים ירוקים",
-      "שמיים בהירים",
-      "כביש אספלט",
-      "בניינים רחוקים",
-      "עמוד תאורה"
-    ],
-    'קעקועים': [
-      "אישה צעירה",
-      "רקע לבן",
-      "כתף חשופה",
-      "שיער ג'ינג'י",
-      "שפתיים אדומות"
-    ]
   }
 
   const categoryActionButtons = {
@@ -497,8 +443,17 @@ function App() {
         
         setUploadedImage(compressedImageDataUrl)
         setMainImage(compressedImageDataUrl) // Display compressed image on main stage
+        setBeforeImage(null) // Reset before image on new upload
+        setShowComparison(false) // Reset comparison mode
         setImageAspectRatio(16/9) // Reset to default until new image loads
         setCurrentHistoryId(null) // Clear history ID for new upload
+        
+        // Show first upload tip if not seen before
+        if (!hasSeenFirstUploadTip) {
+          setTimeout(() => {
+            setShowFirstUploadTip(true)
+          }, 1000) // Delay to let the image load first
+        }
         
         // Save to Firebase if user is authenticated
         if (isAuthenticated && currentUser) {
@@ -520,27 +475,16 @@ function App() {
             // Set the current history ID after reloading history
             setCurrentHistoryId(newHistoryId)
             console.log('Set current history ID to newly uploaded image:', newHistoryId)
-            console.log('Current history after reload:', historyResult.history.map(h => ({ id: h.id, prompt: h.prompt })))
             
-            // Detect objects for uploaded image (desktop only) after setting the history ID
-            const isMobile = window.innerWidth < 1024
-            if (!isMobile) {
-              console.log('About to detect objects for history ID:', newHistoryId)
-              // Pass the compressed image for object detection
-              detectObjectsWithId(compressedImageDataUrl, newHistoryId)
-            }
+            // Set thinking state for avatar suggestions
+            setIsAvatarThinking(true)
+            setShouldAutoOpenAvatar(true) // Auto-open suggestions when they arrive
+            
+            console.log('Current history after reload:', historyResult.history.map(h => ({ id: h.id, prompt: h.prompt })))
           } catch (error) {
             console.error('Failed to save upload to Firebase:', error)
           } finally {
             setIsLoadingHistory(false)
-          }
-        } else {
-          // For non-authenticated users, just detect objects locally
-          const isMobile = window.innerWidth < 1024
-          if (!isMobile) {
-            // Use default objects for uploaded images when not authenticated
-            const defaultObjects = categoryDefaultObjects[selectedCategory] || []
-            setDetectedObjects(defaultObjects)
           }
         }
       }
@@ -590,6 +534,44 @@ function App() {
         alert('שגיאה בהורדת התמונה. נסה שוב.')
       }
     }
+  }
+
+  // Listen for suggestions on current uploaded image
+  useEffect(() => {
+    if (!currentHistoryId) {
+      setAvatarSuggestions([])
+      setIsAvatarThinking(false)
+      return
+    }
+    
+    const unsubscribe = onSnapshot(doc(db, 'userHistory', currentHistoryId), (docSnapshot) => {
+      if (docSnapshot.exists()) {
+        const data = docSnapshot.data()
+        // Only show if we have suggestions
+        if (data.suggestions && Array.isArray(data.suggestions) && data.suggestions.length > 0) {
+          setAvatarSuggestions(data.suggestions)
+          setIsAvatarThinking(false)
+        }
+      }
+    })
+    
+    return () => unsubscribe()
+  }, [currentHistoryId])
+
+  const handleAvatarSuggestionSelect = (suggestion) => {
+    const prompt = suggestion.prompt
+    setCustomPrompt(prompt)
+    handleAIEdit(prompt)
+    
+    // Clear the input field after execution (setCustomPrompt updates the state used by input, so setting it empty effectively clears it, 
+    // BUT handleAIEdit uses the passed prompt argument, so we can clear customPrompt state immediately or after a short delay)
+    // However, handleAIEdit is async. We might want to clear it after initiation.
+    // Wait, handleAIEdit uses `mainImage`. It doesn't use `customPrompt` directly if passed as arg.
+    // So clearing `customPrompt` here is fine for the UI.
+    setTimeout(() => setCustomPrompt(''), 100)
+    
+    // Don't clear suggestions - keep them available for other choices
+    // setAvatarSuggestions([]) <-- removed this line to keep suggestions visible
   }
 
   const handleWhatsAppShare = async () => {
@@ -708,44 +690,19 @@ function App() {
     // Use storageUrl if available (from Firebase), otherwise use imageUrl (local)
     const imageUrl = historyEntry.storageUrl || historyEntry.imageUrl
     setMainImage(imageUrl)
-    setImageAspectRatio(16/9) // Reset to default until new image loads
-    // Store the history ID for object detection
-    setCurrentHistoryId(historyEntry.id)
     
-    // Load objects if they exist in the history entry
-    if (historyEntry.objects) {
-      let objectsArray = historyEntry.objects;
-      
-      // Handle array with comma-separated string in first element
-      if (Array.isArray(historyEntry.objects) && historyEntry.objects.length > 0) {
-        const firstElement = historyEntry.objects[0];
-        if (typeof firstElement === 'string' && firstElement.includes(',')) {
-          // Split the first element (comma-separated string) into array
-          objectsArray = firstElement
-            .split(',')
-            .map(obj => obj.trim())
-            .filter(obj => obj.length > 0);
-        }
-      } else if (typeof historyEntry.objects === 'string') {
-        // Handle direct comma-separated string
-        objectsArray = historyEntry.objects
-          .split(',')
-          .map(obj => obj.trim())
-          .filter(obj => obj.length > 0);
-      }
-      
-      if (objectsArray.length > 0) {
-        setDetectedObjects(objectsArray)
-        console.log('Loaded objects from history entry:', objectsArray)
-      } else {
-        setDetectedObjects([])
-        console.log('No valid objects found in history entry')
-      }
+    // Check if we have an originalImageUrl to enable comparison
+    if (historyEntry.originalImageUrl) {
+      setBeforeImage(historyEntry.originalImageUrl)
+      // Optional: Auto-enable comparison or just make button available
+      setShowComparison(false) 
     } else {
-      // Clear objects if no objects field
-      setDetectedObjects([])
-      console.log('No objects field in history entry')
+      setBeforeImage(null)
+      setShowComparison(false)
     }
+    
+    setImageAspectRatio(16/9) // Reset to default until new image loads
+    setCurrentHistoryId(historyEntry.id)
   }
 
 
@@ -998,7 +955,6 @@ function App() {
       await signOut(auth)
       // Clear local state
       setImageHistory([])
-      setDetectedObjects([])
       setCurrentUser(null)
       setIsAuthenticated(false)
       setShowLogoutModal(false)
@@ -1183,128 +1139,6 @@ function App() {
       }
     } finally {
       setIsProcessing(false)
-    }
-  }
-
-  const detectObjects = async (imageUrl) => {
-    if (!imageUrl) return
-    
-    // Allow object detection on history images or newly uploaded images with a history ID
-    if (!currentHistoryId) {
-      console.log('No current history ID available for object detection')
-      return
-    }
-    
-    console.log('detectObjects called with currentHistoryId:', currentHistoryId)
-    console.log('detectObjects called with imageUrl:', imageUrl)
-    
-    return detectObjectsWithId(imageUrl, currentHistoryId)
-  }
-
-  const detectObjectsWithId = async (imageUrl, historyId) => {
-    if (!imageUrl || !historyId) return
-    
-    console.log('detectObjectsWithId called with historyId:', historyId)
-    console.log('detectObjectsWithId called with imageUrl:', imageUrl)
-    
-    setIsLoadingObjects(true)
-    try {
-      
-      // Check if user can make requests
-      if (isAuthenticated && currentUser) {
-        const canMakeRequest = await aiService.canMakeRequest(currentUser.uid)
-        if (!canMakeRequest) {
-          setShowLimitModal(true)
-          setIsLoadingObjects(false)
-          return
-        }
-      }
-      
-      // Convert image to data URL if it's a local path
-      let imageDataForServer = imageUrl;
-      if (imageUrl.startsWith('/assets/') || imageUrl.startsWith('./assets/')) {
-        // Convert local image to data URL
-        try {
-          const response = await fetch(imageUrl);
-          const blob = await response.blob();
-          const dataUrl = await new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result);
-            reader.readAsDataURL(blob);
-          });
-          imageDataForServer = dataUrl;
-        } catch (error) {
-          console.error('Error converting local image to data URL:', error);
-          throw new Error('Failed to load the image for object detection');
-        }
-      }
-      
-      // Submit request to server (HTTP function)
-      console.log('Submitting object detection request for history ID:', historyId)
-      const deviceId = await getDeviceFingerprint()
-      const result = await aiService.submitObjectDetectionRequest(currentUser, imageDataForServer, historyId, deviceId)
-      
-      console.log('Object detection result:', result)
-      console.log('Objects will be saved to history ID:', historyId)
-      
-      if (result && result.objects) {
-        console.log('Raw objects from server:', result.objects)
-        console.log('Type of objects:', typeof result.objects)
-        
-        // Parse objects - handle array with comma-separated string in first element
-        let objectsArray = result.objects;
-        trackObjectDetection(true, Array.isArray(result.objects) ? result.objects.length : 0)
-        
-        if (Array.isArray(result.objects) && result.objects.length > 0) {
-          console.log('Objects is array, checking first element...')
-          const firstElement = result.objects[0];
-          if (typeof firstElement === 'string' && firstElement.includes(',')) {
-            console.log('First element is comma-separated string, parsing...')
-            // Split the first element (comma-separated string) into array
-            objectsArray = firstElement
-              .split(',')
-              .map(obj => obj.trim())
-              .filter(obj => obj.length > 0);
-            console.log('Parsed objects array:', objectsArray)
-          } else {
-            console.log('Using array as-is:', objectsArray)
-          }
-        } else if (typeof result.objects === 'string') {
-          console.log('Parsing string objects...')
-          // Split comma-separated string into array
-          objectsArray = result.objects
-            .split(',')
-            .map(obj => obj.trim())
-            .filter(obj => obj.length > 0);
-          console.log('Parsed objects array:', objectsArray)
-        } else {
-          console.log('Objects is already an array:', objectsArray)
-        }
-        
-        setDetectedObjects(objectsArray)
-        console.log('Final detected objects:', objectsArray)
-        
-        // Update the local imageHistory state with the detected objects
-        if (historyId && imageHistory.length > 0) {
-          setImageHistory(prevHistory => 
-            prevHistory.map(entry => 
-              entry.id === historyId 
-                ? { ...entry, objects: objectsArray }
-                : entry
-            )
-          )
-          console.log('Updated local imageHistory with detected objects for ID:', historyId, objectsArray)
-        }
-      } else {
-        setDetectedObjects([])
-      }
-    } catch (error) {
-      console.error('Object detection failed:', error)
-      trackObjectDetection(false, 0)
-      setDetectedObjects([])
-      alert('שגיאה בזיהוי אובייקטים. נסה שוב.')
-    } finally {
-      setIsLoadingObjects(false)
     }
   }
 
@@ -1597,11 +1431,11 @@ function App() {
   ]
 
   const styleOptions = [
-    { name: 'מינימליסטי', value: 'minimalist', prompt: 'שנה את סגנון החדר למינימליסטי - נקי, פשוט, לא עמוס' },
     { name: 'בוהו', value: 'bohemian', prompt: 'שנה את סגנון החדר לבוהו - אקלקטי, מרקם, חופשי' },
     { name: 'אינדוסטריאלי', value: 'industrial', prompt: 'שנה את סגנון החדר לאינדוסטריאלי - חומרים גולמיים וחשופים' },
     { name: 'מודרני אמצע המאה', value: 'mid-century modern', prompt: 'שנה את סגנון החדר למודרני מאמצע המאה - חלק, רטרו, פונקציונלי' },
     { name: 'סקנדינבי', value: 'scandinavian', prompt: 'שנה את סגנון החדר לסקנדינבי - צבעים בהירים, נוח, פונקציונלי' },
+    { name: 'מינימליסטי', value: 'minimalist', prompt: 'שנה את סגנון החדר למינימליסטי - נקי, פשוט, לא עמוס' },
     { name: 'מסורתי', value: 'traditional', prompt: 'שנה את סגנון החדר למסורתי - קלאסי, פורמלי, סימטרי' },
     { name: 'חווה מודרנית', value: 'modern farmhouse', prompt: 'שנה את סגנון החדר לחווה מודרנית - כפרי, ניטרלי, רגוע' },
     { name: 'עכשווי', value: 'contemporary', prompt: 'שנה את סגנון החדר לעכשווי - עדכני, חלק, מתוחכם' },
@@ -1749,6 +1583,10 @@ function App() {
     const promptType = getPromptType(prompt)
     trackGenerationStart(promptType, !!objectImageFile)
     
+    // Save current image as 'Before' image for comparison
+    setBeforeImage(mainImage)
+    setShowComparison(false) // Disable comparison view during processing
+    
     try {
       // Debug: Log the prompt being sent to AI
       console.log('🎨 AI Image Alteration - Prompt being sent:', prompt)
@@ -1858,6 +1696,9 @@ function App() {
         if (objectInputRef.current) {
           objectInputRef.current.value = ''
         }
+
+        // Clear input after successful execution
+        setCustomPrompt('')
       } else {
         alert('התמונה לא עובדה בהצלחה. נסה עם תמונה אחרת או פעולה אחרת.')
       }
@@ -2002,6 +1843,7 @@ function App() {
           </button>
           <button 
             onClick={() => {
+              setOnboardingStep(0)
               setShowOnboarding(true)
               trackOnboardingStart()
             }}
@@ -2015,33 +1857,55 @@ function App() {
             className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-full transition-all"
             title="צור קשר"
           >
-            <Mail className="w-5 h-5" />
+            <MessageCircle className="w-5 h-5" />
           </button>
         </div>
         
         <div className="flex items-center gap-3">
-           {/* Mobile Subscription Button */}
-           <button 
-            onClick={openSubscriptionModal}
-            className="md:hidden flex items-center justify-center w-9 h-9 bg-gradient-to-r from-secondary-500 to-secondary-600 text-white rounded-full shadow-lg shadow-secondary-900/20"
-           >
-             <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-               <path d="M5 16L3 5L8.5 7L12 4L15.5 7L21 5L19 16H5Z" fill="url(#crownGradientMobile)" stroke="rgba(255,255,255,0.3)" strokeWidth="0.5"/>
-               <path d="M9 16L12 9L15 16H9Z" fill="rgba(255,255,255,0.2)"/>
-               <defs>
-                 <linearGradient id="crownGradientMobile" x1="0%" y1="0%" x2="100%" y2="100%">
-                   <stop offset="0%" stopColor="#FFD700" stopOpacity="0.9"/>
-                   <stop offset="50%" stopColor="#FFA500" stopOpacity="0.95"/>
-                   <stop offset="100%" stopColor="#FFD700" stopOpacity="0.9"/>
-                 </linearGradient>
-               </defs>
-             </svg>
-           </button>
+           {/* Mobile Connected View */}
+           <div className="md:hidden flex items-center bg-surface/50 backdrop-blur-md rounded-full border border-white/10 p-1 pl-1 pr-1 gap-1">
+             <button 
+               onClick={openSubscriptionModal}
+               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-secondary-500/20 to-secondary-600/20 border border-secondary-500/30"
+             >
+               <span className="text-xs font-bold text-white tabular-nums">
+                 {userCredits - userUsage > 0 ? userCredits - userUsage : 0}
+               </span>
+               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                 <path d="M5 16L3 5L8.5 7L12 4L15.5 7L21 5L19 16H5Z" fill="url(#crownGradientMobile)" stroke="rgba(255,255,255,0.3)" strokeWidth="0.5"/>
+                 <path d="M9 16L12 9L15 16H9Z" fill="rgba(255,255,255,0.2)"/>
+                 <defs>
+                   <linearGradient id="crownGradientMobile" x1="0%" y1="0%" x2="100%" y2="100%">
+                     <stop offset="0%" stopColor="#FFD700" stopOpacity="0.9"/>
+                     <stop offset="50%" stopColor="#FFA500" stopOpacity="0.95"/>
+                     <stop offset="100%" stopColor="#FFD700" stopOpacity="0.9"/>
+                   </linearGradient>
+                 </defs>
+               </svg>
+             </button>
+             
+             <button 
+               onClick={() => currentUser && !currentUser.isAnonymous ? setShowLogoutModal(true) : setShowAuthModal(true)}
+               className="flex items-center justify-center w-8 h-8"
+             >
+               {isAuthenticated ? (
+                 <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-primary-500 to-secondary-500 p-0.5">
+                   <div className="w-full h-full rounded-full bg-surface flex items-center justify-center text-xs font-bold text-white">
+                     {(currentUser?.email || 'U')[0].toUpperCase()}
+                   </div>
+                 </div>
+               ) : (
+                 <div className="w-8 h-8 rounded-full bg-surfaceHighlight flex items-center justify-center">
+                   <User className="w-4 h-4 text-white" />
+                 </div>
+               )}
+             </button>
+           </div>
            
-           {/* User Profile & Auth */}
+           {/* Desktop User Profile & Auth */}
            <button 
              onClick={() => currentUser && !currentUser.isAnonymous ? setShowLogoutModal(true) : setShowAuthModal(true)}
-             className="flex items-center gap-3 px-3 sm:px-4 py-2 rounded-full bg-surface/50 hover:bg-surfaceHighlight/50 border border-white/5 hover:border-white/20 transition-all duration-300 group"
+             className="hidden md:flex items-center gap-3 px-3 sm:px-4 py-2 rounded-full bg-surface/50 hover:bg-surfaceHighlight/50 border border-white/5 hover:border-white/20 transition-all duration-300 group"
            >
              {isAuthenticated ? (
                <>
@@ -2070,59 +1934,121 @@ function App() {
 
       <main className="pt-24 pb-24 lg:pb-6 px-2 sm:px-4 h-screen flex flex-col lg:flex-row gap-4 sm:gap-6 overflow-hidden">
         
-        {/* Left Panel - Tools (Desktop) */}
-        <aside className="hidden lg:flex flex-col gap-4 w-20 glass-panel rounded-2xl p-3 items-center overflow-y-auto scrollbar-hide animate-slide-in-right" style={{animationDelay: '0.1s'}}>
-           <div className="flex flex-col gap-4 w-full">
+        {/* Left Panel - Tools (Desktop) - KISS Layout */}
+        <aside className="hidden lg:flex flex-col gap-4 w-28 glass-panel rounded-2xl p-3 items-center animate-slide-in-right relative" style={{animationDelay: '0.1s'}}>
+           <div className="flex flex-col gap-2.5 w-full">
              <button 
                ref={uploadBtnDesktopRef}
                onClick={handleUploadClick}
                disabled={isProcessing}
-               className="w-full aspect-square flex flex-col items-center justify-center gap-1 group bg-gradient-to-br from-blue-500/20 to-primary-500/20 hover:from-blue-500/30 hover:to-primary-500/30 border border-blue-400/30 hover:border-blue-400/50 rounded-xl transition-all duration-300 shadow-lg shadow-blue-500/10 hover:shadow-blue-500/20"
+               className="w-full py-3 px-2 flex flex-col items-center justify-center gap-2 group bg-gradient-to-br from-blue-500/20 to-primary-500/20 hover:from-blue-500/30 hover:to-primary-500/30 border border-blue-400/30 hover:border-blue-400/50 rounded-xl transition-all duration-300 shadow-lg shadow-blue-500/10 hover:shadow-blue-500/20"
                title="העלה תמונה"
              >
                <Upload className="w-6 h-6 group-hover:scale-110 transition-transform text-blue-400" />
-               <span className="text-[10px] text-blue-300 font-medium">העלאה</span>
+               <span className="text-[11px] text-blue-300 font-medium">העלה תמונה</span>
              </button>
 
-             <div className="h-px w-full bg-white/10 my-2"></div>
+             <button 
+               ref={addObjectBtnDesktopRef}
+               onClick={handleObjectUploadClick}
+               disabled={isProcessing}
+               className={`w-full py-3 px-2 flex flex-col items-center justify-center gap-2 group ${objectImageFile ? 'bg-gradient-to-br from-primary-500/30 to-secondary-500/30 border-primary-400/50' : 'bg-gradient-to-br from-green-500/20 to-emerald-500/20 border-green-400/30 hover:border-green-400/50'} hover:from-green-500/30 hover:to-emerald-500/30 border rounded-xl transition-all duration-300 shadow-lg shadow-green-500/10 hover:shadow-green-500/20 disabled:opacity-50 disabled:cursor-not-allowed`}
+               title="העלה פריט"
+             >
+               <Plus className={`w-6 h-6 group-hover:scale-110 transition-transform ${objectImageFile ? 'text-primary-400' : 'text-green-400'}`} />
+               <span className={`text-[11px] font-medium ${objectImageFile ? 'text-primary-300' : 'text-green-300'}`}>העלה פריט</span>
+             </button>
 
-             {/* Tool Groups */}
-             {[
-               { icon: Wand2, label: 'עיצוב מחדש', action: () => setShowStyleOptions(!showStyleOptions), active: showStyleOptions },
-               { icon: Palette, label: 'צבעים', action: () => setShowColorPalette(!showColorPalette), active: showColorPalette },
-               { icon: Sofa, label: 'ריהוט', action: () => setShowFurnitureOptions(!showFurnitureOptions), active: showFurnitureOptions },
-               { icon: Lightbulb, label: 'תאורה', action: () => setShowLightingOptions(!showLightingOptions), active: showLightingOptions },
-               { icon: Home, label: 'חלונות ודלתות', action: () => setShowDoorsWindowsOptions(!showDoorsWindowsOptions), active: showDoorsWindowsOptions },
-               { icon: Droplets, label: 'רחצה', action: () => setShowBathroomOptions(!showBathroomOptions), active: showBathroomOptions },
-               { icon: Hammer, label: 'תיקונים ונזקים', action: () => setShowRepairsOptions(!showRepairsOptions), active: showRepairsOptions },
-             ].map((tool, i) => (
-               <button
-                 key={i}
-                 ref={tool.label === 'עיצוב מחדש' ? styleBtnRef : null}
-                 onClick={tool.action}
-                 disabled={isProcessing}
-                 className={`btn-icon w-full aspect-square flex flex-col items-center justify-center gap-1 group ${tool.active ? 'btn-icon-active' : ''} disabled:opacity-50 disabled:cursor-not-allowed`}
-               >
-                 <tool.icon className={`w-5 h-5 group-hover:scale-110 transition-transform ${tool.active ? 'text-primary-300' : ''}`} />
-                 <span className="text-[10px]">{tool.label}</span>
-               </button>
-             ))}
+             <div className="h-px w-full bg-white/10 my-1"></div>
+
+             {/* Main Tool - Redesign */}
+             <button
+               ref={styleBtnRef}
+               onClick={() => setShowStyleOptions(!showStyleOptions)}
+               disabled={isProcessing}
+               className={`w-full py-3 px-2 flex flex-col items-center justify-center gap-2 group bg-gradient-to-br from-purple-500/20 to-pink-500/20 hover:from-purple-500/30 hover:to-pink-500/30 border border-purple-400/30 hover:border-purple-400/50 rounded-xl transition-all duration-300 shadow-lg shadow-purple-500/10 hover:shadow-purple-500/20 ${showStyleOptions ? 'ring-2 ring-purple-400/50' : ''} disabled:opacity-50 disabled:cursor-not-allowed`}
+               title="עיצוב מחדש"
+             >
+               <Wand2 className={`w-6 h-6 group-hover:scale-110 transition-transform text-purple-400`} />
+               <span className="text-[11px] text-purple-300 font-medium">עיצוב מחדש</span>
+             </button>
+
+             {/* More Tools Button */}
+             <button
+               onClick={() => setShowMobileMoreTools(!showMobileMoreTools)}
+               disabled={isProcessing}
+               className={`w-full py-3 px-2 flex flex-col items-center justify-center gap-2 group btn-icon ${showMobileMoreTools ? 'btn-icon-active' : ''} disabled:opacity-50 disabled:cursor-not-allowed`}
+               title="עוד כלים"
+             >
+               <MoreHorizontal className={`w-5 h-5 group-hover:scale-110 transition-transform ${showMobileMoreTools ? 'text-primary-300' : ''}`} />
+               <span className="text-[11px]">עוד</span>
+             </button>
            </div>
+
         </aside>
+
+        {/* Desktop More Tools Dropdown - fixed position with backdrop */}
+        {showMobileMoreTools && (
+          <>
+            {/* Invisible backdrop to close menu on click */}
+            <div 
+              className="hidden lg:block fixed inset-0 z-40" 
+              onClick={() => setShowMobileMoreTools(false)}
+            />
+            <div className="hidden lg:block fixed top-1/2 right-32 -translate-y-1/2 w-48 bg-surface/95 backdrop-blur-xl rounded-xl p-3 shadow-2xl border border-white/10 z-50 animate-fade-in">
+              <div className="flex items-center justify-between mb-3 pb-2 border-b border-white/10">
+                <span className="text-sm font-medium text-white">כלים נוספים</span>
+                <button 
+                  onClick={() => setShowMobileMoreTools(false)}
+                  className="p-1 rounded-full hover:bg-white/10 transition-colors"
+                >
+                  <X className="w-4 h-4 text-textMuted" />
+                </button>
+              </div>
+              <div className="flex flex-col gap-1">
+                {[
+                  { icon: Palette, label: 'צבעים', action: () => { setShowColorPalette(!showColorPalette); setShowMobileMoreTools(false); } },
+                  { icon: Sofa, label: 'ריהוט', action: () => { setShowFurnitureOptions(!showFurnitureOptions); setShowMobileMoreTools(false); } },
+                  { icon: Lightbulb, label: 'תאורה', action: () => { setShowLightingOptions(!showLightingOptions); setShowMobileMoreTools(false); } },
+                  { icon: Home, label: 'חלונות ודלתות', action: () => { setShowDoorsWindowsOptions(!showDoorsWindowsOptions); setShowMobileMoreTools(false); } },
+                  { icon: Droplets, label: 'רחצה', action: () => { setShowBathroomOptions(!showBathroomOptions); setShowMobileMoreTools(false); } },
+                  { icon: Hammer, label: 'תיקונים', action: () => { setShowRepairsOptions(!showRepairsOptions); setShowMobileMoreTools(false); } },
+                ].map((tool, i) => (
+                  <button
+                    key={i}
+                    onClick={tool.action}
+                    disabled={isProcessing}
+                    className="flex items-center gap-3 w-full p-2 rounded-lg hover:bg-white/10 transition-colors text-right disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <tool.icon className="w-5 h-5 text-primary-400" />
+                    <span className="text-sm text-white">{tool.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
 
         {/* Center Canvas */}
         <section className="flex-1 relative flex flex-col min-h-0 glass-card p-1 animate-fade-in mb-36 lg:mb-0">
            <div className="flex-1 relative rounded-xl overflow-hidden bg-black/20 group flex items-center justify-center">
              
-             {/* Image */}
-             <img 
-               src={mainImage} 
-               alt="Canvas" 
-               className={`w-full h-full object-contain transition-all duration-500 ${isProcessing ? 'scale-[1.02] blur-sm brightness-50' : 'group-hover:scale-[1.01]'}`}
-               onClick={handleMainImageClick}
-               onLoad={handleImageLoad}
-               style={{ objectPosition: 'center' }}
-             />
+             {/* Image or Slider */}
+             {showComparison && beforeImage ? (
+               <BeforeAfterSlider 
+                 beforeImage={beforeImage}
+                 afterImage={mainImage}
+               />
+             ) : (
+               <img 
+                 src={mainImage} 
+                 alt="Canvas" 
+                 className={`w-full h-full object-contain transition-all duration-500 ${isProcessing ? 'scale-[1.02] blur-sm brightness-50' : 'group-hover:scale-[1.01]'}`}
+                 onClick={handleMainImageClick}
+                 onLoad={handleImageLoad}
+                 style={{ objectPosition: 'center' }}
+               />
+             )}
 
              {/* Loading Overlay */}
              {isProcessing && (
@@ -2137,14 +2063,16 @@ function App() {
 
              {/* Floating Actions on Canvas - Horizontal Layout Top Right */}
              <div className="absolute top-4 right-4 flex flex-row gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 z-10">
-                <button 
-                  onClick={() => objectInputRef.current.click()}
-                  className={`p-2 ${objectImageFile ? 'bg-primary-500' : 'bg-black/50'} text-white rounded-lg backdrop-blur-md hover:bg-primary-600/70 transition-colors shadow-lg border border-white/10`} 
-                  title="הוסף אובייקט מתמונה"
-                >
-                  <Plus className="w-5 h-5" />
-                </button>
-
+                {beforeImage && !isProcessing && (
+                  <button 
+                    onClick={() => setShowComparison(!showComparison)} 
+                    className={`p-2 ${showComparison ? 'bg-primary-600' : 'bg-black/50'} text-white rounded-lg backdrop-blur-md hover:bg-primary-600/70 transition-colors shadow-lg border border-white/10`} 
+                    title={showComparison ? "סגור השוואה" : "השוואה לפני/אחרי"}
+                  >
+                    <ArrowLeftRight className="w-5 h-5" />
+                  </button>
+                )}
+                
                 <button onClick={handleDownload} className="p-2 bg-black/50 text-white rounded-lg backdrop-blur-md hover:bg-green-600/70 transition-colors shadow-lg border border-white/10" title="הורד תמונה">
                   <Download className="w-5 h-5" />
                 </button>
@@ -2278,6 +2206,60 @@ function App() {
         </div>
       )}
 
+      {/* First Upload Tip */}
+      {showFirstUploadTip && (
+        <div className="fixed inset-0 z-[100]" onClick={() => {
+          setShowFirstUploadTip(false)
+          setHasSeenFirstUploadTip(true)
+          localStorage.setItem('hasSeenFirstUploadTip', 'true')
+        }}>
+          {/* Dark overlay */}
+          <div className="absolute inset-0 bg-black/70" />
+          
+          {/* Tooltip */}
+          <div className="absolute left-1/2 -translate-x-1/2 bottom-44 lg:bottom-32 w-[90%] max-w-[340px] bg-white text-gray-900 p-5 rounded-2xl shadow-2xl animate-bounce-in" dir="rtl" onClick={(e) => e.stopPropagation()}>
+            {/* Arrow pointing down */}
+            <div className="absolute bottom-[-8px] left-1/2 -translate-x-1/2 w-0 h-0 border-solid border-t-white border-r-transparent border-l-transparent border-b-transparent border-[8px]"></div>
+            
+            <div className="flex justify-between items-start mb-3">
+              <h3 className="font-bold text-lg text-primary-600">🎨 מעולה! התמונה הועלתה</h3>
+              <button 
+                onClick={() => {
+                  setShowFirstUploadTip(false)
+                  setHasSeenFirstUploadTip(true)
+                  localStorage.setItem('hasSeenFirstUploadTip', 'true')
+                }} 
+                className="text-gray-400 hover:text-gray-600 transition-colors p-1"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            
+            <p className="text-sm text-gray-600 mb-4 leading-relaxed">
+              עכשיו תאר מה תרצה לשנות בתמונה. לדוגמה: "שנה את צבע הקירות לכחול" או "הוסף צמחים בפינה".
+              <br /><br />
+              💡 <strong>טיפ:</strong> לחץ על "עוד" לקיצורי דרך מוכנים כמו שינוי צבעים, ריהוט, תאורה ועוד!
+            </p>
+            
+            <div className="flex items-center gap-2 p-3 bg-primary-50 rounded-xl mb-4">
+              <span className="text-2xl">👇</span>
+              <span className="text-sm text-primary-700 font-medium">כתוב את הבקשה שלך בשורה למטה ולחץ "צור"</span>
+            </div>
+            
+            <button 
+              onClick={() => {
+                setShowFirstUploadTip(false)
+                setHasSeenFirstUploadTip(true)
+                localStorage.setItem('hasSeenFirstUploadTip', 'true')
+              }}
+              className="w-full bg-primary-600 hover:bg-primary-700 text-white py-2.5 rounded-xl text-sm font-medium transition-all hover:shadow-lg"
+            >
+              הבנתי, בוא נתחיל!
+            </button>
+          </div>
+        </div>
+      )}
+
       </main>
 
       {/* Mobile Bottom Sheet / Controls */}
@@ -2323,6 +2305,7 @@ function App() {
               </button>
             )}
             <button 
+              ref={createBtnMobileRef}
               onClick={handleCustomPromptSubmit} 
               disabled={!customPrompt.trim() || isProcessing}
               className="p-3 bg-primary-500 rounded-xl text-white shadow-lg shadow-primary-900/20 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -2332,42 +2315,114 @@ function App() {
           </div>
           </div>
           
-          {/* Quick Tools Carousel */}
-          <div className="flex gap-3 overflow-x-auto scrollbar-hide py-1 -mx-4 px-4">
+          {/* Quick Tools - Simplified KISS Layout */}
+          <div className="flex justify-center gap-4 py-1">
              <button 
                ref={uploadBtnMobileRef}
                onClick={handleUploadClick} 
                disabled={isProcessing}
-               className="flex flex-col items-center gap-1 min-w-[60px] disabled:opacity-50 disabled:cursor-not-allowed"
+               className="flex flex-col items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
              >
-               <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500/30 to-primary-500/30 flex items-center justify-center border border-blue-400/40 active:scale-95 transition-transform shadow-lg shadow-blue-500/20">
-                 <Upload className="w-5 h-5 text-blue-400" />
+               <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500/30 to-primary-500/30 flex items-center justify-center border border-blue-400/40 active:scale-95 transition-transform shadow-lg shadow-blue-500/20">
+                 <Upload className="w-6 h-6 text-blue-400" />
                </div>
-               <span className="text-[10px] text-blue-300 font-medium">העלאה</span>
+               <span className="text-[10px] text-blue-300 font-medium">העלה תמונה</span>
              </button>
              
-             {[
-               { icon: Wand2, label: 'עיצוב מחדש', action: () => setShowStyleOptions(true) },
-               { icon: Palette, label: 'צבעים', action: () => setShowColorPalette(true) },
-               { icon: Sofa, label: 'ריהוט', action: () => setShowFurnitureOptions(true) },
-               { icon: Lightbulb, label: 'תאורה', action: () => setShowLightingOptions(true) },
-               { icon: Home, label: 'חלונות ודלתות', action: () => setShowDoorsWindowsOptions(true) },
-               { icon: Droplets, label: 'רחצה', action: () => setShowBathroomOptions(true) },
-               { icon: Hammer, label: 'תיקונים ונזקים', action: () => setShowRepairsOptions(true) },
+             <button 
+               ref={addObjectBtnMobileRef}
+               onClick={handleObjectUploadClick}
+               disabled={isProcessing}
+               className="flex flex-col items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+             >
+               <div className={`w-14 h-14 rounded-2xl ${objectImageFile ? 'bg-gradient-to-br from-primary-500/30 to-secondary-500/30 border-primary-400/40' : 'bg-gradient-to-br from-green-500/30 to-emerald-500/30 border-green-400/40'} flex items-center justify-center border active:scale-95 transition-transform shadow-lg shadow-green-500/20`}>
+                 <Plus className={`w-6 h-6 ${objectImageFile ? 'text-primary-400' : 'text-green-400'}`} />
+               </div>
+               <span className={`text-[10px] font-medium ${objectImageFile ? 'text-primary-300' : 'text-green-300'}`}>העלה פריט</span>
+             </button>
+
+             <button 
+               ref={styleBtnMobileRef}
+               onClick={() => setShowStyleOptions(true)}
+               disabled={isProcessing}
+               className="flex flex-col items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+             >
+               <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-500/30 to-pink-500/30 flex items-center justify-center border border-purple-400/40 active:scale-95 transition-transform shadow-lg shadow-purple-500/20">
+                 <Wand2 className="w-6 h-6 text-purple-400" />
+               </div>
+               <span className="text-[10px] text-purple-300 font-medium">עיצוב מחדש</span>
+             </button>
+
+             {/* Mobile Designer Avatar Trigger - Inside Toolbar - Placed before "More" button */}
+             {isMobile && (avatarSuggestions.length > 0 || isAvatarThinking) && (
+                <div className="relative flex flex-col items-center gap-1">
+                  <div className="w-14 h-14 flex items-center justify-center">
+                    <DesignerAvatar 
+                      suggestions={avatarSuggestions} 
+                      onSelect={handleAvatarSuggestionSelect} 
+                      onClose={() => setAvatarSuggestions([])}
+                      isMobile={true}
+                      isThinking={isAvatarThinking}
+                      initialShowSuggestions={shouldAutoOpenAvatar} 
+                    />
+                  </div>
+                  <span className="text-[10px] text-purple-300 font-medium">מעצבת AI</span>
+                </div>
+             )}
+
+             <button 
+               onClick={() => setShowMobileMoreTools(true)}
+               disabled={isProcessing}
+               className="flex flex-col items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+             >
+               <div className="w-14 h-14 rounded-2xl bg-surfaceHighlight/40 flex items-center justify-center border border-white/20 active:scale-95 transition-transform">
+                 <MoreHorizontal className="w-6 h-6 text-textMuted" />
+               </div>
+               <span className="text-[10px] text-textMuted font-medium">עוד</span>
+             </button>
+
+          </div>
+
+          {/* More Tools Modal */}
+          {showMobileMoreTools && (
+            <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={() => setShowMobileMoreTools(false)}>
+              <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+              <div 
+                className="relative w-full max-w-md bg-surface/95 backdrop-blur-xl rounded-t-3xl p-6 pb-8 animate-slide-up border-t border-white/10"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-semibold text-white">כלים נוספים</h3>
+                  <button 
+                    onClick={() => setShowMobileMoreTools(false)}
+                    className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+                  >
+                    <X className="w-5 h-5 text-white" />
+                  </button>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  {[
+                    { icon: Palette, label: 'צבעים', action: () => { setShowColorPalette(true); setShowMobileMoreTools(false); } },
+                    { icon: Sofa, label: 'ריהוט', action: () => { setShowFurnitureOptions(true); setShowMobileMoreTools(false); } },
+                    { icon: Lightbulb, label: 'תאורה', action: () => { setShowLightingOptions(true); setShowMobileMoreTools(false); } },
+                    { icon: Home, label: 'חלונות ודלתות', action: () => { setShowDoorsWindowsOptions(true); setShowMobileMoreTools(false); } },
+                    { icon: Droplets, label: 'רחצה', action: () => { setShowBathroomOptions(true); setShowMobileMoreTools(false); } },
+                    { icon: Hammer, label: 'תיקונים', action: () => { setShowRepairsOptions(true); setShowMobileMoreTools(false); } },
              ].map((tool, i) => (
                <button 
                  key={i}
                  onClick={tool.action} 
                  disabled={isProcessing}
-                 className="flex flex-col items-center gap-1 min-w-[60px] disabled:opacity-50 disabled:cursor-not-allowed"
-               >
-                 <div className="w-12 h-12 rounded-2xl bg-surfaceHighlight/30 flex items-center justify-center border border-white/10 active:scale-95 transition-transform">
-                   <tool.icon className="w-5 h-5 text-textMuted" />
-                 </div>
-                 <span className="text-[10px] text-textMuted">{tool.label}</span>
+                      className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <tool.icon className="w-7 h-7 text-primary-400" />
+                      <span className="text-xs text-white font-medium">{tool.label}</span>
                </button>
              ))}
           </div>
+              </div>
+            </div>
+          )}
 
           {/* Recent History Horizontal Scroll - Hidden on Mobile */}
           <div className="hidden">
@@ -3062,6 +3117,18 @@ function App() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Designer Avatar Component */}
+      {(!isMobile) && (
+        <DesignerAvatar 
+          suggestions={avatarSuggestions} 
+          onSelect={handleAvatarSuggestionSelect} 
+          onClose={() => setAvatarSuggestions([])}
+          isMobile={false}
+          isThinking={isAvatarThinking}
+          initialShowSuggestions={shouldAutoOpenAvatar} 
+        />
       )}
 
       {showOnboarding && (

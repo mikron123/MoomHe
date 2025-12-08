@@ -89,69 +89,78 @@ const OnboardingOverlay = ({ step, steps, onNext, onSkip, onComplete }) => {
     )
   }
 
-  // Positioning logic
-  const tooltipWidth = 300
+  // Positioning logic - adjust for mobile
+  const tooltipWidth = isMobile ? Math.min(280, windowSize.width - 40) : 300
   const tooltipHeight = 200 // Approximate height
-  const gap = 20
+  const gap = isMobile ? 12 : 20
   
   const tooltipStyle = {}
   let arrowClass = ''
   
-  // Detect position on screen
-  const isRightSidebar = targetRect.left > windowSize.width - 350
-  const isLeftSidebar = targetRect.left < 350
-  
-  if (isRightSidebar) {
-      // Place to the left of the target
-      tooltipStyle.left = targetRect.left - tooltipWidth - gap
-      
-      // Vertically center relative to target, but keep within bounds
-      let top = targetRect.top + (targetRect.height / 2) - 80 // 80 is approx half tooltip height or arrow pos
-      
-      // Clamp top to be visible
-      top = Math.max(20, Math.min(windowSize.height - tooltipHeight - 20, top))
-      
-      tooltipStyle.top = top
-      
-      // Arrow points to the right
-      arrowClass = 'top-[80px] -right-[8px] -translate-y-1/2 border-l-white border-t-transparent border-b-transparent border-r-transparent border-[8px]'
-      
-      // If clamped, we might need to adjust arrow pos relative to tooltip top
-      // For simplicity, we assume the button isn't wildly off-center from where we clamped.
-      // If we clamped hard, the arrow might detach. Let's keep it simple for now.
-      
-  } else if (isLeftSidebar) {
-      // Place to the right
-      tooltipStyle.left = targetRect.right + gap
-      
-      let top = targetRect.top + (targetRect.height / 2) - 80
-      top = Math.max(20, Math.min(windowSize.height - tooltipHeight - 20, top))
-      
-      tooltipStyle.top = top
-      
-      arrowClass = 'top-[80px] -left-[8px] -translate-y-1/2 border-r-white border-t-transparent border-b-transparent border-l-transparent border-[8px]'
+  // On mobile, always try to position above or below to avoid side overflow
+  if (isMobile) {
+    // Center horizontally
+    let left = (windowSize.width - tooltipWidth) / 2
+    tooltipStyle.left = left
+    tooltipStyle.width = tooltipWidth
+    
+    const spaceAbove = targetRect.top
+    const spaceBelow = windowSize.height - targetRect.bottom
+    
+    if (spaceAbove > tooltipHeight + gap + 50) {
+      // Place above the element
+      tooltipStyle.top = targetRect.top - tooltipHeight - gap + 20
+      arrowClass = 'bottom-[-8px] left-1/2 -translate-x-1/2 border-t-white border-r-transparent border-l-transparent border-b-transparent border-[8px]'
+    } else {
+      // Place below the element
+      tooltipStyle.top = targetRect.bottom + gap
+      arrowClass = 'top-[-8px] left-1/2 -translate-x-1/2 border-b-white border-r-transparent border-l-transparent border-t-transparent border-[8px]'
+    }
+    
+    // Ensure top doesn't go off screen
+    tooltipStyle.top = Math.max(20, Math.min(windowSize.height - tooltipHeight - 20, tooltipStyle.top))
   } else {
-      // Center / Bottom / Top
-      // Default: Try Top
-      let left = targetRect.left + (targetRect.width / 2) - (tooltipWidth / 2)
-      // Clamp left
-      left = Math.max(20, Math.min(windowSize.width - tooltipWidth - 20, left))
-      tooltipStyle.left = left
+    // Desktop positioning logic
+    const isRightSidebar = targetRect.left > windowSize.width - 350
+    const isLeftSidebar = targetRect.left < 350
+    
+    if (isRightSidebar) {
+        // Place to the left of the target
+        tooltipStyle.left = targetRect.left - tooltipWidth - gap
+        
+        // Vertically center relative to target, but keep within bounds
+        let top = targetRect.top + (targetRect.height / 2) - 80
+        top = Math.max(20, Math.min(windowSize.height - tooltipHeight - 20, top))
+        
+        tooltipStyle.top = top
+        arrowClass = 'top-[80px] -right-[8px] -translate-y-1/2 border-l-white border-t-transparent border-b-transparent border-r-transparent border-[8px]'
+        
+    } else if (isLeftSidebar) {
+        // Place to the right
+        tooltipStyle.left = targetRect.right + gap
+        
+        let top = targetRect.top + (targetRect.height / 2) - 80
+        top = Math.max(20, Math.min(windowSize.height - tooltipHeight - 20, top))
+        
+        tooltipStyle.top = top
+        arrowClass = 'top-[80px] -left-[8px] -translate-y-1/2 border-r-white border-t-transparent border-b-transparent border-l-transparent border-[8px]'
+    } else {
+        // Center / Bottom / Top
+        let left = targetRect.left + (targetRect.width / 2) - (tooltipWidth / 2)
+        left = Math.max(20, Math.min(windowSize.width - tooltipWidth - 20, left))
+        tooltipStyle.left = left
 
-      const spaceAbove = targetRect.top
-      const spaceBelow = windowSize.height - targetRect.bottom
-      
-      if (spaceAbove > tooltipHeight + gap) {
-          // Place Above
-          tooltipStyle.top = targetRect.top - tooltipHeight + 40 // Adjust manually based on estimated height
-          // Better: measure height? No, just use safe margin
-           tooltipStyle.top = targetRect.top - 180 // safe guess
-           arrowClass = 'bottom-[-8px] left-1/2 -translate-x-1/2 border-t-white border-r-transparent border-l-transparent border-b-transparent border-[8px]'
-      } else {
-          // Place Below
-          tooltipStyle.top = targetRect.bottom + gap
-          arrowClass = 'top-[-8px] left-1/2 -translate-x-1/2 border-b-white border-r-transparent border-l-transparent border-t-transparent border-[8px]'
-      }
+        const spaceAbove = targetRect.top
+        const spaceBelow = windowSize.height - targetRect.bottom
+        
+        if (spaceAbove > tooltipHeight + gap) {
+            tooltipStyle.top = targetRect.top - 180
+            arrowClass = 'bottom-[-8px] left-1/2 -translate-x-1/2 border-t-white border-r-transparent border-l-transparent border-b-transparent border-[8px]'
+        } else {
+            tooltipStyle.top = targetRect.bottom + gap
+            arrowClass = 'top-[-8px] left-1/2 -translate-x-1/2 border-b-white border-r-transparent border-l-transparent border-t-transparent border-[8px]'
+        }
+    }
   }
 
   return (
@@ -194,7 +203,7 @@ const OnboardingOverlay = ({ step, steps, onNext, onSkip, onComplete }) => {
 
       {/* Tooltip */}
       <div 
-        className="absolute bg-white text-gray-900 p-5 rounded-xl shadow-2xl w-[300px] pointer-events-auto animate-bounce-in origin-center transition-all duration-300"
+        className={`absolute bg-white text-gray-900 p-5 rounded-xl shadow-2xl pointer-events-auto animate-bounce-in origin-center transition-all duration-300 ${isMobile ? '' : 'w-[300px]'}`}
         style={tooltipStyle}
       >
         <div className={`absolute w-0 h-0 border-solid ${arrowClass}`}></div>

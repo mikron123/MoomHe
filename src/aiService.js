@@ -22,6 +22,7 @@ class AIService {
         deviceId: deviceId, // Pass deviceId
         prompt: prompt,
         imageData: imageData,
+        originalImageUrl: imageData && imageData.startsWith('http') ? imageData : null, // Save original URL if available
         objectImageData: objectImageData,
         isDone: false,
         isError: false,

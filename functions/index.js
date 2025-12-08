@@ -32,7 +32,7 @@ async function checkAndUpdateGenerationCount(userId, deviceId) {
   // User previously used monthYear, but prompt says "genCount/{date}users/uid/". 
   // I will assume daily limit tracking for genCount, but subscription credits are monthly.
   // Wait, "it will be calculated by listening to the record genCount/{date}users/uid/ count field and substracting it from the users/ user record "credits" field"
-  // If credits is 3 (free) or 40 (monthly), and genCount is DAILY, then subtraction makes no sense unless credits are DAILY.
+  // If credits is 2 (free) or 40 (monthly), and genCount is DAILY, then subtraction makes no sense unless credits are DAILY.
   // BUT subscription credits (40/100/200) are typically MONTHLY.
   // If I use daily genCount, then `Credits - DailyUsage` = Remaining for today? No, that contradicts monthly credits.
   // If the user means `genCount` accumulates ALL usage for the billing period, then `{date}` is confusing.
@@ -44,9 +44,9 @@ async function checkAndUpdateGenerationCount(userId, deviceId) {
   // So Usage must be tracked for the same period.
   // If the user specified `{date}` path, maybe they mean the billing cycle start date?
   // Or maybe they want daily limits?
-  // Given "3 images to create" default for new users, and "40/100/200" for subs.
-  // If I start with 3 free images. I use 1. genCount = 1. Remaining = 3 - 1 = 2.
-  // If genCount resets tomorrow (because of `{date}`), then I get 3 free images EVERY DAY?
+  // Given "2 images to create" default for new users, and "40/100/200" for subs.
+  // If I start with 2 free images. I use 1. genCount = 1. Remaining = 2 - 1 = 1.
+  // If genCount resets tomorrow (because of `{date}`), then I get 2 free images EVERY DAY?
   // That seems generous but possible.
   // OR, `credits` is a decremented balance?
   // "users/ user record 'credits' field" ... "substracting it from the ... count field".
@@ -76,12 +76,12 @@ async function checkAndUpdateGenerationCount(userId, deviceId) {
     ]);
     
     // Get User Limits
-    let creditLimit = 3; // Default free limit
+    let creditLimit = 2; // Default free limit
     let subscriptionStatus = 0;
     
     if (userProfileDoc.exists) {
       const userData = userProfileDoc.data();
-      creditLimit = userData.credits || 3;
+      creditLimit = userData.credits || 2;
       subscriptionStatus = userData.subscription || 0;
     }
 
@@ -91,7 +91,7 @@ async function checkAndUpdateGenerationCount(userId, deviceId) {
     
     // Logic:
     // If Subscription > 0, we trust the User ID limit (paying user).
-    // If Subscription == 0 (Free), we enforce the stricter of User Count OR Device Count against the limit (3).
+    // If Subscription == 0 (Free), we enforce the stricter of User Count OR Device Count against the limit (2).
     // This prevents creating new users on same device to bypass limit.
     
     const effectiveCount = subscriptionStatus > 0 ? userCount : Math.max(userCount, deviceCount);
@@ -177,7 +177,7 @@ Hebrew text: ${hebrewPrompt}`;
 
 // Helper function to process image with Gemini
 async function processImageWithGemini(prompt, imageData, isObjectDetection = false, objectImageData = null, docId = null) {
-  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-image-preview" });
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-image" });
   
   try {
     // Log image data info for debugging
@@ -307,10 +307,10 @@ exports.onUserCreated = onDocumentCreated('users/{userId}', async (event) => {
   
   logger.info(`Setting default credits for new user: ${event.params.userId}`);
   
-  // Set default credits (3) and subscription (0 - no subscription)
+  // Set default credits (2) and subscription (0 - no subscription)
   // Using set with merge to avoid overwriting other fields if they exist
   return snapshot.ref.set({
-    credits: 3,
+    credits: 2,
     subscription: 0,
     updatedAt: admin.firestore.FieldValue.serverTimestamp()
   }, { merge: true });
@@ -564,6 +564,89 @@ exports.processImageRequest = onDocumentCreated('userHistory/{docId}', async (ev
       objectImageData: admin.firestore.FieldValue.delete(),
       authToken: admin.firestore.FieldValue.delete()
     });
+  }
+});
+
+// Cloud function triggered when a new userHistory document is created
+exports.generateSuggestions = onDocumentCreated('userHistory/{docId}', async (event) => {
+  const docId = event.params.docId;
+  const docData = event.data.data();
+
+  // Only run for uploaded images (not requests, not generated ones) and if suggestions don't exist yet
+  if (docData.type !== 'uploaded' || docData.suggestions) {
+    return;
+  }
+
+  logger.info(`Generating interior design suggestions for document: ${docId}`);
+
+  try {
+    const imageUrl = docData.storageUrl || docData.originalImageUrl;
+    if (!imageUrl) {
+      logger.warn('No image URL found for generating suggestions');
+      return;
+    }
+
+    // Fetch the image
+    const response = await fetch(imageUrl);
+    const arrayBuffer = await response.arrayBuffer();
+    const base64Data = Buffer.from(arrayBuffer).toString('base64');
+    const mimeType = response.headers.get('content-type') || 'image/jpeg';
+    
+    const imageData = {
+      inlineData: {
+        data: base64Data,
+        mimeType: mimeType
+      }
+    };
+
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    
+    // Prompt for suggestions
+    const prompt = `
+      You are a witty, creative, and professional interior designer. 
+      Analyze this room image and provide 5 specific, actionable suggestions to improve, renovate, or redesign it.
+      
+      For each suggestion provide:
+      1. "label": A short, catchy title in Hebrew (3-6 words) that describes the change.
+      2. "prompt": A detailed English prompt that I can feed into an AI image generator to visualize this specific change. It should describe the entire room but emphasize this specific modification.
+      
+      Return ONLY a valid JSON array of objects with keys "label" and "prompt". Do not wrap in markdown code blocks.
+      Example:
+      [
+        { "label": "הוספת צמחים ירוקים ורעננים", "prompt": "A modern living room with lush green potted plants added to the corners and shelves, bright natural lighting, photorealistic" },
+        ...
+      ]
+    `;
+
+    const result = await model.generateContent([prompt, imageData]);
+    const responseText = result.response.text();
+    
+    // Clean and parse JSON
+    let cleanResponse = responseText
+      .replace(/```json\s*/gi, '')
+      .replace(/```\s*/g, '')
+      .trim();
+      
+    let suggestions = [];
+    try {
+      suggestions = JSON.parse(cleanResponse);
+    } catch (e) {
+      logger.error('Failed to parse suggestions JSON:', e);
+      // Fallback parsing or retry logic could go here
+      return;
+    }
+
+    if (Array.isArray(suggestions) && suggestions.length > 0) {
+      // Update Firestore document
+      await db.collection('userHistory').doc(docId).update({
+        suggestions: suggestions,
+        suggestionsGeneratedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+      logger.info(`Successfully generated ${suggestions.length} suggestions for ${docId}`);
+    }
+
+  } catch (error) {
+    logger.error('Error generating suggestions:', error);
   }
 });
 
@@ -982,4 +1065,3 @@ exports.onUserEmailUpdate = onDocumentUpdated('users/{userId}', async (event) =>
     throw error;
   }
 });
-// Translation feature added
