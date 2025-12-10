@@ -151,12 +151,50 @@
             <p class="text-sm text-gray-300 line-clamp-3">${prompt}</p>
           </div>
           
-          ${data.userId ? `<p class="text-xs text-gray-600 mt-2 font-mono">User: ${data.userId.slice(0, 12)}...</p>` : ''}
+          ${data.generationCount !== undefined ? `<p class="text-xs text-emerald-400 mt-2">🔢 Generation Count: ${data.generationCount}</p>` : ''}
+          ${data.userId ? `
+            <div class="flex items-center gap-2 mt-2">
+              <p class="text-xs text-gray-600 font-mono">User: ${data.userId.slice(0, 12)}...</p>
+              <button 
+                onclick="copyUserId('${data.userId}')" 
+                class="copy-btn text-xs bg-gray-700/50 hover:bg-purple-600/30 text-gray-400 hover:text-purple-400 px-2 py-1 rounded transition-all flex items-center gap-1"
+                title="Copy full UID"
+              >
+                <span class="copy-icon">📋</span>
+                <span class="copy-text">Copy</span>
+              </button>
+            </div>
+          ` : ''}
         </div>
       `;
 
       return card;
     }
+
+    // Copy user ID to clipboard
+    window.copyUserId = async (userId) => {
+      try {
+        await navigator.clipboard.writeText(userId);
+        // Show feedback - find the clicked button and update it
+        event.target.closest('.copy-btn').innerHTML = '<span class="copy-icon">✅</span><span class="copy-text">Copied!</span>';
+        setTimeout(() => {
+          event.target.closest('.copy-btn').innerHTML = '<span class="copy-icon">📋</span><span class="copy-text">Copy</span>';
+        }, 1500);
+      } catch (err) {
+        console.error('Failed to copy:', err);
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = userId;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        event.target.closest('.copy-btn').innerHTML = '<span class="copy-icon">✅</span><span class="copy-text">Copied!</span>';
+        setTimeout(() => {
+          event.target.closest('.copy-btn').innerHTML = '<span class="copy-icon">📋</span><span class="copy-text">Copy</span>';
+        }, 1500);
+      }
+    };
   </script>
   <style>
     body {

@@ -606,14 +606,16 @@ exports.generateSuggestions = onDocumentCreated('userHistory/{docId}', async (ev
       You are a witty, creative, and professional interior designer. 
       Analyze this room image and provide 5 specific, actionable suggestions to improve, renovate, or redesign it.
       
+      IMPORTANT: Every suggestion must preserve the room's general structure, shape, and window/door openings exactly as they appear in the original image. Only change the interior design elements like furniture, colors, decor, lighting fixtures, etc.
+      
       For each suggestion provide:
       1. "label": A short, catchy title in Hebrew (3-6 words) that describes the change.
-      2. "prompt": A detailed English prompt that I can feed into an AI image generator to visualize this specific change. It should describe the entire room but emphasize this specific modification.
+      2. "prompt": A detailed English prompt that I can feed into an AI image generator to visualize this specific change. It should describe the entire room but emphasize this specific modification. CRITICAL: Each prompt MUST include the instruction to "maintain the exact same room structure, layout, walls, window openings, and door positions as the original image".
       
       Return ONLY a valid JSON array of objects with keys "label" and "prompt". Do not wrap in markdown code blocks.
       Example:
       [
-        { "label": "הוספת צמחים ירוקים ורעננים", "prompt": "A modern living room with lush green potted plants added to the corners and shelves, bright natural lighting, photorealistic" },
+        { "label": "הוספת צמחים ירוקים ורעננים", "prompt": "A modern living room with lush green potted plants added to the corners and shelves, bright natural lighting, photorealistic. Maintain the exact same room structure, layout, walls, window openings, and door positions as the original image." },
         ...
       ]
     `;

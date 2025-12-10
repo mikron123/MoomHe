@@ -87,9 +87,9 @@ const DesignerAvatar = ({ suggestions, onSelect, onClose, isMobile = false, isTh
               className="relative w-full max-w-md bg-surface/95 backdrop-blur-xl rounded-t-3xl p-6 pb-8 animate-slide-up border-t border-white/10 max-h-[70vh] overflow-hidden flex flex-col"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between mb-4 flex-row-reverse">
-                <div className="flex items-center gap-3 flex-row-reverse">
-                  <div className="w-10 h-10 rounded-full border-2 border-white/20 overflow-hidden bg-purple-100">
+              <div className="flex items-center justify-between mb-4" dir="rtl">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full border-2 border-white/20 overflow-hidden bg-purple-100 flex-shrink-0">
                     <img src={avatarImage} alt="AI" className="w-full h-full object-cover" />
                   </div>
                   <div className="text-right">
@@ -177,7 +177,7 @@ const DesignerAvatar = ({ suggestions, onSelect, onClose, isMobile = false, isTh
 
               {isThinking ? (
                 <div className="flex items-center gap-2" dir="rtl">
-                  <p className="text-gray-600 text-sm font-medium">מנתחת את החלל...</p>
+                  <p className="text-gray-600 text-sm font-medium">חושבת על הצעות עיצוב...</p>
                   {/* Typing dots */}
                    <div className="flex space-x-1 flex-row-reverse">
                      <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>

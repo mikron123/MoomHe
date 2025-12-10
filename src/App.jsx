@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { Upload, Plus, Palette, RotateCcw, Download, Settings, Home, TreePine, Car, Heart, Hammer, Sparkles, Package, User, Share2, Wand2, Type, Loader2, RotateCw, Lightbulb, Sofa, Droplets, ArrowLeftRight, MessageCircle, HelpCircle, CheckCircle, Mail, History, MoreHorizontal, X } from 'lucide-react'
+import { Upload, Plus, Palette, RotateCcw, Download, Settings, Home, TreePine, Car, Heart, Hammer, Sparkles, Package, User, Share2, Wand2, Type, Loader2, RotateCw, Lightbulb, Sofa, Droplets, ArrowLeftRight, MessageCircle, HelpCircle, CheckCircle, Mail, History, MoreHorizontal, X, Power } from 'lucide-react'
 import { 
   fileToGenerativePart, urlToFile, signInUser, createOrUpdateUser, saveImageToHistory, 
   saveUploadToHistory, loadUserHistory, loadUserHistoryPaginated, auth, uploadImageForSharing, 
@@ -24,10 +24,12 @@ import LimitReachedModal from './LimitReachedModal'
 import WelcomePremiumModal from './WelcomePremiumModal'
 import BeforeAfterSlider from './BeforeAfterSlider'
 import DesignerAvatar from './DesignerAvatar'
+import MobileMenuModal from './MobileMenuModal'
 
 function App() {
   // Onboarding State
   const [showOnboarding, setShowOnboarding] = useState(false)
+  const [showMobileMenu, setShowMobileMenu] = useState(false)
   const [onboardingStep, setOnboardingStep] = useState(0)
   const [showNotification, setShowNotification] = useState(null)
   const [showFirstUploadTip, setShowFirstUploadTip] = useState(false)
@@ -76,6 +78,10 @@ function App() {
   const [avatarSuggestions, setAvatarSuggestions] = useState([])
   const [isAvatarThinking, setIsAvatarThinking] = useState(false)
   const [shouldAutoOpenAvatar, setShouldAutoOpenAvatar] = useState(false)
+  const [isDesignerAvatarEnabled, setIsDesignerAvatarEnabled] = useState(() => {
+    const saved = localStorage.getItem('designerAvatarEnabled')
+    return saved === null ? true : saved === 'true' // Default to enabled
+  })
   const [customPrompt, setCustomPrompt] = useState('')
   const [imageAspectRatio, setImageAspectRatio] = useState(16/9) // Default to 16:9
   const [activeColorCategory, setActiveColorCategory] = useState('אדומים') // Default to reds
@@ -476,9 +482,11 @@ function App() {
             setCurrentHistoryId(newHistoryId)
             console.log('Set current history ID to newly uploaded image:', newHistoryId)
             
-            // Set thinking state for avatar suggestions
-            setIsAvatarThinking(true)
-            setShouldAutoOpenAvatar(true) // Auto-open suggestions when they arrive
+            // Set thinking state for avatar suggestions (only if enabled)
+            if (isDesignerAvatarEnabled) {
+              setIsAvatarThinking(true)
+              setShouldAutoOpenAvatar(true) // Auto-open suggestions when they arrive
+            }
             
             console.log('Current history after reload:', historyResult.history.map(h => ({ id: h.id, prompt: h.prompt })))
           } catch (error) {
@@ -538,7 +546,7 @@ function App() {
 
   // Listen for suggestions on current uploaded image
   useEffect(() => {
-    if (!currentHistoryId) {
+    if (!currentHistoryId || !isDesignerAvatarEnabled) {
       setAvatarSuggestions([])
       setIsAvatarThinking(false)
       return
@@ -547,8 +555,8 @@ function App() {
     const unsubscribe = onSnapshot(doc(db, 'userHistory', currentHistoryId), (docSnapshot) => {
       if (docSnapshot.exists()) {
         const data = docSnapshot.data()
-        // Only show if we have suggestions
-        if (data.suggestions && Array.isArray(data.suggestions) && data.suggestions.length > 0) {
+        // Only show if we have suggestions and avatar is enabled
+        if (isDesignerAvatarEnabled && data.suggestions && Array.isArray(data.suggestions) && data.suggestions.length > 0) {
           setAvatarSuggestions(data.suggestions)
           setIsAvatarThinking(false)
         }
@@ -556,7 +564,7 @@ function App() {
     })
     
     return () => unsubscribe()
-  }, [currentHistoryId])
+  }, [currentHistoryId, isDesignerAvatarEnabled])
 
   const handleAvatarSuggestionSelect = (suggestion) => {
     const prompt = suggestion.prompt
@@ -572,6 +580,17 @@ function App() {
     
     // Don't clear suggestions - keep them available for other choices
     // setAvatarSuggestions([]) <-- removed this line to keep suggestions visible
+  }
+
+  const toggleDesignerAvatar = () => {
+    const newValue = !isDesignerAvatarEnabled
+    setIsDesignerAvatarEnabled(newValue)
+    localStorage.setItem('designerAvatarEnabled', newValue.toString())
+    // If disabling, clear current suggestions
+    if (!newValue) {
+      setAvatarSuggestions([])
+      setIsAvatarThinking(false)
+    }
   }
 
   const handleWhatsAppShare = async () => {
@@ -683,6 +702,8 @@ function App() {
     setCurrentHistoryId(null) // Clear history ID for gallery image
     // Clear objects when selecting gallery image
     setDetectedObjects([])
+    // Don't auto-open avatar for gallery images
+    setShouldAutoOpenAvatar(false)
   }
 
   const handleHistoryImageClick = (historyEntry) => {
@@ -703,17 +724,26 @@ function App() {
     
     setImageAspectRatio(16/9) // Reset to default until new image loads
     setCurrentHistoryId(historyEntry.id)
+    
+    // Don't auto-open avatar suggestions when navigating history
+    // Only auto-open for newly uploaded images
+    setShouldAutoOpenAvatar(false)
   }
 
 
   const handleMainImageClick = () => {
     if (!isProcessing) {
       setShowImageModal(true)
+      // Enable comparison by default when opening modal
+      if (beforeImage) {
+        setShowComparison(true)
+      }
     }
   }
 
   const handleCloseModal = () => {
     setShowImageModal(false)
+    setShowComparison(false)
   }
 
   const handleImageLoad = (event) => {
@@ -1699,6 +1729,10 @@ function App() {
 
         // Clear input after successful execution
         setCustomPrompt('')
+
+        // Auto-open modal with comparison enabled
+        setShowImageModal(true)
+        setShowComparison(true)
       } else {
         alert('התמונה לא עובדה בהצלחה. נסה עם תמונה אחרת או פעולה אחרת.')
       }
@@ -1863,31 +1897,12 @@ function App() {
         
         <div className="flex items-center gap-3">
            {/* Mobile Connected View */}
-           <div className="md:hidden flex items-center bg-surface/50 backdrop-blur-md rounded-full border border-white/10 p-1 pl-1 pr-1 gap-1">
+           <div className="md:hidden flex items-center bg-surface/50 backdrop-blur-md rounded-full border border-white/10 p-1 pl-3 pr-1 gap-1">
              <button 
-               onClick={openSubscriptionModal}
-               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-secondary-500/20 to-secondary-600/20 border border-secondary-500/30"
+               onClick={() => setShowMobileMenu(true)}
+               className="flex items-center gap-3"
              >
-               <span className="text-xs font-bold text-white tabular-nums">
-                 {userCredits - userUsage > 0 ? userCredits - userUsage : 0}
-               </span>
-               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                 <path d="M5 16L3 5L8.5 7L12 4L15.5 7L21 5L19 16H5Z" fill="url(#crownGradientMobile)" stroke="rgba(255,255,255,0.3)" strokeWidth="0.5"/>
-                 <path d="M9 16L12 9L15 16H9Z" fill="rgba(255,255,255,0.2)"/>
-                 <defs>
-                   <linearGradient id="crownGradientMobile" x1="0%" y1="0%" x2="100%" y2="100%">
-                     <stop offset="0%" stopColor="#FFD700" stopOpacity="0.9"/>
-                     <stop offset="50%" stopColor="#FFA500" stopOpacity="0.95"/>
-                     <stop offset="100%" stopColor="#FFD700" stopOpacity="0.9"/>
-                   </linearGradient>
-                 </defs>
-               </svg>
-             </button>
-             
-             <button 
-               onClick={() => currentUser && !currentUser.isAnonymous ? setShowLogoutModal(true) : setShowAuthModal(true)}
-               className="flex items-center justify-center w-8 h-8"
-             >
+               {/* User Avatar */}
                {isAuthenticated ? (
                  <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-primary-500 to-secondary-500 p-0.5">
                    <div className="w-full h-full rounded-full bg-surface flex items-center justify-center text-xs font-bold text-white">
@@ -1899,12 +1914,30 @@ function App() {
                    <User className="w-4 h-4 text-white" />
                  </div>
                )}
+
+               {/* Subscription Badge (Combined) */}
+               <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-gradient-to-r from-secondary-500/20 to-secondary-600/20 border border-secondary-500/30">
+                 <span className="text-xs font-bold text-white tabular-nums">
+                   {userCredits - userUsage > 0 ? userCredits - userUsage : 0}
+                 </span>
+                 <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                   <path d="M5 16L3 5L8.5 7L12 4L15.5 7L21 5L19 16H5Z" fill="url(#crownGradientMobile)" stroke="rgba(255,255,255,0.3)" strokeWidth="0.5"/>
+                   <path d="M9 16L12 9L15 16H9Z" fill="rgba(255,255,255,0.2)"/>
+                   <defs>
+                     <linearGradient id="crownGradientMobile" x1="0%" y1="0%" x2="100%" y2="100%">
+                       <stop offset="0%" stopColor="#FFD700" stopOpacity="0.9"/>
+                       <stop offset="50%" stopColor="#FFA500" stopOpacity="0.95"/>
+                       <stop offset="100%" stopColor="#FFD700" stopOpacity="0.9"/>
+                     </linearGradient>
+                   </defs>
+                 </svg>
+               </div>
              </button>
            </div>
            
            {/* Desktop User Profile & Auth */}
            <button 
-             onClick={() => currentUser && !currentUser.isAnonymous ? setShowLogoutModal(true) : setShowAuthModal(true)}
+             onClick={() => setShowMobileMenu(true)}
              className="hidden md:flex items-center gap-3 px-3 sm:px-4 py-2 rounded-full bg-surface/50 hover:bg-surfaceHighlight/50 border border-white/5 hover:border-white/20 transition-all duration-300 group"
            >
              {isAuthenticated ? (
@@ -1973,15 +2006,15 @@ function App() {
                <span className="text-[11px] text-purple-300 font-medium">עיצוב מחדש</span>
              </button>
 
-             {/* More Tools Button */}
-             <button
+{/* More Tools Button */}
+            <button
                onClick={() => setShowMobileMoreTools(!showMobileMoreTools)}
                disabled={isProcessing}
-               className={`w-full py-3 px-2 flex flex-col items-center justify-center gap-2 group btn-icon ${showMobileMoreTools ? 'btn-icon-active' : ''} disabled:opacity-50 disabled:cursor-not-allowed`}
+               className={`w-full py-3 px-2 flex flex-col items-center justify-center gap-2 group bg-surfaceHighlight/40 border border-white/80 rounded-xl transition-all duration-300 ${showMobileMoreTools ? 'bg-surfaceHighlight/60' : 'hover:bg-surfaceHighlight/50'} disabled:opacity-50 disabled:cursor-not-allowed`}
                title="עוד כלים"
              >
-               <MoreHorizontal className={`w-5 h-5 group-hover:scale-110 transition-transform ${showMobileMoreTools ? 'text-primary-300' : ''}`} />
-               <span className="text-[11px]">עוד</span>
+               <MoreHorizontal className={`w-5 h-5 group-hover:scale-110 transition-transform ${showMobileMoreTools ? 'text-primary-300' : 'text-textMuted'}`} />
+               <span className="text-[11px] text-textMuted font-medium">עוד</span>
              </button>
            </div>
 
@@ -2025,6 +2058,33 @@ function App() {
                   </button>
                 ))}
               </div>
+              
+              {/* Designer Avatar Toggle */}
+              <div className="mt-2 pt-2 border-t border-white/10">
+                <button 
+                  onClick={toggleDesignerAvatar}
+                  className={`flex items-center justify-between w-full p-2 rounded-lg transition-all ${
+                    isDesignerAvatarEnabled 
+                      ? 'bg-emerald-500/20 hover:bg-emerald-500/30' 
+                      : 'hover:bg-white/10'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Power className={`w-5 h-5 ${isDesignerAvatarEnabled ? 'text-emerald-400' : 'text-gray-500'}`} />
+                    <span className="text-sm text-white">מעצבת AI</span>
+                  </div>
+                  <div 
+                    className={`w-9 h-5 rounded-full p-0.5 transition-all ${
+                      isDesignerAvatarEnabled ? 'bg-emerald-500' : 'bg-gray-600'
+                    }`}
+                    dir="ltr"
+                  >
+                    <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${
+                      isDesignerAvatarEnabled ? 'translate-x-4' : 'translate-x-0'
+                    }`} />
+                  </div>
+                </button>
+              </div>
             </div>
           </>
         )}
@@ -2062,25 +2122,7 @@ function App() {
              )}
 
              {/* Floating Actions on Canvas - Horizontal Layout Top Right */}
-             <div className="absolute top-4 right-4 flex flex-row gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 z-10">
-                {beforeImage && !isProcessing && (
-                  <button 
-                    onClick={() => setShowComparison(!showComparison)} 
-                    className={`p-2 ${showComparison ? 'bg-primary-600' : 'bg-black/50'} text-white rounded-lg backdrop-blur-md hover:bg-primary-600/70 transition-colors shadow-lg border border-white/10`} 
-                    title={showComparison ? "סגור השוואה" : "השוואה לפני/אחרי"}
-                  >
-                    <ArrowLeftRight className="w-5 h-5" />
-                  </button>
-                )}
-                
-                <button onClick={handleDownload} className="p-2 bg-black/50 text-white rounded-lg backdrop-blur-md hover:bg-green-600/70 transition-colors shadow-lg border border-white/10" title="הורד תמונה">
-                  <Download className="w-5 h-5" />
-                </button>
-                
-                <button onClick={handleWhatsAppShare} className="p-2 bg-black/50 text-white rounded-lg backdrop-blur-md hover:bg-green-600/70 transition-colors shadow-lg border border-white/10" title="שתף בוואטסאפ">
-                  <MessageCircle className="w-5 h-5" />
-                </button>
-             </div>
+             {/* Removed as requested - Actions are now only in the Image Modal */}
 
              {/* Mobile History Button - Top Left of Image */}
              <button 
@@ -2354,7 +2396,7 @@ function App() {
              </button>
 
              {/* Mobile Designer Avatar Trigger - Inside Toolbar - Placed before "More" button */}
-             {isMobile && (avatarSuggestions.length > 0 || isAvatarThinking) && (
+             {isMobile && !isProcessing && isDesignerAvatarEnabled && (avatarSuggestions.length > 0 || isAvatarThinking) && (
                 <div className="relative flex flex-col items-center gap-1">
                   <div className="w-14 h-14 flex items-center justify-center">
                     <DesignerAvatar 
@@ -2375,7 +2417,7 @@ function App() {
                disabled={isProcessing}
                className="flex flex-col items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
              >
-               <div className="w-14 h-14 rounded-2xl bg-surfaceHighlight/40 flex items-center justify-center border border-white/20 active:scale-95 transition-transform">
+               <div className="w-14 h-14 rounded-2xl bg-surfaceHighlight/40 flex items-center justify-center border border-white/80 active:scale-95 transition-transform">
                  <MoreHorizontal className="w-6 h-6 text-textMuted" />
                </div>
                <span className="text-[10px] text-textMuted font-medium">עוד</span>
@@ -2420,6 +2462,38 @@ function App() {
                </button>
              ))}
           </div>
+                
+                {/* Designer Avatar Toggle */}
+                <div className="mt-4 pt-4 border-t border-white/10">
+                  <button 
+                    onClick={toggleDesignerAvatar}
+                    className={`w-full flex items-center justify-between p-4 rounded-2xl transition-all active:scale-[0.98] ${
+                      isDesignerAvatarEnabled 
+                        ? 'bg-gradient-to-r from-emerald-500/20 to-green-500/20 border border-emerald-400/30' 
+                        : 'bg-white/5 border border-white/10'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Power className={`w-6 h-6 ${isDesignerAvatarEnabled ? 'text-emerald-400' : 'text-gray-500'}`} />
+                      <div className="text-right">
+                        <span className="text-sm text-white font-medium block">מעצבת AI</span>
+                        <span className={`text-xs ${isDesignerAvatarEnabled ? 'text-emerald-300' : 'text-gray-500'}`}>
+                          {isDesignerAvatarEnabled ? 'פעילה - לחץ לכיבוי' : 'כבויה - לחץ להפעלה'}
+                        </span>
+                      </div>
+                    </div>
+                    <div 
+                      className={`w-12 h-7 rounded-full p-1 transition-all ${
+                        isDesignerAvatarEnabled ? 'bg-emerald-500' : 'bg-gray-600'
+                      }`}
+                      dir="ltr"
+                    >
+                      <div className={`w-5 h-5 rounded-full bg-white shadow-md transition-transform ${
+                        isDesignerAvatarEnabled ? 'translate-x-5' : 'translate-x-0'
+                      }`} />
+                    </div>
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -2547,30 +2621,124 @@ function App() {
         </>
       )}
       
-      {/* Image Modal - Full Size View */}
+      {/* Image Modal - Full Size View with Actions */}
       {showImageModal && (
         <div 
-          className="fixed inset-0 bg-black/95 backdrop-blur-sm flex items-center justify-center z-[70] p-4 animate-fade-in"
+          className="fixed inset-0 bg-black/95 backdrop-blur-sm flex items-center justify-center z-[70] p-4 md:p-8 animate-fade-in"
           onClick={handleCloseModal}
         >
-          <div className="relative max-w-[95vw] max-h-[95vh] w-full h-full flex items-center justify-center">
-            <img
-              src={mainImage}
-              alt="Full size view"
-              className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            />
+          <div className="relative w-full h-full flex flex-col items-center justify-center gap-4" onClick={(e) => e.stopPropagation()}>
+            
+            {/* Top Close Button (Mobile Overlay) */}
             <button
               onClick={handleCloseModal}
-              className="absolute top-4 right-4 bg-black/50 hover:bg-black/70 text-white p-3 rounded-full transition-all duration-200 backdrop-blur-md border border-white/10 hover:border-white/20"
+              className="absolute top-2 right-2 bg-black/40 hover:bg-black/60 text-white p-2 rounded-full backdrop-blur-md border border-white/10 z-50 md:hidden"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <X className="w-5 h-5" />
             </button>
-            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/50 text-white px-4 py-2 rounded-full backdrop-blur-md text-sm border border-white/10">
-              לחץ מחוץ לתמונה לסגירה
+
+            {/* Content Area */}
+            <div className={`flex-1 w-full relative flex items-center justify-center overflow-hidden rounded-2xl bg-black/50 border border-white/5 ${isMobile ? 'mb-20' : ''}`}>
+              {beforeImage && showComparison ? (
+                <BeforeAfterSlider 
+                  beforeImage={beforeImage} 
+                  afterImage={mainImage} 
+                />
+              ) : (
+                <img
+                  src={mainImage}
+                  alt="Full size view"
+                  className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+                />
+              )}
             </div>
+
+            {/* Mobile Bottom Bar */}
+            {isMobile ? (
+              <div className="fixed bottom-0 left-0 right-0 bg-surface/95 backdrop-blur-xl border-t border-white/10 p-2 pb-8 z-50 grid grid-cols-4 gap-2">
+                <button 
+                  onClick={() => setShowComparison(!showComparison)}
+                  disabled={!beforeImage}
+                  className={`flex flex-col items-center justify-center gap-1 p-2 rounded-xl transition-all ${
+                    showComparison 
+                      ? 'text-primary-300 bg-primary-500/20' 
+                      : 'text-gray-400 hover:text-white disabled:opacity-30'
+                  }`}
+                >
+                  <ArrowLeftRight className="w-5 h-5" />
+                  <span className="text-[10px] font-medium">השוואה</span>
+                </button>
+
+                <button 
+                  onClick={handleWhatsAppShare}
+                  className="flex flex-col items-center justify-center gap-1 p-2 rounded-xl text-green-400 bg-green-500/10 hover:bg-green-500/20 transition-all"
+                >
+                  <Share2 className="w-5 h-5" />
+                  <span className="text-[10px] font-medium">וואטסאפ</span>
+                </button>
+                
+                <button 
+                  onClick={handleDownload}
+                  className="flex flex-col items-center justify-center gap-1 p-2 rounded-xl text-gray-300 hover:text-white hover:bg-white/10 transition-all"
+                >
+                  <Download className="w-5 h-5" />
+                  <span className="text-[10px] font-medium">הורד</span>
+                </button>
+
+                <button 
+                  onClick={handleCloseModal}
+                  className="flex flex-col items-center justify-center gap-1 p-2 rounded-xl text-red-400 hover:bg-red-500/10 transition-all"
+                >
+                  <X className="w-5 h-5" />
+                  <span className="text-[10px] font-medium">סגור</span>
+                </button>
+              </div>
+            ) : (
+              /* Desktop Floating Bar */
+              <div className="flex items-center gap-4 bg-black/60 backdrop-blur-md p-3 px-6 rounded-2xl border border-white/10 shadow-2xl">
+                <button 
+                  onClick={() => setShowComparison(!showComparison)}
+                  disabled={!beforeImage}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all whitespace-nowrap ${
+                    showComparison 
+                      ? 'bg-primary-500/20 text-primary-300 border-primary-500/30' 
+                      : 'bg-white/5 text-gray-300 border-white/10 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed'
+                  }`}
+                >
+                  <ArrowLeftRight className="w-5 h-5" />
+                  <span className="font-medium text-sm">השוואה</span>
+                </button>
+
+                <div className="w-px h-8 bg-white/10 mx-1"></div>
+
+                <button 
+                  onClick={handleWhatsAppShare}
+                  className="flex items-center gap-2 px-4 py-2 bg-green-600/20 hover:bg-green-600/40 text-green-400 rounded-xl border border-green-500/30 transition-all whitespace-nowrap"
+                >
+                  <Share2 className="w-5 h-5" />
+                  <span className="font-medium text-sm">וואטסאפ</span>
+                </button>
+                
+                <button 
+                  onClick={handleDownload}
+                  className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl border border-white/10 transition-all whitespace-nowrap"
+                >
+                  <Download className="w-5 h-5" />
+                  <span className="font-medium text-sm">הורד</span>
+                </button>
+
+                <div className="w-px h-8 bg-white/10 mx-1"></div>
+
+                <button 
+                  onClick={handleCloseModal}
+                  className="flex items-center gap-2 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-xl border border-red-500/20 transition-all whitespace-nowrap"
+                >
+                  <X className="w-5 h-5" />
+                  <span className="font-medium text-sm">סגור</span>
+                </button>
+              </div>
+            )}
+
           </div>
         </div>
       )}
@@ -2745,21 +2913,49 @@ function App() {
       {/* Auth Modal */}
       {showAuthModal && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[70] flex items-center justify-center p-4 animate-fade-in">
-          <div className="glass-card w-full max-w-md p-8 relative bg-surface border border-white/10 shadow-2xl">
-            <button onClick={() => setShowAuthModal(false)} className="absolute top-4 left-4 text-gray-400 hover:text-white">✕</button>
+          <div className="glass-card w-full max-w-md p-8 relative bg-surface border border-white/10 shadow-2xl overflow-hidden">
+            <button onClick={() => setShowAuthModal(false)} className="absolute top-4 left-4 text-gray-400 hover:text-white z-10">✕</button>
             
-            <div className="text-center mb-8">
-              <div className="flex justify-center mb-6">
+            <div className="text-center mb-6">
+              <div className="flex justify-center mb-4">
                 <div className="relative">
                   <div className="absolute inset-0 bg-gradient-to-r from-primary-500 to-secondary-500 blur-lg opacity-30 rounded-full"></div>
-                  <h1 className="relative text-3xl sm:text-4xl font-bold bg-gradient-to-r from-primary-300 via-white to-secondary-300 bg-clip-text text-transparent tracking-tight">
+                  <h1 className="relative text-3xl font-bold bg-gradient-to-r from-primary-300 via-white to-secondary-300 bg-clip-text text-transparent tracking-tight">
                     מומחה
-                    <span className="text-xl sm:text-2xl align-super mr-1 bg-gradient-to-r from-secondary-400 to-secondary-300 bg-clip-text text-transparent font-light">AI</span>
+                    <span className="text-xl align-super mr-1 bg-gradient-to-r from-secondary-400 to-secondary-300 bg-clip-text text-transparent font-light">AI</span>
                   </h1>
                 </div>
               </div>
-              <h2 className="text-2xl font-bold text-white mb-2">{authMode === 'login' ? 'ברוכים השבים' : 'צור חשבון חדש'}</h2>
-              <p className="text-sm text-gray-400">התחבר כדי לשמור את העיצובים שלך ולקבל גישה לפיצ'רים מתקדמים</p>
+              
+              {/* Tabbed Interface */}
+              <div className="flex bg-black/40 rounded-xl p-1 mb-4 relative">
+                {/* Slider Background */}
+                <div 
+                  className={`absolute inset-y-1 w-[calc(50%-4px)] bg-primary-600 shadow-lg rounded-lg transition-all duration-300 ease-in-out ${authMode === 'signup' ? 'left-[50%]' : 'left-1'}`}
+                ></div>
+                
+                {/* Signup Button (Right in RTL) */}
+                <button
+                  onClick={() => setAuthMode('signup')}
+                  className={`flex-1 py-2 text-sm font-medium rounded-lg relative z-10 transition-colors ${authMode === 'signup' ? 'text-white font-bold' : 'text-gray-400 hover:text-gray-200'}`}
+                >
+                  צור חשבון חדש
+                </button>
+
+                {/* Login Button (Left in RTL) */}
+                <button
+                  onClick={() => setAuthMode('login')}
+                  className={`flex-1 py-2 text-sm font-medium rounded-lg relative z-10 transition-colors ${authMode === 'login' ? 'text-white font-bold' : 'text-gray-400 hover:text-gray-200'}`}
+                >
+                  התחברות
+                </button>
+              </div>
+
+              <p className="text-sm text-gray-400 min-h-[20px]">
+                {authMode === 'login' 
+                  ? 'ברוכים השבים! התחבר כדי להמשיך' 
+                  : 'הצטרף אלינו כדי לשמור עיצובים ולקבל גישה לכל הפיצ\'רים'}
+              </p>
             </div>
 
             <div className="space-y-4">
@@ -2779,13 +2975,15 @@ function App() {
               />
               
               {authMode === 'signup' && (
-                <input
-                  type="password"
-                  placeholder="אמת סיסמה"
-                  value={confirmEmail}
-                  onChange={(e) => setConfirmEmail(e.target.value)}
-                  className="input-glass w-full"
-                />
+                <div className="animate-slide-down">
+                  <input
+                    type="password"
+                    placeholder="אמת סיסמה"
+                    value={confirmEmail}
+                    onChange={(e) => setConfirmEmail(e.target.value)}
+                    className="input-glass w-full"
+                  />
+                </div>
               )}
 
               <div className="text-xs text-gray-400 text-center mt-2 mb-4 px-2">
@@ -2800,18 +2998,12 @@ function App() {
                 disabled={isLoadingAuth}
                 className="btn-primary w-full py-3 text-lg mt-4"
               >
-                {isLoadingAuth ? <Loader2 className="w-6 h-6 animate-spin mx-auto" /> : (authMode === 'login' ? 'התחבר' : 'הרשם')}
+                {isLoadingAuth ? <Loader2 className="w-6 h-6 animate-spin mx-auto" /> : (authMode === 'login' ? 'התחבר' : 'צור חשבון')}
               </button>
               
-              <div className="flex justify-between items-center mt-6 text-sm">
-                <button 
-                  onClick={() => setAuthMode(authMode === 'login' ? 'signup' : 'login')}
-                  className="text-primary-300 hover:text-primary-200"
-                >
-                  {authMode === 'login' ? 'אין לך חשבון? הרשם' : 'יש לך חשבון? התחבר'}
-                </button>
+              <div className="flex justify-center items-center mt-4 text-sm">
                 {authMode === 'login' && (
-                  <button onClick={handlePasswordReset} className="text-gray-400 hover:text-white">
+                  <button onClick={handlePasswordReset} className="text-gray-400 hover:text-white text-xs">
                     שכחת סיסמה?
                   </button>
                 )}
@@ -2847,6 +3039,20 @@ function App() {
         userSubscription={userSubscription}
         currentUsage={userUsage}
         limit={userCredits}
+      />
+
+      <MobileMenuModal
+        isOpen={showMobileMenu}
+        onClose={() => setShowMobileMenu(false)}
+        user={currentUser}
+        userCredits={userCredits}
+        userUsage={userUsage}
+        onLogin={() => {
+          setAuthMode('login')
+          setShowAuthModal(true)
+        }}
+        onLogout={() => setShowLogoutModal(true)}
+        onSubscriptionClick={openSubscriptionModal}
       />
 
       <WelcomePremiumModal 
@@ -3120,7 +3326,7 @@ function App() {
       )}
 
       {/* Designer Avatar Component */}
-      {(!isMobile) && (
+      {(!isMobile && !isProcessing && isDesignerAvatarEnabled) && (
         <DesignerAvatar 
           suggestions={avatarSuggestions} 
           onSelect={handleAvatarSuggestionSelect} 
@@ -3286,4 +3492,5 @@ function App() {
 }
 
 export default App
+
 
