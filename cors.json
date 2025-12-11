@@ -1,6 +1,6 @@
 [
   {
-    "origin": ["http://localhost:3000", "http://localhost:5173", "https://moomhe-6de30.firebaseapp.com"],
+    "origin": ["http://localhost:3000", "http://localhost:5173", "https://moomhe-6de30.firebaseapp.com", "https://moomhe-6de30.web.app", "https://moomhe.com", "https://www.moomhe.com"],
     "method": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     "maxAgeSeconds": 3600,
     "responseHeader": ["Content-Type", "Authorization", "Access-Control-Allow-Origin", "Access-Control-Allow-Methods", "Access-Control-Allow-Headers", "Access-Control-Allow-Credentials"]

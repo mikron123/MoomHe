@@ -509,32 +509,22 @@ function App() {
     try {
       let imageUrl = mainImage
       
-      // If it's a Firebase Storage URL, we can use it directly
-      if (imageUrl.startsWith('https://firebasestorage.googleapis.com/')) {
-        // For Firebase Storage URLs, we can download directly
-        const link = document.createElement('a')
-        link.href = imageUrl
-        link.download = 'moomhe-design.png'
-        link.target = '_blank'
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
-      } else {
-        // For data URLs or other URLs, fetch and download
-        const response = await fetch(imageUrl)
-        const blob = await response.blob()
-        const url = window.URL.createObjectURL(blob)
-        const link = document.createElement('a')
-        link.href = url
-        link.download = 'moomhe-design.png'
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
-        window.URL.revokeObjectURL(url)
-      }
+      // Fetch the image as a blob to force download
+      const response = await fetch(imageUrl)
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `moomhe-design-${Date.now()}.png`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+      
     } catch (error) {
       console.error('Download failed:', error)
-      // Fallback: try to open the image in a new tab
+      // Fallback: try to open the image in a new tab if blob fetch fails
       try {
         window.open(mainImage, '_blank')
       } catch (fallbackError) {
