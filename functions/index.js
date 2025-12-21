@@ -4,6 +4,7 @@ const { logger } = require('firebase-functions');
 const admin = require('firebase-admin');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const sharp = require('sharp');
+const FormData = require('form-data');
 
 // Initialize Firebase Admin
 admin.initializeApp();
@@ -13,6 +14,12 @@ const storage = admin.storage();
 
 // Initialize Gemini AI
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+// Azure OpenAI GPT-image-1.5 Configuration (Experimental)
+const AZURE_OPENAI_ENDPOINT = process.env.AZURE_OPENAI_ENDPOINT || 'https://mikronator-5864-resource.cognitiveservices.azure.com/';
+const AZURE_DEPLOYMENT_NAME = process.env.AZURE_DEPLOYMENT_NAME || 'gpt-image-1.5';
+const AZURE_API_VERSION = process.env.AZURE_API_VERSION || '2025-04-01-preview';
+const AZURE_OPENAI_API_KEY = process.env.AZURE_OPENAI_API_KEY;
 
 // Helper function to validate Firebase user token
 async function validateUserToken(authToken) {
@@ -291,6 +298,139 @@ async function processImageWithGemini(prompt, imageData, isObjectDetection = fal
   }
 }
 
+// Helper function to process image with Azure GPT-image-1.5 (Experimental)
+async function processImageWithGPTImage(prompt, imageData, docId = null) {
+  if (!AZURE_OPENAI_API_KEY) {
+    throw new Error('Azure OpenAI API key not configured');
+  }
+
+  try {
+    logger.info(`[GPT-Image-1.5] Processing image edit request`);
+    logger.info(`[GPT-Image-1.5] Prompt: ${prompt}`);
+    logger.info(`[GPT-Image-1.5] Image data length: ${imageData.inlineData.data.length}`);
+
+    // Translate Hebrew prompt to English
+    const englishPrompt = await translatePromptToEnglish(prompt);
+    
+    // Save the original Hebrew prompt and translated English prompt for review
+    if (docId) {
+      logger.info(`[GPT-Image-1.5] Updating document ${docId} with translation data`);
+      await db.collection('userHistory').doc(docId).update({
+        originalPrompt: prompt,
+        translatedPrompt: englishPrompt,
+        aiModel: 'gpt-image-1.5'
+      });
+    }
+
+    // Convert base64 to buffer for the image
+    const imageBuffer = Buffer.from(imageData.inlineData.data, 'base64');
+    
+    // Get image dimensions to determine aspect ratio
+    const imageMetadata = await sharp(imageBuffer).metadata();
+    const inputWidth = imageMetadata.width;
+    const inputHeight = imageMetadata.height;
+    const aspectRatio = inputWidth / inputHeight;
+    
+    logger.info(`[GPT-Image-1.5] Input image dimensions: ${inputWidth}x${inputHeight}, aspect ratio: ${aspectRatio.toFixed(2)}`);
+    
+    // Choose output size based on aspect ratio
+    // Available sizes: 1024x1024 (1:1), 1536x1024 (1.5:1 landscape), 1024x1536 (0.67:1 portrait)
+    let outputSize;
+    if (aspectRatio > 1.25) {
+      // Landscape image (wider than 5:4)
+      outputSize = '1536x1024';
+    } else if (aspectRatio < 0.8) {
+      // Portrait image (taller than 4:5)
+      outputSize = '1024x1536';
+    } else {
+      // Square-ish image
+      outputSize = '1024x1024';
+    }
+    
+    logger.info(`[GPT-Image-1.5] Selected output size: ${outputSize}`);
+    
+    // Convert to PNG using sharp for consistent format (Azure prefers PNG)
+    const pngBuffer = await sharp(imageBuffer)
+      .png()
+      .toBuffer();
+    
+    logger.info(`[GPT-Image-1.5] Converted image to PNG, size: ${pngBuffer.length} bytes`);
+
+    // Build the Azure OpenAI edit endpoint URL
+    const editUrl = `${AZURE_OPENAI_ENDPOINT}openai/deployments/${AZURE_DEPLOYMENT_NAME}/images/edits?api-version=${AZURE_API_VERSION}`;
+    
+    logger.info(`[GPT-Image-1.5] Calling Azure endpoint: ${editUrl}`);
+
+    // Create form data for the multipart request
+    const formData = new FormData();
+    formData.append('image', pngBuffer, {
+      filename: 'input_image.png',
+      contentType: 'image/png',
+      knownLength: pngBuffer.length
+    });
+    formData.append('prompt', englishPrompt);
+    formData.append('n', '1');
+    formData.append('size', outputSize);
+    formData.append('quality', 'low');
+
+    // Get form data as buffer for proper fetch compatibility
+    const formBuffer = formData.getBuffer();
+    const formHeaders = formData.getHeaders();
+
+    // Make the request to Azure OpenAI
+    const response = await fetch(editUrl, {
+      method: 'POST',
+      headers: {
+        'Api-Key': AZURE_OPENAI_API_KEY,
+        ...formHeaders,
+        'Content-Length': formBuffer.length.toString()
+      },
+      body: formBuffer
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      logger.error(`[GPT-Image-1.5] Azure API error: ${response.status} - ${errorText}`);
+      throw new Error(`Azure API error: ${response.status} - ${errorText}`);
+    }
+
+    const result = await response.json();
+    
+    logger.info(`[GPT-Image-1.5] Response received successfully`);
+    logger.info(`[GPT-Image-1.5] Response data count: ${result.data?.length || 0}`);
+
+    // Extract the generated image from the response
+    if (result.data && result.data.length > 0 && result.data[0].b64_json) {
+      const generatedImageBase64 = result.data[0].b64_json;
+      logger.info(`[GPT-Image-1.5] Generated image base64 length: ${generatedImageBase64.length}`);
+      
+      return {
+        type: 'image',
+        content: `data:image/png;base64,${generatedImageBase64}`
+      };
+    } else if (result.data && result.data.length > 0 && result.data[0].url) {
+      // If Azure returns a URL instead of base64, fetch it
+      const imageUrl = result.data[0].url;
+      logger.info(`[GPT-Image-1.5] Fetching generated image from URL: ${imageUrl}`);
+      
+      const imageResponse = await fetch(imageUrl);
+      const imageArrayBuffer = await imageResponse.arrayBuffer();
+      const imageBase64 = Buffer.from(imageArrayBuffer).toString('base64');
+      
+      return {
+        type: 'image',
+        content: `data:image/png;base64,${imageBase64}`
+      };
+    } else {
+      logger.error(`[GPT-Image-1.5] Unexpected response structure:`, JSON.stringify(result));
+      throw new Error('No image data in Azure OpenAI response');
+    }
+  } catch (error) {
+    logger.error(`[GPT-Image-1.5] Error:`, error);
+    throw error;
+  }
+}
+
 // Cloud function triggered when a new user document is created
 exports.onUserCreated = onDocumentCreated('users/{userId}', async (event) => {
   const snapshot = event.data;
@@ -323,6 +463,12 @@ exports.processImageRequest = onDocumentCreated('userHistory/{docId}', async (ev
   
   // Skip if already processed or if it's not a request
   if (docData.isDone || docData.type !== 'request') {
+    return;
+  }
+  
+  // Skip if marked for experimental processing (will be handled by processImageRequestExperimental)
+  if (docData.useExperimentalModel === true) {
+    logger.info(`Skipping document ${docId} - marked for experimental GPT-image-1.5 processing`);
     return;
   }
   
@@ -560,6 +706,155 @@ exports.processImageRequest = onDocumentCreated('userHistory/{docId}', async (ev
       error: error.message,
       processedAt: admin.firestore.FieldValue.serverTimestamp(),
       // Clean up large data fields even on error to save storage and costs
+      imageData: admin.firestore.FieldValue.delete(),
+      objectImageData: admin.firestore.FieldValue.delete(),
+      authToken: admin.firestore.FieldValue.delete()
+    });
+  }
+});
+
+// EXPERIMENTAL: Cloud function triggered when a new userHistory document is created with experimental flag
+// This uses Azure GPT-image-1.5 instead of Gemini for image generation
+exports.processImageRequestExperimental = onDocumentCreated('userHistory/{docId}', async (event) => {
+  const docId = event.params.docId;
+  const docData = event.data.data();
+  
+  // Skip if already processed, not a request, or not marked for experimental processing
+  if (docData.isDone || docData.type !== 'request' || !docData.useExperimentalModel) {
+    return;
+  }
+  
+  // Only handle image generation requests (not object detection)
+  if (docData.requestType !== 'imageGeneration') {
+    return;
+  }
+  
+  logger.info(`[EXPERIMENTAL] Processing image request with GPT-image-1.5 for document: ${docId}`);
+  
+  try {
+    // Validate user token
+    const user = await validateUserToken(docData.authToken);
+    const userId = user.uid;
+    
+    // Get device ID from docData
+    const deviceId = docData.deviceId;
+    
+    // Reject requests without a valid device ID
+    if (!deviceId || deviceId === 'unknown_device') {
+      throw new Error('Valid device ID is required for generation requests');
+    }
+
+    // Check generation count
+    const { count, limit } = await checkAndUpdateGenerationCount(userId, deviceId);
+    logger.info(`[EXPERIMENTAL] User ${userId} generation count: ${count}/${limit}`);
+    
+    // Prepare image data
+    let imageData;
+    let originalImageUrl = null;
+    
+    logger.info(`[EXPERIMENTAL] Processing image - type: ${typeof docData.imageData}, starts with data: ${docData.imageData?.startsWith('data:')}`);
+    
+    // Handle different image data formats
+    if (docData.imageData.startsWith('data:')) {
+      // Data URL format
+      const [header, base64Data] = docData.imageData.split(',');
+      const mimeType = header.match(/data:([^;]+)/)?.[1] || 'image/jpeg';
+      imageData = {
+        inlineData: {
+          data: base64Data,
+          mimeType: mimeType
+        }
+      };
+      
+      // Upload original image to storage
+      const timestamp = Date.now();
+      const originalFilename = `original_${timestamp}.jpg`;
+      const originalBuffer = Buffer.from(base64Data, 'base64');
+      originalImageUrl = await uploadToStorage(userId, originalBuffer, originalFilename);
+    } else if (docData.imageData.startsWith('http')) {
+      // URL format
+      originalImageUrl = docData.imageData;
+      
+      const response = await fetch(docData.imageData);
+      const arrayBuffer = await response.arrayBuffer();
+      const base64Data = Buffer.from(arrayBuffer).toString('base64');
+      const mimeType = response.headers.get('content-type') || 'image/jpeg';
+      imageData = {
+        inlineData: {
+          data: base64Data,
+          mimeType: mimeType
+        }
+      };
+    } else {
+      // Assume it's already base64
+      imageData = {
+        inlineData: {
+          data: docData.imageData,
+          mimeType: 'image/jpeg'
+        }
+      };
+      
+      // Upload original image to storage
+      const timestamp = Date.now();
+      const originalFilename = `original_${timestamp}.jpg`;
+      const originalBuffer = Buffer.from(docData.imageData, 'base64');
+      originalImageUrl = await uploadToStorage(userId, originalBuffer, originalFilename);
+    }
+    
+    // Process with GPT-image-1.5
+    const result = await processImageWithGPTImage(docData.prompt, imageData, docId);
+    
+    if (result.type === 'image') {
+      // Convert base64 to buffer
+      const base64Data = result.content.split(',')[1];
+      const imageBuffer = Buffer.from(base64Data, 'base64');
+      
+      // Create thumbnail
+      const thumbnailBuffer = await createThumbnail(imageBuffer);
+      
+      // Upload full image
+      const timestamp = Date.now();
+      const filename = `generated_gpt_${timestamp}.jpg`;
+      const thumbnailFilename = `generated_gpt_thumb_${timestamp}.jpg`;
+      
+      const imageUrl = await uploadToStorage(userId, imageBuffer, filename);
+      const thumbnailUrl = await uploadToStorage(userId, thumbnailBuffer, thumbnailFilename);
+      
+      // Update the document with results
+      await db.collection('userHistory').doc(docId).update({
+        isDone: true,
+        result: {
+          type: 'imageGeneration',
+          storageUrl: imageUrl,
+          thumbnailUrl: thumbnailUrl,
+          filename: filename,
+          thumbnailFilename: thumbnailFilename,
+          aiModel: 'gpt-image-1.5'
+        },
+        originalImageUrl: originalImageUrl,
+        processedAt: admin.firestore.FieldValue.serverTimestamp(),
+        generationCount: count,
+        // Clean up large data fields
+        imageData: admin.firestore.FieldValue.delete(),
+        objectImageData: admin.firestore.FieldValue.delete(),
+        authToken: admin.firestore.FieldValue.delete()
+      });
+      
+      logger.info(`[EXPERIMENTAL] Successfully processed request ${docId} for user ${userId} with GPT-image-1.5`);
+    } else {
+      throw new Error('No image was generated by GPT-image-1.5');
+    }
+    
+  } catch (error) {
+    logger.error(`[EXPERIMENTAL] Error processing request ${docId}:`, error);
+    
+    // Update document with error
+    await db.collection('userHistory').doc(docId).update({
+      isDone: true,
+      isError: true,
+      error: error.message,
+      aiModel: 'gpt-image-1.5',
+      processedAt: admin.firestore.FieldValue.serverTimestamp(),
       imageData: admin.firestore.FieldValue.delete(),
       objectImageData: admin.firestore.FieldValue.delete(),
       authToken: admin.firestore.FieldValue.delete()
@@ -945,13 +1240,13 @@ exports.paymentWebhook = onRequest({ cors: true }, async (req, res) => {
         // Map description to subscription code and credits
         if (description.includes('moomhe_monthly_starter')) {
           newSubscription = 1;
-          newCredits = 40;
+          newCredits = 50;
         } else if (description.includes('moomhe_monthly_budget')) {
           newSubscription = 2;
-          newCredits = 100;
+          newCredits = 200;
         } else if (description.includes('moomhe_monthly_pro')) {
           newSubscription = 3;
-          newCredits = 200;
+          newCredits = 450;
         }
         
         if (newSubscription > 0) {
@@ -1032,13 +1327,13 @@ exports.onUserEmailUpdate = onDocumentUpdated('users/{userId}', async (event) =>
       // Map description to subscription code and credits (same logic as paymentWebhook)
       if (description.includes('moomhe_monthly_starter')) {
         newSubscription = 1;
-        newCredits = 40;
+        newCredits = 50;
       } else if (description.includes('moomhe_monthly_budget')) {
         newSubscription = 2;
-        newCredits = 100;
+        newCredits = 200;
       } else if (description.includes('moomhe_monthly_pro')) {
         newSubscription = 3;
-        newCredits = 200;
+        newCredits = 450;
       }
       
       if (newSubscription > 0) {

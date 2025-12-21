@@ -3,12 +3,22 @@
   "appName": "MoomHe",
   "webDir": "dist",
   "server": {
-    "androidScheme": "https"
+    "androidScheme": "https",
+    "cleartext": true,
+    "allowNavigation": [
+      "*.firebase.com",
+      "*.firebaseapp.com",
+      "*.googleapis.com",
+      "*.google.com",
+      "*.firebaseio.com",
+      "*.cloudfunctions.net"
+    ]
   },
   "android": {
     "allowMixedContent": true,
     "captureInput": true,
-    "webContentsDebuggingEnabled": true
+    "webContentsDebuggingEnabled": true,
+    "useLegacyBridge": false
   },
   "plugins": {
     "SplashScreen": {

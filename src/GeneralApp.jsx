@@ -262,17 +262,41 @@ function GeneralApp() {
   const handleImageUpload = async (event) => {
     const file = event.target.files[0]
     if (file) {
-      // Check if it's a HEIC file and show user feedback
+      // Check if it's a HEIC file and convert it FIRST before FileReader
       const isHeicFile = file.type === 'image/heic' || file.type === 'image/heif' || file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')
+      
+      let fileToRead = file
       if (isHeicFile) {
-        console.log('HEIC file detected, converting to JPEG...')
+        console.log('HEIC file detected, converting to JPEG...', { name: file.name, type: file.type, size: file.size })
+        try {
+          // Check if the file is already a displayable format (some systems auto-convert)
+          if (file.type === 'image/jpeg' || file.type === 'image/png' || file.type === 'image/webp') {
+            console.log('File already in displayable format, skipping HEIC conversion')
+            fileToRead = file
+          } else {
+            // Use heic-to library for better HEIC support
+            const { heicTo } = await import('heic-to')
+            const convertedBlob = await heicTo({
+              blob: file,
+              type: 'image/jpeg',
+              quality: 0.9
+            })
+            fileToRead = convertedBlob
+            console.log('HEIC converted to JPEG successfully:', { type: fileToRead.type, size: fileToRead.size })
+          }
+        } catch (heicError) {
+          console.error('HEIC conversion failed:', heicError)
+          console.error('Error details:', heicError.message, heicError.stack)
+          alert(`Failed to convert HEIC image: ${heicError.message || 'Unknown error'}. Please try uploading a JPEG or PNG image instead.`)
+          return
+        }
       }
       
       const reader = new FileReader()
       reader.onload = async (e) => {
         const originalImageDataUrl = e.target.result
         
-        // Compress the image first (this will handle HEIC conversion if needed)
+        // Compress the image (HEIC already converted above)
         let compressedImageDataUrl = originalImageDataUrl
         try {
           const compressedBlob = await compressImage(originalImageDataUrl, 1920, 1080, 0.8)
@@ -285,10 +309,6 @@ function GeneralApp() {
           console.log('Image compressed for display')
         } catch (compressionError) {
           console.warn('Failed to compress image for display, using original:', compressionError)
-          // If compression fails, try to use the original image
-          if (isHeicFile) {
-            console.error('HEIC conversion failed, please try uploading a JPEG or PNG image instead')
-          }
         }
         
         setUploadedImage(compressedImageDataUrl)
@@ -340,7 +360,7 @@ function GeneralApp() {
           }
         }
       }
-      reader.readAsDataURL(file)
+      reader.readAsDataURL(fileToRead)
     }
   }
 
@@ -517,12 +537,41 @@ function GeneralApp() {
   const handleObjectImageUpload = async (event) => {
     const file = event.target.files[0]
     if (file) {
+      // Check if it's a HEIC file and convert it FIRST
+      const isHeicFile = file.type === 'image/heic' || file.type === 'image/heif' || file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')
+      
+      let fileToRead = file
+      if (isHeicFile) {
+        console.log('HEIC object image detected, converting to JPEG...', { name: file.name, type: file.type, size: file.size })
+        try {
+          // Check if the file is already a displayable format (some systems auto-convert)
+          if (file.type === 'image/jpeg' || file.type === 'image/png' || file.type === 'image/webp') {
+            console.log('File already in displayable format, skipping HEIC conversion')
+            fileToRead = file
+          } else {
+            // Use heic-to library for better HEIC support
+            const { heicTo } = await import('heic-to')
+            const convertedBlob = await heicTo({
+              blob: file,
+              type: 'image/jpeg',
+              quality: 0.9
+            })
+            fileToRead = convertedBlob
+            console.log('HEIC object image converted to JPEG successfully')
+          }
+        } catch (heicError) {
+          console.error('HEIC conversion failed:', heicError)
+          alert(`Failed to convert HEIC image: ${heicError.message || 'Unknown error'}. Please try uploading a JPEG or PNG image instead.`)
+          return
+        }
+      }
+      
       const reader = new FileReader()
       reader.onload = (e) => {
         setObjectImage(e.target.result)
-        setObjectImageFile(file)
+        setObjectImageFile(fileToRead)
       }
-      reader.readAsDataURL(file)
+      reader.readAsDataURL(fileToRead)
     }
   }
 
@@ -1280,16 +1329,78 @@ function GeneralApp() {
   ]
 
   const styleOptions = [
-    { name: 'מינימליסטי', value: 'minimalist', prompt: 'שנה את סגנון החדר למינימליסטי - נקי, פשוט, לא עמוס' },
-    { name: 'בוהו', value: 'bohemian', prompt: 'שנה את סגנון החדר לבוהו - אקלקטי, מרקם, חופשי' },
-    { name: 'אינדוסטריאלי', value: 'industrial', prompt: 'שנה את סגנון החדר לסגנון תעשייתי - חומרים גולמיים וחשופים' },
-    { name: 'מודרני אמצע המאה', value: 'mid-century modern', prompt: 'שנה את סגנון החדר למודרני אמצע המאה - חלק, רטרו, פונקציונלי' },
-    { name: 'סקנדינבי', value: 'scandinavian', prompt: 'שנה את סגנון החדר לסקנדינבי - בהיר, נוח, פונקציונלי' },
-    { name: 'מסורתי', value: 'traditional', prompt: 'שנה את סגנון החדר למסורתי - קלאסי, פורמלי, סימטרי' },
-    { name: 'חווה מודרנית', value: 'modern farmhouse', prompt: 'שנה את סגנון החדר לחווה מודרנית - כפרי, ניטרלי, רגוע' },
-    { name: 'עכשווי', value: 'contemporary', prompt: 'שנה את סגנון החדר לעכשווי - עדכני, חלק, מתוחכם' },
-    { name: 'חופי', value: 'coastal', prompt: 'שנה את סגנון החדר לחופי - אוורירי, בהיר, רוחי' },
-    { name: 'אר דקו', value: 'art deco', prompt: 'שנה את סגנון החדר לאר דקו - גיאומטרי, מפואר' }
+    { 
+      name: 'ים תיכוני מודרני', 
+      value: 'mediterranean-modern', 
+      thumbnail: '/assets/styles/mediterranean.png',
+      prompt: 'Transform this room into a Modern Mediterranean interior design style. CRITICAL: Preserve the exact room structure. Keep all existing windows and doors in their original positions and sizes. NEVER add new doors or windows - only redesign what already exists in the image. Use natural materials like Jerusalem stone walls, terracotta tiles, and light oak wood flooring. Add arched doorways and windows. Use a warm color palette with white, cream, sand, and olive green accents. Include linen curtains, woven textures, ceramic vases with olive branches, and modern furniture with clean lines. Maximize natural light with large windows. Add indoor plants like olive trees and succulents. Create an airy, relaxed, and sophisticated atmosphere inspired by Israeli coastal living.'
+    },
+    { 
+      name: 'מינימליזם חם', 
+      value: 'warm-minimalism', 
+      thumbnail: '/assets/styles/warm-minimalism.jpg',
+      prompt: 'Transform this room into Warm Minimalism interior design style. CRITICAL: Preserve the exact room structure. Keep all existing windows and doors in their original positions and sizes. NEVER add new doors or windows - only redesign what already exists in the image. Keep the space clean and uncluttered but add warmth through natural materials. Use oak wood floors, cream-colored walls, and natural stone accents. Include low-profile modern furniture in warm neutrals like camel, beige, and soft terracotta. Add texture through wool rugs, linen cushions, and organic cotton throws. Use rounded furniture edges and soft curves. Include subtle decorative elements like a single large plant, minimalist art, and sculptural ceramic pieces. Emphasize natural light with sheer curtains. Create a serene, cozy, and sophisticated atmosphere.'
+    },
+    { 
+      name: 'ביופילי', 
+      value: 'biophilic', 
+      thumbnail: '/assets/styles/biophilic.jpg',
+      prompt: 'Transform this room into Biophilic interior design style. CRITICAL: Preserve the exact room structure. Keep all existing windows and doors in their original positions and sizes. NEVER add new doors or windows - only redesign what already exists in the image. Create a strong connection to nature inside the home. Add abundant indoor plants including large statement plants like fiddle leaf figs, monstera, and hanging pothos. Use natural materials throughout: raw wood furniture, stone surfaces, bamboo accents, and cork flooring. Include a living green wall or plant shelf. Use earthy colors: forest green, terracotta, sand, and natural wood tones. Maximize natural light through existing windows. Include water features or natural elements like driftwood and pebbles. Create a fresh, calming, and nature-immersive atmosphere.'
+    },
+    { 
+      name: 'מודרני יוקרתי', 
+      value: 'modern-luxury', 
+      thumbnail: '/assets/styles/modern-luxury.jpg',
+      prompt: 'Transform this room into Modern Luxury interior design style. CRITICAL: Preserve the exact room structure. Keep all existing windows and doors in their original positions and sizes. NEVER add new doors or windows - only redesign what already exists in the image. Create an elegant and sophisticated high-end space. Use premium materials: Italian marble floors or feature walls, rich wood veneers, brushed brass or gold metal accents. Include designer furniture with sculptural forms and plush velvet upholstery in jewel tones like emerald green, sapphire blue, or deep burgundy. Add statement lighting fixtures like a modern chandelier or sculptural pendant lights. Use a refined color palette with charcoal, cream, and metallic accents. Include floor-to-ceiling curtains, large abstract art, and designer accessories. Create a glamorous, refined, and opulent atmosphere.'
+    },
+    { 
+      name: 'יפנדי', 
+      value: 'japandi', 
+      thumbnail: '/assets/styles/japandi.jpg',
+      prompt: 'Transform this room into Japandi interior design style - a fusion of Japanese and Scandinavian aesthetics. CRITICAL: Preserve the exact room structure. Keep all existing windows and doors in their original positions and sizes. NEVER add new doors or windows - only redesign what already exists in the image. Use a muted, neutral color palette with soft whites, warm grays, and natural wood tones. Include low-profile furniture with clean lines and natural materials like light ash or oak wood. Add Japanese elements: shoji-style screens, floor cushions, bonsai plants, and ceramic pottery. Incorporate Scandinavian hygge with cozy textiles, wool throws, and sheepskin rugs. Keep the space minimal and functional with hidden storage. Use paper lanterns or simple pendant lighting. Add indoor plants like bamboo or peace lilies. Create a zen-like, harmonious, and tranquil atmosphere.'
+    },
+    { 
+      name: 'סקנדינבי', 
+      value: 'scandinavian', 
+      thumbnail: '/assets/styles/scandinavian.jpg',
+      prompt: 'Transform this room into Scandinavian interior design style. CRITICAL: Preserve the exact room structure. Keep all existing windows and doors in their original positions and sizes. NEVER add new doors or windows - only redesign what already exists in the image. Use a bright, airy color palette dominated by white and light gray walls. Add light wood floors in birch or pine. Include minimalist furniture with clean lines and functional design in natural wood and white finishes. Add cozy textiles: chunky knit blankets, sheepskin throws, and soft wool rugs. Include statement lighting with modern pendant lamps. Use indoor plants like eucalyptus and ferns for natural touches. Add black accents through frames, fixtures, and accessories for contrast. Keep decor minimal but meaningful. Create a bright, cozy, and hygge-inspired atmosphere with excellent natural lighting.'
+    },
+    { 
+      name: 'בוהו שיק', 
+      value: 'boho-chic', 
+      thumbnail: '/assets/styles/boho.jpg',
+      prompt: 'Transform this room into Bohemian Chic interior design style. CRITICAL: Preserve the exact room structure. Keep all existing windows and doors in their original positions and sizes. NEVER add new doors or windows - only redesign what already exists in the image. Create an eclectic, artistic, and free-spirited space. Layer rich textures with Moroccan rugs, macramé wall hangings, and woven baskets. Use warm, earthy colors mixed with vibrant accents: terracotta, mustard yellow, teal, and burnt orange. Include rattan and wicker furniture, vintage pieces, and floor cushions. Add abundant plants in decorative pots, hanging planters, and trailing vines. Include global-inspired decor: Turkish lanterns, Indian textiles, and African baskets. Add fairy lights or warm Edison bulb lighting. Create a relaxed, artistic, and globally-inspired atmosphere full of personality and warmth.'
+    },
+    { 
+      name: 'אינדוסטריאלי', 
+      value: 'industrial', 
+      thumbnail: '/assets/styles/industrial.jpg',
+      prompt: 'Transform this room into Industrial interior design style. CRITICAL: Preserve the exact room structure. Keep all existing windows and doors in their original positions and sizes. NEVER add new doors or windows - only redesign what already exists in the image. Expose raw architectural elements: brick walls, concrete ceilings, metal pipes, and ductwork. Use a color palette of charcoal gray, black, rust, and raw concrete tones. Include metal and iron furniture: steel-framed shelving, iron coffee tables, and metal bar stools. Add distressed leather sofas and vintage factory-style lighting with exposed bulbs. Include reclaimed wood elements for warmth: wooden dining tables, floating shelves, or accent walls. Add large factory-style mirrors. Include industrial accessories: metal clocks, wire baskets, and vintage signs. Create a raw, edgy, urban loft atmosphere with character and history.'
+    },
+    { 
+      name: 'טבעי וארצי', 
+      value: 'earthy-natural', 
+      thumbnail: '/assets/styles/earthy-natural.jpg',
+      prompt: 'Transform this room into Earthy Natural interior design style. CRITICAL: Preserve the exact room structure. Keep all existing windows and doors in their original positions and sizes. NEVER add new doors or windows - only redesign what already exists in the image. Create a grounded, organic, and serene space connected to nature. Use a warm earth-tone color palette: terracotta, ochre, olive green, warm browns, and sandy beige. Include natural materials: raw wood furniture, stone surfaces, clay pottery, and jute or sisal rugs. Add textured walls with lime wash or clay plaster in warm tones. Include linen and cotton textiles in natural undyed colors. Add organic shapes and handcrafted elements: ceramic vases, woven baskets, and artisanal objects. Include large indoor plants and dried flowers or pampas grass. Create a warm, grounded, and nature-inspired sanctuary.'
+    },
+    { 
+      name: 'ירושלמי', 
+      value: 'jerusalem', 
+      thumbnail: '/assets/styles/jerusalem.jpg',
+      prompt: 'Transform this room into Contemporary Israeli interior design style. CRITICAL: Preserve the exact room structure. Keep all existing windows and doors in their original positions and sizes. NEVER add new doors or windows - only redesign what already exists in the image. Create a bright, modern space that reflects Mediterranean living. Use Jerusalem stone or natural stone feature walls, terrazzo floors, and light wood accents. Use a neutral palette with white walls, warm beige, and pops of earthy colors like olive and terracotta. Add modern Israeli design furniture with clean lines and functional aesthetics. Include local crafts: ceramic pieces, woven textiles, and modern Israeli art. Add olive branches, succulents, and Mediterranean plants. Create an airy, sophisticated, and culturally-rooted atmosphere that celebrates Israeli design heritage.'
+    },
+    { 
+      name: 'מינימליסטי', 
+      value: 'minimalist', 
+      thumbnail: '/assets/styles/minimalist.jpg',
+      prompt: 'Transform this room into Minimalist interior design style. CRITICAL: Preserve the exact room structure. Keep all existing windows and doors in their original positions and sizes. NEVER add new doors or windows - only redesign what already exists in the image. Create a clean, uncluttered, and intentional space. Use an all-white or monochromatic color palette with subtle texture variations. Include streamlined furniture with geometric forms and hidden storage solutions. Keep surfaces completely clear with minimal decorative objects - only one or two statement pieces. Use high-quality materials: polished concrete floors, seamless white walls, and sleek fixtures. Add architectural interest through recessed lighting, clean lines, and negative space. Include one bold statement element like a large plant or single artwork. Create a serene, peaceful, and focused atmosphere where less is more.'
+    },
+    { 
+      name: 'קלאסי עדכני', 
+      value: 'modern-classic', 
+      thumbnail: '/assets/styles/modern-classic.jpg',
+      prompt: 'Transform this room into Modern Classic interior design style. CRITICAL: Preserve the exact room structure. Keep all existing windows and doors in their original positions and sizes. NEVER add new doors or windows - only redesign what already exists in the image. Blend timeless elegance with contemporary comfort. Use a sophisticated color palette of cream, soft gray, navy blue, and gold accents. Include classic architectural details: crown moldings, wainscoting, and paneled walls with modern interpretation. Add furniture that combines classic silhouettes with updated fabrics: tufted sofas, wingback chairs in modern fabrics, and elegant side tables. Include crystal or modern chandeliers and wall sconces. Add marble surfaces, silk or velvet textiles, and gilded mirrors. Include fresh flowers, classic art, and refined accessories. Create an elegant, sophisticated, and timeless atmosphere that feels both grand and welcoming.'
+    }
   ]
 
   const handleAngleSelect = (angle) => {
@@ -2521,9 +2632,22 @@ function GeneralApp() {
                     key={style.value}
                     onClick={() => handleStyleSelect(style)}
                     disabled={isProcessing}
-                    className="flex flex-col items-center gap-3 p-4 rounded-lg border border-white/10 hover:border-primary-300 hover:bg-primary-500/10 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-center"
+                    className="flex flex-col items-center gap-3 p-4 rounded-lg border border-white/10 hover:border-primary-300 hover:bg-primary-500/10 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-center group h-full"
                   >
-                    <FreeStyle className="w-6 h-6 text-primary-600 flex-shrink-0" />
+                    {style.thumbnail ? (
+                      <div className="w-full mb-2 rounded-md overflow-hidden relative shadow-lg group-hover:shadow-primary-500/30 transition-all">
+                        <img 
+                          src={style.thumbnail} 
+                          alt={style.name} 
+                          className="w-full h-auto object-contain group-hover:scale-105 transition-transform duration-500" 
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-2">
+                          <span className="text-white text-xs font-medium">בחר סגנון</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <FreeStyle className="w-8 h-8 text-primary-400 group-hover:text-primary-300 group-hover:scale-110 transition-transform duration-300 flex-shrink-0" />
+                    )}
                     <div>
                       <div className="text-sm font-medium text-gray-100 mb-1">{style.name}</div>
                       <div className="text-xs text-gray-400">{style.value}</div>

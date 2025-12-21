@@ -418,17 +418,42 @@ function App() {
       const fileType = file.type || file.name.split('.').pop().toLowerCase()
       trackImageUpload(fileType)
       
-      // Check if it's a HEIC file and show user feedback
+      // Check if it's a HEIC file and convert it FIRST before FileReader
       const isHeicFile = file.type === 'image/heic' || file.type === 'image/heif' || file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')
+      
+      let fileToRead = file
       if (isHeicFile) {
-        console.log('HEIC file detected, converting to JPEG...')
+        console.log('HEIC file detected, converting to JPEG...', { name: file.name, type: file.type, size: file.size })
+        try {
+          // Check if the file is already a displayable format (some systems auto-convert)
+          if (file.type === 'image/jpeg' || file.type === 'image/png' || file.type === 'image/webp') {
+            console.log('File already in displayable format, skipping HEIC conversion')
+            fileToRead = file
+          } else {
+            // Use heic-to library for better HEIC support
+            const { heicTo } = await import('heic-to')
+            const convertedBlob = await heicTo({
+              blob: file,
+              type: 'image/jpeg',
+              quality: 0.9
+            })
+            fileToRead = convertedBlob
+            console.log('HEIC converted to JPEG successfully:', { type: fileToRead.type, size: fileToRead.size })
+          }
+        } catch (heicError) {
+          console.error('HEIC conversion failed:', heicError)
+          console.error('Error details:', heicError.message, heicError.stack)
+          // Show user-friendly error with details for debugging
+          alert(`Failed to convert HEIC image: ${heicError.message || 'Unknown error'}. Please try uploading a JPEG or PNG image instead.`)
+          return
+        }
       }
       
       const reader = new FileReader()
       reader.onload = async (e) => {
         const originalImageDataUrl = e.target.result
         
-        // Compress the image first (this will handle HEIC conversion if needed)
+        // Compress the image (HEIC already converted above)
         let compressedImageDataUrl = originalImageDataUrl
         try {
           const compressedBlob = await compressImage(originalImageDataUrl, 1920, 1080, 0.8)
@@ -441,10 +466,6 @@ function App() {
           console.log('Image compressed for display')
         } catch (compressionError) {
           console.warn('Failed to compress image for display, using original:', compressionError)
-          // If compression fails, try to use the original image
-          if (isHeicFile) {
-            console.error('HEIC conversion failed, please try uploading a JPEG or PNG image instead')
-          }
         }
         
         setUploadedImage(compressedImageDataUrl)
@@ -496,7 +517,7 @@ function App() {
           }
         }
       }
-      reader.readAsDataURL(file)
+      reader.readAsDataURL(fileToRead)
     }
   }
 
@@ -663,7 +684,21 @@ function App() {
         userEmail: currentUser?.email || null,
         isAnonymous: currentUser?.isAnonymous || true
       }
-      
+
+      // Submit to Formspree
+      await fetch('https://formspree.io/f/xkgdpbjg', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          email: contactEmail.trim() || null,
+          phone: contactPhone.trim() || null,
+          message: contactMessage.trim()
+        })
+      })
+
       await setDoc(doc(db, 'supportMsgs', messageId), messageData)
       
       // Clear form and show success
@@ -746,6 +781,36 @@ function App() {
     const file = event.target.files[0]
     if (file) {
       trackObjectImageUpload()
+      
+      // Check if it's a HEIC file and convert it FIRST
+      const isHeicFile = file.type === 'image/heic' || file.type === 'image/heif' || file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')
+      
+      let fileToRead = file
+      if (isHeicFile) {
+        console.log('HEIC object image detected, converting to JPEG...', { name: file.name, type: file.type, size: file.size })
+        try {
+          // Check if the file is already a displayable format (some systems auto-convert)
+          if (file.type === 'image/jpeg' || file.type === 'image/png' || file.type === 'image/webp') {
+            console.log('File already in displayable format, skipping HEIC conversion')
+            fileToRead = file
+          } else {
+            // Use heic-to library for better HEIC support
+            const { heicTo } = await import('heic-to')
+            const convertedBlob = await heicTo({
+              blob: file,
+              type: 'image/jpeg',
+              quality: 0.9
+            })
+            fileToRead = convertedBlob
+            console.log('HEIC object image converted to JPEG successfully')
+          }
+        } catch (heicError) {
+          console.error('HEIC conversion failed:', heicError)
+          alert(`Failed to convert HEIC image: ${heicError.message || 'Unknown error'}. Please try uploading a JPEG or PNG image instead.`)
+          return
+        }
+      }
+      
       const reader = new FileReader()
       reader.onload = (e) => {
         // Resize image if needed
@@ -795,7 +860,7 @@ function App() {
           setCustomPrompt(`${currentPrompt} ${defaultPrompt}`)
         }
       }
-      reader.readAsDataURL(file)
+      reader.readAsDataURL(fileToRead)
     }
   }
 
@@ -1451,16 +1516,78 @@ function App() {
   ]
 
   const styleOptions = [
-    { name: 'בוהו', value: 'bohemian', prompt: 'שנה את סגנון החדר לבוהו - אקלקטי, מרקם, חופשי' },
-    { name: 'אינדוסטריאלי', value: 'industrial', prompt: 'שנה את סגנון החדר לאינדוסטריאלי - חומרים גולמיים וחשופים' },
-    { name: 'מודרני אמצע המאה', value: 'mid-century modern', prompt: 'שנה את סגנון החדר למודרני מאמצע המאה - חלק, רטרו, פונקציונלי' },
-    { name: 'סקנדינבי', value: 'scandinavian', prompt: 'שנה את סגנון החדר לסקנדינבי - צבעים בהירים, נוח, פונקציונלי' },
-    { name: 'מינימליסטי', value: 'minimalist', prompt: 'שנה את סגנון החדר למינימליסטי - נקי, פשוט, לא עמוס' },
-    { name: 'מסורתי', value: 'traditional', prompt: 'שנה את סגנון החדר למסורתי - קלאסי, פורמלי, סימטרי' },
-    { name: 'חווה מודרנית', value: 'modern farmhouse', prompt: 'שנה את סגנון החדר לחווה מודרנית - כפרי, ניטרלי, רגוע' },
-    { name: 'עכשווי', value: 'contemporary', prompt: 'שנה את סגנון החדר לעכשווי - עדכני, חלק, מתוחכם' },
-    { name: 'חופי', value: 'coastal', prompt: 'שנה את סגנון החדר לחופי - אוורירי, בהיר, רוחי' },
-    { name: 'אר דקו', value: 'art deco', prompt: 'שנה את סגנון החדר לאר דקו - גיאומטרי, מפואר' }
+    { 
+      name: 'ים תיכוני מודרני', 
+      value: 'mediterranean-modern', 
+      thumbnail: '/assets/styles/mediterranean.png',
+      prompt: 'Transform this room into a Modern Mediterranean interior design style. CRITICAL: Preserve the exact room structure. Keep all existing windows and doors in their original positions and sizes. NEVER add new doors or windows - only redesign what already exists in the image. Use natural materials like Jerusalem stone walls, terracotta tiles, and light oak wood flooring. Add arched doorways and windows. Use a warm color palette with white, cream, sand, and olive green accents. Include linen curtains, woven textures, ceramic vases with olive branches, and modern furniture with clean lines. Maximize natural light with large windows. Add indoor plants like olive trees and succulents. Create an airy, relaxed, and sophisticated atmosphere inspired by Israeli coastal living.'
+    },
+    { 
+      name: 'מינימליזם חם', 
+      value: 'warm-minimalism', 
+      thumbnail: '/assets/styles/warm-minimalism.jpg',
+      prompt: 'Transform this room into Warm Minimalism interior design style. CRITICAL: Preserve the exact room structure. Keep all existing windows and doors in their original positions and sizes. NEVER add new doors or windows - only redesign what already exists in the image. Keep the space clean and uncluttered but add warmth through natural materials. Use oak wood floors, cream-colored walls, and natural stone accents. Include low-profile modern furniture in warm neutrals like camel, beige, and soft terracotta. Add texture through wool rugs, linen cushions, and organic cotton throws. Use rounded furniture edges and soft curves. Include subtle decorative elements like a single large plant, minimalist art, and sculptural ceramic pieces. Emphasize natural light with sheer curtains. Create a serene, cozy, and sophisticated atmosphere.'
+    },
+    { 
+      name: 'ביופילי', 
+      value: 'biophilic', 
+      thumbnail: '/assets/styles/biophilic.jpg',
+      prompt: 'Transform this room into Biophilic interior design style. CRITICAL: Preserve the exact room structure. Keep all existing windows and doors in their original positions and sizes. NEVER add new doors or windows - only redesign what already exists in the image. Create a strong connection to nature inside the home. Add abundant indoor plants including large statement plants like fiddle leaf figs, monstera, and hanging pothos. Use natural materials throughout: raw wood furniture, stone surfaces, bamboo accents, and cork flooring. Include a living green wall or plant shelf. Use earthy colors: forest green, terracotta, sand, and natural wood tones. Maximize natural light through existing windows. Include water features or natural elements like driftwood and pebbles. Create a fresh, calming, and nature-immersive atmosphere.'
+    },
+    { 
+      name: 'מודרני יוקרתי', 
+      value: 'modern-luxury', 
+      thumbnail: '/assets/styles/modern-luxury.jpg',
+      prompt: 'Transform this room into Modern Luxury interior design style. CRITICAL: Preserve the exact room structure. Keep all existing windows and doors in their original positions and sizes. NEVER add new doors or windows - only redesign what already exists in the image. Create an elegant and sophisticated high-end space. Use premium materials: Italian marble floors or feature walls, rich wood veneers, brushed brass or gold metal accents. Include designer furniture with sculptural forms and plush velvet upholstery in jewel tones like emerald green, sapphire blue, or deep burgundy. Add statement lighting fixtures like a modern chandelier or sculptural pendant lights. Use a refined color palette with charcoal, cream, and metallic accents. Include floor-to-ceiling curtains, large abstract art, and designer accessories. Create a glamorous, refined, and opulent atmosphere.'
+    },
+    { 
+      name: 'יפנדי', 
+      value: 'japandi', 
+      thumbnail: '/assets/styles/japandi.jpg',
+      prompt: 'Transform this room into Japandi interior design style - a fusion of Japanese and Scandinavian aesthetics. CRITICAL: Preserve the exact room structure. Keep all existing windows and doors in their original positions and sizes. NEVER add new doors or windows - only redesign what already exists in the image. Use a muted, neutral color palette with soft whites, warm grays, and natural wood tones. Include low-profile furniture with clean lines and natural materials like light ash or oak wood. Add Japanese elements: shoji-style screens, floor cushions, bonsai plants, and ceramic pottery. Incorporate Scandinavian hygge with cozy textiles, wool throws, and sheepskin rugs. Keep the space minimal and functional with hidden storage. Use paper lanterns or simple pendant lighting. Add indoor plants like bamboo or peace lilies. Create a zen-like, harmonious, and tranquil atmosphere.'
+    },
+    { 
+      name: 'סקנדינבי', 
+      value: 'scandinavian', 
+      thumbnail: '/assets/styles/scandinavian.jpg',
+      prompt: 'Transform this room into Scandinavian interior design style. CRITICAL: Preserve the exact room structure. Keep all existing windows and doors in their original positions and sizes. NEVER add new doors or windows - only redesign what already exists in the image. Use a bright, airy color palette dominated by white and light gray walls. Add light wood floors in birch or pine. Include minimalist furniture with clean lines and functional design in natural wood and white finishes. Add cozy textiles: chunky knit blankets, sheepskin throws, and soft wool rugs. Include statement lighting with modern pendant lamps. Use indoor plants like eucalyptus and ferns for natural touches. Add black accents through frames, fixtures, and accessories for contrast. Keep decor minimal but meaningful. Create a bright, cozy, and hygge-inspired atmosphere with excellent natural lighting.'
+    },
+    { 
+      name: 'בוהו שיק', 
+      value: 'boho-chic', 
+      thumbnail: '/assets/styles/boho.jpg',
+      prompt: 'Transform this room into Bohemian Chic interior design style. CRITICAL: Preserve the exact room structure. Keep all existing windows and doors in their original positions and sizes. NEVER add new doors or windows - only redesign what already exists in the image. Create an eclectic, artistic, and free-spirited space. Layer rich textures with Moroccan rugs, macramé wall hangings, and woven baskets. Use warm, earthy colors mixed with vibrant accents: terracotta, mustard yellow, teal, and burnt orange. Include rattan and wicker furniture, vintage pieces, and floor cushions. Add abundant plants in decorative pots, hanging planters, and trailing vines. Include global-inspired decor: Turkish lanterns, Indian textiles, and African baskets. Add fairy lights or warm Edison bulb lighting. Create a relaxed, artistic, and globally-inspired atmosphere full of personality and warmth.'
+    },
+    { 
+      name: 'אינדוסטריאלי', 
+      value: 'industrial', 
+      thumbnail: '/assets/styles/industrial.jpg',
+      prompt: 'Transform this room into Industrial interior design style. CRITICAL: Preserve the exact room structure. Keep all existing windows and doors in their original positions and sizes. NEVER add new doors or windows - only redesign what already exists in the image. Expose raw architectural elements: brick walls, concrete ceilings, metal pipes, and ductwork. Use a color palette of charcoal gray, black, rust, and raw concrete tones. Include metal and iron furniture: steel-framed shelving, iron coffee tables, and metal bar stools. Add distressed leather sofas and vintage factory-style lighting with exposed bulbs. Include reclaimed wood elements for warmth: wooden dining tables, floating shelves, or accent walls. Add large factory-style mirrors. Include industrial accessories: metal clocks, wire baskets, and vintage signs. Create a raw, edgy, urban loft atmosphere with character and history.'
+    },
+    { 
+      name: 'טבעי וארצי', 
+      value: 'earthy-natural', 
+      thumbnail: '/assets/styles/earthy-natural.jpg',
+      prompt: 'Transform this room into Earthy Natural interior design style. CRITICAL: Preserve the exact room structure. Keep all existing windows and doors in their original positions and sizes. NEVER add new doors or windows - only redesign what already exists in the image. Create a grounded, organic, and serene space connected to nature. Use a warm earth-tone color palette: terracotta, ochre, olive green, warm browns, and sandy beige. Include natural materials: raw wood furniture, stone surfaces, clay pottery, and jute or sisal rugs. Add textured walls with lime wash or clay plaster in warm tones. Include linen and cotton textiles in natural undyed colors. Add organic shapes and handcrafted elements: ceramic vases, woven baskets, and artisanal objects. Include large indoor plants and dried flowers or pampas grass. Create a warm, grounded, and nature-inspired sanctuary.'
+    },
+    { 
+      name: 'ירושלמי', 
+      value: 'jerusalem', 
+      thumbnail: '/assets/styles/jerusalem.jpg',
+      prompt: 'Transform this room into Contemporary Israeli interior design style. CRITICAL: Preserve the exact room structure. Keep all existing windows and doors in their original positions and sizes. NEVER add new doors or windows - only redesign what already exists in the image. Create a bright, modern space that reflects Mediterranean living. Use Jerusalem stone or natural stone feature walls, terrazzo floors, and light wood accents. Use a neutral palette with white walls, warm beige, and pops of earthy colors like olive and terracotta. Add modern Israeli design furniture with clean lines and functional aesthetics. Include local crafts: ceramic pieces, woven textiles, and modern Israeli art. Add olive branches, succulents, and Mediterranean plants. Create an airy, sophisticated, and culturally-rooted atmosphere that celebrates Israeli design heritage.'
+    },
+    { 
+      name: 'מינימליסטי', 
+      value: 'minimalist', 
+      thumbnail: '/assets/styles/minimalist.jpg',
+      prompt: 'Transform this room into Minimalist interior design style. CRITICAL: Preserve the exact room structure. Keep all existing windows and doors in their original positions and sizes. NEVER add new doors or windows - only redesign what already exists in the image. Create a clean, uncluttered, and intentional space. Use an all-white or monochromatic color palette with subtle texture variations. Include streamlined furniture with geometric forms and hidden storage solutions. Keep surfaces completely clear with minimal decorative objects - only one or two statement pieces. Use high-quality materials: polished concrete floors, seamless white walls, and sleek fixtures. Add architectural interest through recessed lighting, clean lines, and negative space. Include one bold statement element like a large plant or single artwork. Create a serene, peaceful, and focused atmosphere where less is more.'
+    },
+    { 
+      name: 'קלאסי עדכני', 
+      value: 'modern-classic', 
+      thumbnail: '/assets/styles/modern-classic.jpg',
+      prompt: 'Transform this room into Modern Classic interior design style. CRITICAL: Preserve the exact room structure. Keep all existing windows and doors in their original positions and sizes. NEVER add new doors or windows - only redesign what already exists in the image. Blend timeless elegance with contemporary comfort. Use a sophisticated color palette of cream, soft gray, navy blue, and gold accents. Include classic architectural details: crown moldings, wainscoting, and paneled walls with modern interpretation. Add furniture that combines classic silhouettes with updated fabrics: tufted sofas, wingback chairs in modern fabrics, and elegant side tables. Include crystal or modern chandeliers and wall sconces. Add marble surfaces, silk or velvet textiles, and gilded mirrors. Include fresh flowers, classic art, and refined accessories. Create an elegant, sophisticated, and timeless atmosphere that feels both grand and welcoming.'
+    }
   ]
 
   const handleAngleSelect = (angle) => {
@@ -2796,14 +2923,20 @@ function App() {
                   <button
                     key={idx}
                     onClick={() => modal.onSelect(option)}
-                    className="flex items-center p-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 hover:border-primary-500/30 transition-all duration-200 text-right group"
+                    className={`flex items-center p-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 hover:border-primary-500/30 transition-all duration-200 text-right group ${option.thumbnail ? 'h-24' : ''}`}
                   >
-                    <div className="ml-3 w-10 h-10 rounded-full bg-surfaceHighlight flex items-center justify-center text-xl group-hover:scale-110 transition-transform">
-                      💡
-                    </div>
-                    <div className="flex-1">
-                      <div className="text-sm font-medium text-white group-hover:text-primary-300">{option.name}</div>
-                      <div className="text-xs text-gray-400">{option.value}</div>
+                    {option.thumbnail ? (
+                      <div className="ml-3 h-20 w-auto min-w-[80px] rounded-lg overflow-hidden flex-shrink-0 border border-white/10 group-hover:border-primary-500/50 transition-colors bg-black/20">
+                         <img src={option.thumbnail} alt={option.name} className="h-full w-auto object-contain" />
+                      </div>
+                    ) : (
+                      <div className="ml-3 w-10 h-10 rounded-full bg-surfaceHighlight flex items-center justify-center text-xl group-hover:scale-110 transition-transform flex-shrink-0">
+                        💡
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-white group-hover:text-primary-300 truncate">{option.name}</div>
+                      <div className="text-xs text-gray-400 truncate">{option.value}</div>
                     </div>
                   </button>
                 ))}
@@ -3140,17 +3273,17 @@ function App() {
               </p>
             </div>
 
-            <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-8 scrollbar-custom">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 pt-6 md:pt-8 scrollbar-custom">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 pb-safe">
                 
-                {/* Starter Plan */}
+                {/* Starter Plan - מתחיל */}
                 <div className="relative">
                   <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent rounded-2xl"></div>
-                  <div className="relative bg-surfaceHighlight/20 border border-white/10 rounded-2xl p-6 flex flex-col h-full">
+                  <div className="relative bg-surfaceHighlight/20 border border-white/10 rounded-2xl p-5 md:p-6 flex flex-col h-full">
                     <div className="mb-4">
                       <h3 className="text-xl font-bold text-white mb-1">מתחיל</h3>
                       <div className="flex items-baseline gap-1">
-                        <span className="text-3xl font-bold text-white">₪15</span>
+                        <span className="text-3xl font-bold text-white">₪19</span>
                         <span className="text-sm text-gray-400">/חודש</span>
                       </div>
                     </div>
@@ -3158,7 +3291,7 @@ function App() {
                     <div className="space-y-3 mb-6 flex-1">
                       <div className="flex items-center gap-2 text-sm text-gray-300">
                         <div className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-secondary-400">✓</div>
-                        <span>40 תמונות בחודש</span>
+                        <span>50 תמונות בחודש</span>
                       </div>
                       <div className="flex items-center gap-2 text-sm text-gray-300">
                         <div className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-secondary-400">✓</div>
@@ -3172,14 +3305,14 @@ function App() {
 
                     <button 
                       onClick={() => handleSubscriptionClick('https://pay.grow.link/f8f8414d5e65d2b80b262486d3ea3e3c-Mjc1ODQ5MA')}
-                      disabled={userSubscription === 1}
+                      disabled={userSubscription === 1 && userCredits === 50}
                       className={`w-full py-3 rounded-xl font-medium border block text-center ${
-                        userSubscription === 1 
+                        userSubscription === 1 && userCredits === 50
                           ? 'bg-emerald-600/20 border-emerald-500/50 text-emerald-400 cursor-not-allowed' 
-                          : 'bg-white/5 text-white border-white/10'
+                          : 'bg-white/5 text-white border-white/10 hover:bg-white/10 transition-all'
                       }`}
                     >
-                      {userSubscription === 1 ? (
+                      {userSubscription === 1 && userCredits === 50 ? (
                         <span className="flex items-center justify-center gap-2">
                           <CheckCircle className="w-5 h-5" />
                           המנוי הנוכחי שלך
@@ -3191,54 +3324,54 @@ function App() {
                   </div>
                 </div>
 
-                {/* Value Plan */}
+                {/* Pro Plan - משתלם */}
                 <div className="relative md:-mt-4 md:-mb-4 z-10">
                   <div className="absolute inset-0 bg-gradient-to-b from-secondary-900/50 to-transparent rounded-2xl"></div>
-                  <div className="relative bg-surfaceHighlight/40 border border-secondary-500/50 rounded-2xl p-6 flex flex-col h-full shadow-lg shadow-secondary-900/20">
+                  <div className="relative bg-surfaceHighlight/40 border border-secondary-500/50 rounded-2xl p-5 md:p-6 flex flex-col h-full shadow-lg shadow-secondary-900/20">
                     <div className="absolute top-0 right-1/2 transform translate-x-1/2 -translate-y-1/2 bg-secondary-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg whitespace-nowrap">
-                      הכי משתלם
+                      הכי משתלם: פי 4 יותר תמונות! 🔥
                     </div>
                     
                     <div className="mb-4 mt-2">
                       <h3 className="text-xl font-bold text-white mb-1">משתלם</h3>
                       <div className="flex items-baseline gap-1">
-                        <span className="text-3xl font-bold text-secondary-400">₪25</span>
+                        <span className="text-3xl font-bold text-secondary-400">₪49</span>
                         <span className="text-sm text-gray-400">/חודש</span>
                       </div>
                       <div className="text-xs text-green-400 font-medium mt-1">
-                        חסוך 33% למחיר תמונה
+                        חסוך 35% למחיר תמונה
                       </div>
                     </div>
                     
                     <div className="space-y-3 mb-6 flex-1">
                       <div className="flex items-center gap-2 text-sm text-white">
                         <div className="w-5 h-5 rounded-full bg-secondary-500/20 flex items-center justify-center text-secondary-400">✓</div>
-                        <span className="font-medium">100 תמונות בחודש</span>
+                        <span className="font-medium">200 תמונות בחודש</span>
                       </div>
                       <div className="flex items-center gap-2 text-sm text-white">
                         <div className="w-5 h-5 rounded-full bg-secondary-500/20 flex items-center justify-center text-secondary-400">✓</div>
-                        <span>איכות תמונה גבוהה</span>
+                        <span>גישה מוקדמת לפיצ'רים</span>
                       </div>
                       <div className="flex items-center gap-2 text-sm text-white">
                         <div className="w-5 h-5 rounded-full bg-secondary-500/20 flex items-center justify-center text-secondary-400">✓</div>
-                        <span>עיבוד מהיר</span>
+                        <span>תמיכה בוואטסאפ אישי</span>
                       </div>
                       <div className="flex items-center gap-2 text-sm text-white">
                         <div className="w-5 h-5 rounded-full bg-secondary-500/20 flex items-center justify-center text-secondary-400">✓</div>
-                        <span>הסרת סימן מים</span>
+                        <span>שמירת היסטוריה ללא הגבלה</span>
                       </div>
                     </div>
 
                     <button 
                       onClick={() => handleSubscriptionClick('https://pay.grow.link/bf7845c990da58c287bf83a84a87e11c-MjcwMjgzNQ')}
-                      disabled={userSubscription === 2}
+                      disabled={userSubscription === 2 && userCredits === 200}
                       className={`w-full py-3 rounded-xl font-bold shadow-lg block text-center ${
-                        userSubscription === 2
+                        userSubscription === 2 && userCredits === 200
                           ? 'bg-emerald-600/20 border-2 border-emerald-500/50 text-emerald-400 cursor-not-allowed shadow-emerald-900/30'
-                          : 'bg-gradient-to-r from-secondary-500 to-secondary-600 text-white shadow-secondary-900/30'
+                          : 'bg-gradient-to-r from-secondary-500 to-secondary-600 text-white shadow-secondary-900/30 hover:from-secondary-400 hover:to-secondary-500 transition-all'
                       }`}
                     >
-                      {userSubscription === 2 ? (
+                      {userSubscription === 2 && userCredits === 200 ? (
                         <span className="flex items-center justify-center gap-2">
                           <CheckCircle className="w-5 h-5" />
                           המנוי הנוכחי שלך
@@ -3250,50 +3383,54 @@ function App() {
                   </div>
                 </div>
 
-                {/* Pro Plan */}
+                {/* Professional Plan - מקצועי */}
                 <div className="relative">
-                  <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent rounded-2xl"></div>
-                  <div className="relative bg-surfaceHighlight/20 border border-white/10 rounded-2xl p-6 flex flex-col h-full">
-                    <div className="mb-4">
-                      <h3 className="text-xl font-bold text-white mb-1">מקצועי</h3>
+                  <div className="absolute inset-0 bg-gradient-to-b from-amber-900/30 to-transparent rounded-2xl"></div>
+                  <div className="relative bg-surfaceHighlight/30 border border-amber-500/30 rounded-2xl p-5 md:p-6 flex flex-col h-full shadow-lg shadow-amber-900/10">
+                    <div className="absolute top-0 right-1/2 transform translate-x-1/2 -translate-y-1/2 bg-gradient-to-r from-amber-500 to-yellow-500 text-black text-xs font-bold px-3 py-1 rounded-full shadow-lg whitespace-nowrap">
+                      ⭐ לאנשי מקצוע
+                    </div>
+                    
+                    <div className="mb-4 mt-2">
+                      <h3 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-400">מקצועי</h3>
                       <div className="flex items-baseline gap-1">
-                        <span className="text-3xl font-bold text-white">₪39</span>
+                        <span className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-400">₪99</span>
                         <span className="text-sm text-gray-400">/חודש</span>
                       </div>
-                       <div className="text-xs text-green-400 font-medium mt-1">
-                        חסוך 48% למחיר תמונה
+                      <div className="text-xs text-green-400 font-medium mt-1">
+                        חסוך 42% למחיר תמונה
                       </div>
                     </div>
                     
                     <div className="space-y-3 mb-6 flex-1">
                       <div className="flex items-center gap-2 text-sm text-gray-300">
-                        <div className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-secondary-400">✓</div>
-                        <span>200 תמונות בחודש</span>
+                        <div className="w-5 h-5 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-400">✓</div>
+                        <span className="font-medium">450 תמונות בחודש</span>
                       </div>
                       <div className="flex items-center gap-2 text-sm text-gray-300">
-                        <div className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-secondary-400">✓</div>
-                        <span>גישה מוקדמת לפיצ'רים</span>
+                        <div className="w-5 h-5 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-400">✓</div>
+                        <span>כל הפיצ׳רים המתקדמים</span>
                       </div>
                       <div className="flex items-center gap-2 text-sm text-gray-300">
-                        <div className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-secondary-400">✓</div>
-                        <span>תמיכה בוואטסאפ אישי</span>
+                        <div className="w-5 h-5 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-400">✓</div>
+                        <span>תמיכה מועדפת</span>
                       </div>
                       <div className="flex items-center gap-2 text-sm text-gray-300">
-                        <div className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-secondary-400">✓</div>
-                        <span>שמירת היסטוריה ללא הגבלה</span>
+                        <div className="w-5 h-5 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-400">✓</div>
+                        <span>לאנשי מקצוע בתחום</span>
                       </div>
                     </div>
 
                     <button 
                       onClick={() => handleSubscriptionClick('https://pay.grow.link/31f92ee464c112077b30007432dc8226-Mjc1ODQ4NQ')}
-                      disabled={userSubscription === 3}
-                      className={`w-full py-3 rounded-xl font-medium border block text-center ${
-                        userSubscription === 3
-                          ? 'bg-emerald-600/20 border-emerald-500/50 text-emerald-400 cursor-not-allowed'
-                          : 'bg-white/5 text-white border-white/10'
+                      disabled={userSubscription === 3 && userCredits === 450}
+                      className={`w-full py-3 rounded-xl font-bold shadow-lg block text-center ${
+                        userSubscription === 3 && userCredits === 450
+                          ? 'bg-emerald-600/20 border-2 border-emerald-500/50 text-emerald-400 cursor-not-allowed shadow-emerald-900/30'
+                          : 'bg-gradient-to-r from-amber-500 to-yellow-500 text-black shadow-amber-900/30 hover:from-amber-400 hover:to-yellow-400 transition-all'
                       }`}
                     >
-                      {userSubscription === 3 ? (
+                      {userSubscription === 3 && userCredits === 450 ? (
                         <span className="flex items-center justify-center gap-2">
                           <CheckCircle className="w-5 h-5" />
                           המנוי הנוכחי שלך

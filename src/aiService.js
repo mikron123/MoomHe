@@ -5,13 +5,36 @@ import { doc, setDoc, getDoc, onSnapshot, collection } from 'firebase/firestore'
 class AIService {
   constructor() {
     this.activeRequests = new Map(); // Track active requests
+    // EXPERIMENTAL: Flag to use GPT-image-1.5 instead of Gemini
+    // Set to true to test the experimental Azure GPT-image-1.5 model
+    this.useExperimentalModel = true;
+  }
+
+  // Enable or disable experimental model
+  setUseExperimentalModel(enabled) {
+    this.useExperimentalModel = enabled;
+    console.log(`[AIService] Experimental model (GPT-image-1.5) ${enabled ? 'ENABLED' : 'DISABLED'}`);
+  }
+
+  // Check if experimental model is enabled
+  isExperimentalModelEnabled() {
+    return this.useExperimentalModel;
   }
 
   // Submit a request for image generation
-  async submitImageGenerationRequest(user, prompt, imageData, objectImageData = null, deviceId = null) {
+  // Now supports experimental GPT-image-1.5 model via useExperimentalModel flag
+  async submitImageGenerationRequest(user, prompt, imageData, objectImageData = null, deviceId = null, forceExperimental = null) {
     try {
       // Get user's auth token
       const authToken = await user.getIdToken();
+      
+      // Determine whether to use experimental model
+      // forceExperimental param overrides the instance setting if provided
+      const shouldUseExperimental = forceExperimental !== null ? forceExperimental : this.useExperimentalModel;
+      
+      if (shouldUseExperimental) {
+        console.log('[AIService] Using EXPERIMENTAL GPT-image-1.5 model for this request');
+      }
       
       // Create request document
       const requestData = {
@@ -26,7 +49,9 @@ class AIService {
         objectImageData: objectImageData,
         isDone: false,
         isError: false,
-        createdAt: new Date()
+        createdAt: new Date(),
+        // EXPERIMENTAL: Flag for using GPT-image-1.5 model
+        useExperimentalModel: shouldUseExperimental
       };
 
       // Create document reference

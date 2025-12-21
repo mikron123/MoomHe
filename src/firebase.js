@@ -195,9 +195,10 @@ function getDeviceBrand() {
 
 // Storage functions
 // Helper function to compress and resize image to max 1080p
-async function compressImage(imageDataUrl, maxWidth = 1920, maxHeight = 1080, quality = 0.8) {
-  // Check if the image is HEIC format
-  if (imageDataUrl.includes('image/heic') || imageDataUrl.includes('image/heif')) {
+async function compressImage(imageDataUrl, maxWidth = 1920, maxHeight = 1080, quality = 0.8, isHeicFile = false) {
+  // Check if the image is HEIC format (via flag or data URL detection)
+  const needsHeicConversion = isHeicFile || imageDataUrl.includes('image/heic') || imageDataUrl.includes('image/heif');
+  if (needsHeicConversion) {
     try {
       console.log('Converting HEIC image to JPEG...');
       
@@ -205,22 +206,30 @@ async function compressImage(imageDataUrl, maxWidth = 1920, maxHeight = 1080, qu
       const response = await fetch(imageDataUrl);
       const heicBlob = await response.blob();
       
-      // Convert HEIC to JPEG using heic2any
-      const heic2any = (await import('heic2any')).default;
-      const convertedBlob = await heic2any({
+      // Skip conversion if already a displayable format
+      if (heicBlob.type === 'image/jpeg' || heicBlob.type === 'image/png' || heicBlob.type === 'image/webp') {
+        console.log('File already in displayable format, skipping HEIC conversion');
+        const convertedDataUrl = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.readAsDataURL(heicBlob);
+        });
+        return await compressImage(convertedDataUrl, maxWidth, maxHeight, quality);
+      }
+      
+      // Convert HEIC to JPEG using heic-to library
+      const { heicTo } = await import('heic-to');
+      const convertedBlob = await heicTo({
         blob: heicBlob,
-        toType: 'image/jpeg',
+        type: 'image/jpeg',
         quality: quality
       });
-      
-      // If conversion returns an array, take the first element
-      const jpegBlob = Array.isArray(convertedBlob) ? convertedBlob[0] : convertedBlob;
       
       // Convert the converted JPEG blob to data URL for further processing
       const convertedDataUrl = await new Promise((resolve) => {
         const reader = new FileReader();
         reader.onload = () => resolve(reader.result);
-        reader.readAsDataURL(jpegBlob);
+        reader.readAsDataURL(convertedBlob);
       });
       
       console.log('HEIC converted to JPEG successfully');
