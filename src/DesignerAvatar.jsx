@@ -169,27 +169,15 @@ const DesignerAvatar = ({ suggestions, onSelect, onClose, isMobile = false, isTh
             )}
           </div>
 
-          {/* Thinking / Intro Bubble - Only show if thinking OR showSuggestions is true */}
-          {(isThinking || showSuggestions) && (
+          {/* Intro Bubble - Only show when suggestions are ready, NOT while thinking */}
+          {!isThinking && showSuggestions && (
             <div className="bg-white rounded-2xl rounded-br-none p-4 shadow-xl border border-purple-100 max-w-[250px] animate-bounce-in relative">
                {/* Small triangle for speech bubble - positioned right */}
                <div className="absolute bottom-0 right-[-8px] w-0 h-0 border-r-[8px] border-r-transparent border-b-[12px] border-b-white border-l-[0px] border-l-transparent transform -rotate-12"></div>
 
-              {isThinking ? (
-                <div className="flex items-center gap-2" dir="rtl">
-                  <p className="text-gray-600 text-sm font-medium">חושבת על הצעות עיצוב...</p>
-                  {/* Typing dots */}
-                   <div className="flex space-x-1 flex-row-reverse">
-                     <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                     <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                     <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-                   </div>
-                </div>
-              ) : (
-                <p className="text-gray-800 text-sm font-medium text-right" dir="rtl">
-                  היי! יש לי כמה רעיונות מעולים לשדרוג החדר הזה 🎨
-                </p>
-              )}
+              <p className="text-gray-800 text-sm font-medium text-right" dir="rtl">
+                היי! יש לי כמה רעיונות מעולים לשדרוג החדר הזה 🎨
+              </p>
             </div>
           )}
         </div>

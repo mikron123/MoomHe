@@ -299,7 +299,7 @@ async function processImageWithGemini(prompt, imageData, isObjectDetection = fal
 }
 
 // Helper function to process image with Azure GPT-image-1.5 (Experimental)
-async function processImageWithGPTImage(prompt, imageData, docId = null) {
+async function processImageWithGPTImage(prompt, imageData, docId = null, objectImageData = null) {
   if (!AZURE_OPENAI_API_KEY) {
     throw new Error('Azure OpenAI API key not configured');
   }
@@ -308,6 +308,9 @@ async function processImageWithGPTImage(prompt, imageData, docId = null) {
     logger.info(`[GPT-Image-1.5] Processing image edit request`);
     logger.info(`[GPT-Image-1.5] Prompt: ${prompt}`);
     logger.info(`[GPT-Image-1.5] Image data length: ${imageData.inlineData.data.length}`);
+    if (objectImageData) {
+      logger.info(`[GPT-Image-1.5] Object image provided for inpainting - dataLength: ${objectImageData.inlineData.data.length}, mimeType: ${objectImageData.inlineData.mimeType}`);
+    }
 
     // Translate Hebrew prompt to English
     const englishPrompt = await translatePromptToEnglish(prompt);
@@ -354,7 +357,17 @@ async function processImageWithGPTImage(prompt, imageData, docId = null) {
       .png()
       .toBuffer();
     
-    logger.info(`[GPT-Image-1.5] Converted image to PNG, size: ${pngBuffer.length} bytes`);
+    logger.info(`[GPT-Image-1.5] Converted main image to PNG, size: ${pngBuffer.length} bytes`);
+
+    // Convert object image to PNG if provided
+    let objectPngBuffer = null;
+    if (objectImageData) {
+      const objectBuffer = Buffer.from(objectImageData.inlineData.data, 'base64');
+      objectPngBuffer = await sharp(objectBuffer)
+        .png()
+        .toBuffer();
+      logger.info(`[GPT-Image-1.5] Converted object image to PNG, size: ${objectPngBuffer.length} bytes`);
+    }
 
     // Build the Azure OpenAI edit endpoint URL
     const editUrl = `${AZURE_OPENAI_ENDPOINT}openai/deployments/${AZURE_DEPLOYMENT_NAME}/images/edits?api-version=${AZURE_API_VERSION}`;
@@ -362,12 +375,26 @@ async function processImageWithGPTImage(prompt, imageData, docId = null) {
     logger.info(`[GPT-Image-1.5] Calling Azure endpoint: ${editUrl}`);
 
     // Create form data for the multipart request
+    // GPT-image-1.5 supports multiple images via image[] array for inpainting
     const formData = new FormData();
-    formData.append('image', pngBuffer, {
+    
+    // Add main image
+    formData.append('image[]', pngBuffer, {
       filename: 'input_image.png',
       contentType: 'image/png',
       knownLength: pngBuffer.length
     });
+    
+    // Add object image if provided (for inpainting the object into the scene)
+    if (objectPngBuffer) {
+      formData.append('image[]', objectPngBuffer, {
+        filename: 'object_image.png',
+        contentType: 'image/png',
+        knownLength: objectPngBuffer.length
+      });
+      logger.info(`[GPT-Image-1.5] Added object image to request for inpainting`);
+    }
+    
     formData.append('prompt', englishPrompt);
     formData.append('n', '1');
     formData.append('size', outputSize);
@@ -801,8 +828,15 @@ exports.processImageRequestExperimental = onDocumentCreated('userHistory/{docId}
       originalImageUrl = await uploadToStorage(userId, originalBuffer, originalFilename);
     }
     
+    // Process object image if provided (for inpainting)
+    let objectImageData = null;
+    if (docData.objectImageData) {
+      logger.info(`[EXPERIMENTAL] Processing object image - dataLength: ${docData.objectImageData.inlineData.data.length}, mimeType: ${docData.objectImageData.inlineData.mimeType}`);
+      objectImageData = docData.objectImageData;
+    }
+    
     // Process with GPT-image-1.5
-    const result = await processImageWithGPTImage(docData.prompt, imageData, docId);
+    const result = await processImageWithGPTImage(docData.prompt, imageData, docId, objectImageData);
     
     if (result.type === 'image') {
       // Convert base64 to buffer
