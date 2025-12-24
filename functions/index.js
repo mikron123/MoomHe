@@ -1326,33 +1326,55 @@ exports.onUserEmailUpdate = onDocumentUpdated('users/{userId}', async (event) =>
   
   // Only proceed if email was added or changed
   if (!afterEmail || beforeEmail === afterEmail) {
-    logger.info(`User ${event.params.userId}: No email change detected`);
     return;
   }
   
-  logger.info(`User ${event.params.userId}: Email updated from "${beforeEmail}" to "${afterEmail}"`);
+  logger.info(`[onUserEmailUpdate] User ${event.params.userId}: Email updated from "${beforeEmail}" to "${afterEmail}"`);
   
   try {
     // Find payment events where data.payerEmail matches the user's email
     const paymentEventsRef = db.collection('paymentEvents');
-    const querySnapshot = await paymentEventsRef
-      .where('data.payerEmail', '==', afterEmail)
-      .orderBy('receivedAt', 'desc')
-      .limit(1)
-      .get();
+    
+    let querySnapshot;
+    try {
+      // Try with orderBy first (requires composite index)
+      querySnapshot = await paymentEventsRef
+        .where('data.payerEmail', '==', afterEmail)
+        .orderBy('receivedAt', 'desc')
+        .limit(1)
+        .get();
+    } catch (indexError) {
+      // If index doesn't exist yet, fallback to query without orderBy
+      logger.warn(`[onUserEmailUpdate] Index query failed, falling back to simple query: ${indexError.message}`);
+      querySnapshot = await paymentEventsRef
+        .where('data.payerEmail', '==', afterEmail)
+        .limit(10)
+        .get();
+      
+      // If we got results, sort manually to get the most recent
+      if (!querySnapshot.empty) {
+        const docs = querySnapshot.docs.sort((a, b) => {
+          const aTime = a.data().receivedAt?.toMillis() || 0;
+          const bTime = b.data().receivedAt?.toMillis() || 0;
+          return bTime - aTime;
+        });
+        querySnapshot = { empty: false, docs: [docs[0]] };
+      }
+    }
     
     if (querySnapshot.empty) {
-      logger.info(`No payment events found for email: ${afterEmail}`);
+      logger.info(`[onUserEmailUpdate] No payment events found for email: ${afterEmail}`);
       return;
     }
     
     const paymentDoc = querySnapshot.docs[0];
     const paymentData = paymentDoc.data();
     
-    logger.info(`Found payment event ${paymentDoc.id} for email ${afterEmail}, status: ${paymentData.status}`);
+    logger.info(`[onUserEmailUpdate] Found payment event ${paymentDoc.id} for email ${afterEmail}`);
+    logger.info(`[onUserEmailUpdate] Payment data: status=${paymentData.status}, err="${paymentData.err}", description="${paymentData.data?.description}"`);
     
-    // Check if status is "1" (successful payment)
-    if (paymentData.status == "1") {
+    // Check if status is "1" (successful payment) and no error
+    if (paymentData.status == "1" && paymentData.err === "") {
       const description = paymentData.data?.description || '';
       
       let newSubscription = 0;
@@ -1373,7 +1395,13 @@ exports.onUserEmailUpdate = onDocumentUpdated('users/{userId}', async (event) =>
       if (newSubscription > 0) {
         // Check if user already has a subscription from this payment
         if (afterData.lastPaymentEvent === paymentDoc.id) {
-          logger.info(`User ${event.params.userId} already processed payment ${paymentDoc.id}`);
+          logger.info(`[onUserEmailUpdate] User ${event.params.userId} already processed payment ${paymentDoc.id}, skipping`);
+          return;
+        }
+        
+        // Check if user already has a subscription (don't downgrade)
+        if (afterData.subscription && afterData.subscription >= newSubscription) {
+          logger.info(`[onUserEmailUpdate] User ${event.params.userId} already has subscription ${afterData.subscription}, not overwriting with ${newSubscription}`);
           return;
         }
         
@@ -1384,15 +1412,15 @@ exports.onUserEmailUpdate = onDocumentUpdated('users/{userId}', async (event) =>
           subscriptionUpdatedAt: admin.firestore.FieldValue.serverTimestamp()
         });
         
-        logger.info(`Granted subscription ${newSubscription} (${newCredits} credits) to user ${event.params.userId} from payment event ${paymentDoc.id}`);
+        logger.info(`[onUserEmailUpdate] SUCCESS: Granted subscription ${newSubscription} (${newCredits} credits) to user ${event.params.userId} from payment event ${paymentDoc.id}`);
       } else {
-        logger.warn(`Unknown subscription description for email ${afterEmail}: ${description}`);
+        logger.warn(`[onUserEmailUpdate] Unknown subscription description for email ${afterEmail}: "${description}"`);
       }
     } else {
-      logger.info(`Payment event ${paymentDoc.id} has status ${paymentData.status}, not granting subscription`);
+      logger.info(`[onUserEmailUpdate] Payment event ${paymentDoc.id} not valid: status=${paymentData.status}, err="${paymentData.err}"`);
     }
   } catch (error) {
-    logger.error(`Error processing email update for user ${event.params.userId}:`, error);
+    logger.error(`[onUserEmailUpdate] Error processing email update for user ${event.params.userId}:`, error);
     throw error;
   }
 });
