@@ -8,7 +8,7 @@
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
     import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-    import { getFirestore, collection, query, orderBy, limit, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+    import { getFirestore, collection, query, orderBy, limit, getDocs, where } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
     const firebaseConfig = {
       apiKey: "AIzaSyDexERfe7htllA1aq7vlbnyQAmfgjx6HnI",
@@ -79,26 +79,43 @@
       historyGrid.innerHTML = '';
 
       try {
-        const historyQuery = query(
-          collection(db, 'userHistory'),
-          orderBy('createdAt', 'desc'),
-          limit(30)
-        );
+        const uidFilter = document.getElementById('uid-filter').value.trim();
+        
+        let historyQuery;
+        if (uidFilter) {
+          historyQuery = query(
+            collection(db, 'userHistory'),
+            where('userId', '==', uidFilter),
+            orderBy('createdAt', 'desc'),
+            limit(50)
+          );
+        } else {
+          historyQuery = query(
+            collection(db, 'userHistory'),
+            orderBy('createdAt', 'desc'),
+            limit(30)
+          );
+        }
 
         const snapshot = await getDocs(historyQuery);
         
         if (snapshot.empty) {
           historyGrid.innerHTML = '<p class="text-gray-400 col-span-full text-center py-8">אין היסטוריה להצגה</p>';
+          updateResultsHeader(0, uidFilter);
           return;
         }
 
+        let count = 0;
         snapshot.forEach((doc) => {
           const data = doc.data();
           // Skip uploaded type records - only show generated
           if (data.type === 'uploaded') return;
           const card = createHistoryCard(doc.id, data);
           historyGrid.appendChild(card);
+          count++;
         });
+        
+        updateResultsHeader(count, uidFilter);
 
       } catch (error) {
         console.error('Error loading history:', error);
@@ -110,6 +127,28 @@
 
     // Refresh handler
     window.refreshHistory = loadHistory;
+
+    // Clear UID filter
+    window.clearUidFilter = () => {
+      document.getElementById('uid-filter').value = '';
+      loadHistory();
+    };
+
+    // Filter by specific user
+    window.filterByUser = (userId) => {
+      document.getElementById('uid-filter').value = userId;
+      loadHistory();
+    };
+
+    // Update header based on filter state
+    function updateResultsHeader(count, uidFilter) {
+      const header = document.getElementById('results-header');
+      if (uidFilter) {
+        header.innerHTML = `<span class="text-purple-400">${count}</span> תוצאות עבור UID: <span class="font-mono text-purple-400">${uidFilter.slice(0, 12)}...</span>`;
+      } else {
+        header.textContent = count > 0 ? `${count} הרשומות האחרונות` : '30 הרשומות האחרונות';
+      }
+    }
 
     // Create history card
     function createHistoryCard(id, data) {
@@ -162,6 +201,13 @@
               >
                 <span class="copy-icon">📋</span>
                 <span class="copy-text">Copy</span>
+              </button>
+              <button 
+                onclick="filterByUser('${data.userId}')" 
+                class="text-xs bg-purple-600/20 hover:bg-purple-600/40 text-purple-400 hover:text-purple-300 px-2 py-1 rounded transition-all flex items-center gap-1"
+                title="הצג רק משתמש זה"
+              >
+                🔍 סנן
               </button>
             </div>
           ` : ''}
@@ -262,6 +308,22 @@
           <span id="user-info" class="text-sm text-gray-400"></span>
         </div>
         <div class="flex items-center gap-3">
+          <div class="flex items-center gap-2">
+            <input 
+              type="text" 
+              id="uid-filter" 
+              placeholder="סנן לפי UID..."
+              onkeydown="if(event.key === 'Enter') refreshHistory()"
+              class="bg-gray-900/50 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors w-48"
+            >
+            <button 
+              onclick="clearUidFilter()"
+              class="bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white px-3 py-2 rounded-lg text-sm transition-colors"
+              title="נקה סינון"
+            >
+              ✕
+            </button>
+          </div>
           <button 
             onclick="refreshHistory()"
             class="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm transition-colors flex items-center gap-2"
@@ -281,7 +343,7 @@
     <!-- Content -->
     <main class="max-w-7xl mx-auto px-4 py-8">
       <div class="flex items-center justify-between mb-6">
-        <h2 class="text-lg font-semibold text-gray-300">10 הרשומות האחרונות</h2>
+        <h2 id="results-header" class="text-lg font-semibold text-gray-300">30 הרשומות האחרונות</h2>
       </div>
 
       <!-- Loading -->

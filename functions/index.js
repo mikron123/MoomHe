@@ -83,12 +83,12 @@ async function checkAndUpdateGenerationCount(userId, deviceId) {
     ]);
     
     // Get User Limits
-    let creditLimit = 2; // Default free limit
+    let creditLimit = 3; // Default free limit
     let subscriptionStatus = 0;
     
     if (userProfileDoc.exists) {
       const userData = userProfileDoc.data();
-      creditLimit = userData.credits || 2;
+      creditLimit = userData.credits || 3;
       subscriptionStatus = userData.subscription || 0;
     }
 
@@ -474,10 +474,10 @@ exports.onUserCreated = onDocumentCreated('users/{userId}', async (event) => {
   
   logger.info(`Setting default credits for new user: ${event.params.userId}`);
   
-  // Set default credits (2) and subscription (0 - no subscription)
+  // Set default credits (3) and subscription (0 - no subscription)
   // Using set with merge to avoid overwriting other fields if they exist
   return snapshot.ref.set({
-    credits: 2,
+    credits: 3,
     subscription: 0,
     updatedAt: admin.firestore.FieldValue.serverTimestamp()
   }, { merge: true });
@@ -1422,5 +1422,192 @@ exports.onUserEmailUpdate = onDocumentUpdated('users/{userId}', async (event) =>
   } catch (error) {
     logger.error(`[onUserEmailUpdate] Error processing email update for user ${event.params.userId}:`, error);
     throw error;
+  }
+});
+
+// HTTP function for redeeming coupon codes
+exports.redeemCoupon = onRequest({ cors: true }, async (req, res) => {
+  // Set CORS headers
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+  
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: 'Method not allowed' });
+    return;
+  }
+  
+  try {
+    const { couponCode, authToken, deviceId } = req.body;
+    
+    if (!couponCode || !authToken || !deviceId) {
+      res.status(400).json({ 
+        success: false, 
+        error: 'Missing required fields: couponCode, authToken, deviceId',
+        errorCode: 'MISSING_FIELDS'
+      });
+      return;
+    }
+    
+    // Validate user token
+    const user = await validateUserToken(authToken);
+    const userId = user.uid;
+    
+    logger.info(`[redeemCoupon] User ${userId} attempting to redeem coupon: ${couponCode}`);
+    
+    // Check if coupon exists
+    const couponRef = db.collection('coupons').doc(couponCode.toUpperCase());
+    const couponDoc = await couponRef.get();
+    
+    if (!couponDoc.exists) {
+      logger.info(`[redeemCoupon] Coupon not found: ${couponCode}`);
+      res.status(400).json({ 
+        success: false, 
+        error: 'קוד הקופון אינו קיים',
+        errorCode: 'COUPON_NOT_FOUND'
+      });
+      return;
+    }
+    
+    const couponData = couponDoc.data();
+    
+    // Check if coupon is active
+    if (couponData.active === false) {
+      logger.info(`[redeemCoupon] Coupon is inactive: ${couponCode}`);
+      res.status(400).json({ 
+        success: false, 
+        error: 'קוד הקופון אינו פעיל',
+        errorCode: 'COUPON_INACTIVE'
+      });
+      return;
+    }
+    
+    // Check if coupon has expired
+    if (couponData.expiresAt && couponData.expiresAt.toDate() < new Date()) {
+      logger.info(`[redeemCoupon] Coupon has expired: ${couponCode}`);
+      res.status(400).json({ 
+        success: false, 
+        error: 'קוד הקופון פג תוקף',
+        errorCode: 'COUPON_EXPIRED'
+      });
+      return;
+    }
+    
+    // Check if max redemptions reached
+    if (couponData.maxRedemptions && couponData.redemptionCount >= couponData.maxRedemptions) {
+      logger.info(`[redeemCoupon] Coupon max redemptions reached: ${couponCode}`);
+      res.status(400).json({ 
+        success: false, 
+        error: 'קוד הקופון מוצה',
+        errorCode: 'COUPON_MAX_REACHED'
+      });
+      return;
+    }
+    
+    // Get credits to add (default 10)
+    const creditsToAdd = couponData.credits || 10;
+    
+    // Check if device already redeemed this coupon
+    const redemptionRef = db.collection('couponRedemptions').doc(`${couponCode.toUpperCase()}_${deviceId}`);
+    const redemptionDoc = await redemptionRef.get();
+    
+    if (redemptionDoc.exists) {
+      logger.info(`[redeemCoupon] Device ${deviceId} already redeemed coupon: ${couponCode}`);
+      res.status(400).json({ 
+        success: false, 
+        error: 'כבר מימשת את הקופון הזה',
+        errorCode: 'ALREADY_REDEEMED'
+      });
+      return;
+    }
+    
+    // Also check if user already redeemed this coupon (double protection)
+    const userRedemptionRef = db.collection('couponRedemptions').doc(`${couponCode.toUpperCase()}_user_${userId}`);
+    const userRedemptionDoc = await userRedemptionRef.get();
+    
+    if (userRedemptionDoc.exists) {
+      logger.info(`[redeemCoupon] User ${userId} already redeemed coupon: ${couponCode}`);
+      res.status(400).json({ 
+        success: false, 
+        error: 'כבר מימשת את הקופון הזה',
+        errorCode: 'ALREADY_REDEEMED'
+      });
+      return;
+    }
+    
+    // Get user document to update credits
+    const userRef = db.collection('users').doc(userId);
+    const userDoc = await userRef.get();
+    
+    if (!userDoc.exists) {
+      res.status(400).json({ 
+        success: false, 
+        error: 'משתמש לא נמצא',
+        errorCode: 'USER_NOT_FOUND'
+      });
+      return;
+    }
+    
+    const userData = userDoc.data();
+    const currentCredits = userData.credits || 0;
+    const newCredits = currentCredits + creditsToAdd;
+    
+    // Perform the redemption in a batch
+    const batch = db.batch();
+    
+    // Update user credits
+    batch.update(userRef, {
+      credits: newCredits,
+      lastCouponRedeemed: couponCode.toUpperCase(),
+      lastCouponRedeemedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+    
+    // Record device redemption
+    batch.set(redemptionRef, {
+      couponCode: couponCode.toUpperCase(),
+      deviceId: deviceId,
+      userId: userId,
+      creditsAdded: creditsToAdd,
+      redeemedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+    
+    // Record user redemption
+    batch.set(userRedemptionRef, {
+      couponCode: couponCode.toUpperCase(),
+      deviceId: deviceId,
+      userId: userId,
+      creditsAdded: creditsToAdd,
+      redeemedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+    
+    // Increment coupon redemption count
+    batch.update(couponRef, {
+      redemptionCount: admin.firestore.FieldValue.increment(1),
+      lastRedeemedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+    
+    await batch.commit();
+    
+    logger.info(`[redeemCoupon] SUCCESS: User ${userId} redeemed coupon ${couponCode} for ${creditsToAdd} credits. New balance: ${newCredits}`);
+    
+    res.json({
+      success: true,
+      creditsAdded: creditsToAdd,
+      newCredits: newCredits,
+      message: `נוספו ${creditsToAdd} קרדיטים לחשבונך!`
+    });
+    
+  } catch (error) {
+    logger.error('[redeemCoupon] Error:', error);
+    res.status(500).json({ 
+      success: false,
+      error: error.message || 'שגיאה במימוש הקופון',
+      errorCode: 'SERVER_ERROR'
+    });
   }
 });

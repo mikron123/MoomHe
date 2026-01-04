@@ -74,6 +74,16 @@ function GeneralApp() {
           const historyResult = await loadUserHistoryPaginated(user.uid, 1, 7)
           setImageHistory(historyResult.history)
           setHasMoreHistory(historyResult.hasMore)
+          
+          // Restore last image from history if available
+          if (historyResult.history.length > 0) {
+            const lastEntry = historyResult.history[0]
+            const imageUrl = lastEntry.storageUrl || lastEntry.imageUrl
+            if (imageUrl) {
+              setMainImage(imageUrl)
+              setCurrentHistoryId(lastEntry.id)
+            }
+          }
         } finally {
           setIsLoadingHistory(false)
         }

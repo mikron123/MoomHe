@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { Upload, Plus, Palette, RotateCcw, Download, Settings, Home, TreePine, Car, Heart, Hammer, Sparkles, Package, User, Share2, Wand2, Type, Loader2, RotateCw, Lightbulb, Sofa, Droplets, ArrowLeftRight, MessageCircle, HelpCircle, CheckCircle, Mail, History, MoreHorizontal, X, Power } from 'lucide-react'
+import { Upload, Plus, Palette, RotateCcw, Download, Settings, Home, TreePine, Car, Heart, Hammer, Sparkles, Package, User, Share2, Wand2, Type, Loader2, RotateCw, Lightbulb, Sofa, Droplets, ArrowLeftRight, MessageCircle, HelpCircle, CheckCircle, Mail, History, MoreHorizontal, X, Power, Search } from 'lucide-react'
 import { 
   fileToGenerativePart, urlToFile, signInUser, createOrUpdateUser, saveImageToHistory, 
   saveUploadToHistory, loadUserHistory, loadUserHistoryPaginated, auth, uploadImageForSharing, 
@@ -118,10 +118,14 @@ function App() {
   const [showLimitModal, setShowLimitModal] = useState(false)
   const [showWelcomePremiumModal, setShowWelcomePremiumModal] = useState(false)
   const [prevSubscription, setPrevSubscription] = useState(0)
+  const [showCouponSuccessModal, setShowCouponSuccessModal] = useState(false)
+  const [couponCreditsGranted, setCouponCreditsGranted] = useState(0)
   
   // Before/After Comparison
   const [beforeImage, setBeforeImage] = useState(null)
   const [showComparison, setShowComparison] = useState(false)
+  const [hasConfirmedDesign, setHasConfirmedDesign] = useState(false)
+  const [isNewGeneration, setIsNewGeneration] = useState(false)
   
   // Contact Form State
   const [showContactModal, setShowContactModal] = useState(false)
@@ -131,6 +135,15 @@ function App() {
   const [isSubmittingContact, setIsSubmittingContact] = useState(false)
   const [showContactSuccess, setShowContactSuccess] = useState(false)
   const [contactError, setContactError] = useState('')
+
+  // Google Lens Selection State
+  const [isGoogleLensMode, setIsGoogleLensMode] = useState(false)
+  const [lensSelection, setLensSelection] = useState(null) // { startX, startY, endX, endY }
+  const [isSelectingLens, setIsSelectingLens] = useState(false)
+  const [isUploadingLensImage, setIsUploadingLensImage] = useState(false)
+  const lensCanvasRef = useRef(null)
+  const lensImageRef = useRef(null)
+  const lensContainerRef = useRef(null)
 
   useEffect(() => {
     if (pendingSubscription && currentUser && !currentUser.isAnonymous) {
@@ -252,6 +265,21 @@ function App() {
           const historyResult = await loadUserHistoryPaginated(user.uid, 1, 7)
           setImageHistory(historyResult.history)
           setHasMoreHistory(historyResult.hasMore)
+          
+          // Restore last image from history if available
+          if (historyResult.history.length > 0) {
+            const lastEntry = historyResult.history[0]
+            const imageUrl = lastEntry.storageUrl || lastEntry.imageUrl
+            if (imageUrl) {
+              setMainImage(imageUrl)
+              setCurrentHistoryId(lastEntry.id)
+              
+              // Also set before image for comparison if available
+              if (lastEntry.originalImageUrl) {
+                setBeforeImage(lastEntry.originalImageUrl)
+              }
+            }
+          }
         } finally {
           setIsLoadingHistory(false)
         }
@@ -555,6 +583,142 @@ function App() {
     }
   }
 
+  // Google Lens Selection Handlers
+  const handleGoogleLensStart = () => {
+    setIsGoogleLensMode(true)
+    setLensSelection(null)
+    trackFeatureUse('google_lens_start')
+  }
+
+  const handleLensMouseDown = (e) => {
+    if (!isGoogleLensMode) return
+    
+    const rect = e.currentTarget.getBoundingClientRect()
+    const x = (e.clientX || e.touches?.[0]?.clientX) - rect.left
+    const y = (e.clientY || e.touches?.[0]?.clientY) - rect.top
+    
+    setIsSelectingLens(true)
+    setLensSelection({ startX: x, startY: y, endX: x, endY: y })
+  }
+
+  const handleLensMouseMove = (e) => {
+    if (!isSelectingLens || !isGoogleLensMode) return
+    
+    const rect = e.currentTarget.getBoundingClientRect()
+    const x = Math.max(0, Math.min((e.clientX || e.touches?.[0]?.clientX) - rect.left, rect.width))
+    const y = Math.max(0, Math.min((e.clientY || e.touches?.[0]?.clientY) - rect.top, rect.height))
+    
+    setLensSelection(prev => prev ? { ...prev, endX: x, endY: y } : null)
+  }
+
+  const handleLensMouseUp = async () => {
+    if (!isSelectingLens || !lensSelection) return
+    setIsSelectingLens(false)
+    
+    // Check if selection is valid (minimum size)
+    const width = Math.abs(lensSelection.endX - lensSelection.startX)
+    const height = Math.abs(lensSelection.endY - lensSelection.startY)
+    
+    if (width < 20 || height < 20) {
+      setLensSelection(null)
+      return
+    }
+    
+    // Selection is valid, now crop and search
+    await cropAndSearchGoogleLens()
+  }
+
+  const cropAndSearchGoogleLens = async () => {
+    if (!lensSelection || !lensImageRef.current || !lensContainerRef.current) return
+    
+    setIsUploadingLensImage(true)
+    trackFeatureUse('google_lens_search')
+    
+    try {
+      const img = lensImageRef.current
+      const container = lensContainerRef.current
+      const containerRect = container.getBoundingClientRect()
+      const imgRect = img.getBoundingClientRect()
+      
+      // Use the actual image rect to get real displayed position and size
+      const displayedWidth = imgRect.width
+      const displayedHeight = imgRect.height
+      
+      // Calculate offset of the image within the container
+      const offsetX = imgRect.left - containerRect.left
+      const offsetY = imgRect.top - containerRect.top
+      
+      // Calculate scale factors from displayed size to natural size
+      const scaleX = img.naturalWidth / displayedWidth
+      const scaleY = img.naturalHeight / displayedHeight
+      
+      // Get selection bounds in container coordinates
+      const minX = Math.min(lensSelection.startX, lensSelection.endX)
+      const minY = Math.min(lensSelection.startY, lensSelection.endY)
+      const selWidth = Math.abs(lensSelection.endX - lensSelection.startX)
+      const selHeight = Math.abs(lensSelection.endY - lensSelection.startY)
+      
+      // Convert selection from container coordinates to image coordinates
+      // Subtract the image offset within the container
+      const imgRelativeX = minX - offsetX
+      const imgRelativeY = minY - offsetY
+      
+      // Scale to natural image pixels
+      const cropX = Math.max(0, imgRelativeX * scaleX)
+      const cropY = Math.max(0, imgRelativeY * scaleY)
+      const cropWidth = Math.min(selWidth * scaleX, img.naturalWidth - cropX)
+      const cropHeight = Math.min(selHeight * scaleY, img.naturalHeight - cropY)
+      
+      // Ensure we have valid crop dimensions
+      if (cropWidth <= 0 || cropHeight <= 0) {
+        alert('בחר אזור בתוך התמונה')
+        setIsUploadingLensImage(false)
+        return
+      }
+      
+      // Fetch the image as blob to avoid CORS issues with canvas
+      // This is necessary for images from Firebase Storage after generation
+      const imageBlob = await fetch(mainImage).then(r => r.blob())
+      const imageBitmap = await createImageBitmap(imageBlob)
+      
+      // Create canvas and crop
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.max(1, Math.round(cropWidth))
+      canvas.height = Math.max(1, Math.round(cropHeight))
+      const ctx = canvas.getContext('2d')
+      
+      // Draw cropped region from the fetched bitmap (CORS-safe)
+      ctx.drawImage(
+        imageBitmap,
+        Math.round(cropX), Math.round(cropY), Math.round(cropWidth), Math.round(cropHeight),
+        0, 0, canvas.width, canvas.height
+      )
+      
+      // Upload to Firebase Storage
+      const { downloadURL } = await uploadImageForSharing(currentUser?.uid || 'anonymous', canvas.toDataURL('image/jpeg', 0.9))
+      
+      // Open Google Lens in a new tab (can't embed due to X-Frame-Options)
+      const lensUrl = `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(downloadURL)}`
+      window.open(lensUrl, '_blank', 'noopener,noreferrer')
+      
+      // Reset selection state
+      setIsGoogleLensMode(false)
+      setLensSelection(null)
+      
+    } catch (error) {
+      console.error('Google Lens search failed:', error)
+      alert('שגיאה בחיפוש. נסה שוב.')
+    } finally {
+      setIsUploadingLensImage(false)
+    }
+  }
+
+  const cancelGoogleLens = () => {
+    setIsGoogleLensMode(false)
+    setLensSelection(null)
+    setIsSelectingLens(false)
+  }
+
   // Listen for suggestions on current uploaded image
   useEffect(() => {
     if (!currentHistoryId || !isDesignerAvatarEnabled) {
@@ -686,20 +850,35 @@ function App() {
       }
 
       // Submit to Formspree
-      await fetch('https://formspree.io/f/xkgdpbjg', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({
-          email: contactEmail.trim() || null,
-          phone: contactPhone.trim() || null,
-          message: contactMessage.trim()
+      let formspreeError = null
+      try {
+        const formspreeResponse = await fetch('https://formspree.io/f/xkgdpbjg', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({
+            email: contactEmail.trim() || null,
+            phone: contactPhone.trim() || null,
+            message: contactMessage.trim()
+          })
         })
-      })
+        
+        if (!formspreeResponse.ok) {
+          const errorText = await formspreeResponse.text()
+          formspreeError = `HTTP ${formspreeResponse.status}: ${errorText}`
+          console.error('Formspree error:', formspreeError)
+        }
+      } catch (err) {
+        formspreeError = `Network error: ${err.message}`
+        console.error('Formspree network error:', err)
+      }
 
-      await setDoc(doc(db, 'supportMsgs', messageId), messageData)
+      await setDoc(doc(db, 'supportMsgs', messageId), {
+        ...messageData,
+        formspreeError: formspreeError
+      })
       
       // Clear form and show success
       setContactPhone('')
@@ -763,12 +942,35 @@ function App() {
       if (beforeImage) {
         setShowComparison(true)
       }
+      // When opening from click (not fresh generation), skip confirmation
+      setIsNewGeneration(false)
+      setHasConfirmedDesign(true)
     }
   }
 
   const handleCloseModal = () => {
     setShowImageModal(false)
     setShowComparison(false)
+    setIsNewGeneration(false)
+    setHasConfirmedDesign(false)
+    // Reset Google Lens state
+    setIsGoogleLensMode(false)
+    setLensSelection(null)
+    setIsSelectingLens(false)
+  }
+
+  // Handle reverting to original image
+  const handleRevertToOriginal = () => {
+    if (beforeImage) {
+      setMainImage(beforeImage)
+      setBeforeImage(null)
+    }
+    handleCloseModal()
+  }
+
+  // Handle confirming the new design
+  const handleConfirmDesign = () => {
+    setHasConfirmedDesign(true)
   }
 
   const handleImageLoad = (event) => {
@@ -1048,6 +1250,41 @@ function App() {
     } catch (error) {
       console.error('Logout error:', error)
       alert('שגיאה בהתנתקות. נסה שוב.')
+    }
+  }
+
+  const handleRedeemCoupon = async (couponCode) => {
+    try {
+      // Get auth token (works for both anonymous and logged-in users)
+      const authToken = await currentUser.getIdToken()
+      
+      // Get device fingerprint
+      const deviceId = await getDeviceFingerprint()
+      
+      // Call the Cloud Function
+      const response = await fetch('https://us-central1-moomhe-6de30.cloudfunctions.net/redeemCoupon', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          couponCode: couponCode,
+          authToken: authToken,
+          deviceId: deviceId
+        })
+      })
+      
+      const result = await response.json()
+      
+      if (result.success) {
+        // Track successful coupon redemption
+        trackFeatureUse('coupon_redeemed', couponCode)
+      }
+      
+      return result
+    } catch (error) {
+      console.error('Coupon redemption error:', error)
+      return { success: false, error: 'שגיאה במימוש הקופון. נסה שוב.' }
     }
   }
 
@@ -1850,6 +2087,8 @@ function App() {
         // Auto-open modal with comparison enabled
         setShowImageModal(true)
         setShowComparison(true)
+        setIsNewGeneration(true)
+        setHasConfirmedDesign(false)
       } else {
         alert('התמונה לא עובדה בהצלחה. נסה עם תמונה אחרת או פעולה אחרת.')
       }
@@ -2746,119 +2985,280 @@ function App() {
         >
           <div className="relative w-full h-full flex flex-col items-center justify-center gap-4" onClick={(e) => e.stopPropagation()}>
             
-            {/* Top Close Button (Mobile Overlay) */}
+            {/* Top Close Button (Corner X) */}
             <button
               onClick={handleCloseModal}
-              className="absolute top-2 right-2 bg-black/40 hover:bg-black/60 text-white p-2 rounded-full backdrop-blur-md border border-white/10 z-50 md:hidden"
+              className="absolute top-2 right-2 bg-black/40 hover:bg-black/60 text-white p-2 md:p-3 rounded-full backdrop-blur-md border border-white/10 z-50 transition-all hover:scale-110"
             >
-              <X className="w-5 h-5" />
+              <X className="w-5 h-5 md:w-6 md:h-6" />
             </button>
 
             {/* Content Area */}
-            <div className={`flex-1 w-full relative flex items-center justify-center overflow-hidden rounded-2xl bg-black/50 border border-white/5 ${isMobile ? 'mb-20' : ''}`}>
-              {beforeImage && showComparison ? (
+            <div 
+              ref={lensContainerRef}
+              className={`flex-1 w-full relative flex items-center justify-center overflow-hidden rounded-2xl bg-black/50 border border-white/5 ${isMobile ? 'mb-20' : ''} ${isGoogleLensMode ? 'cursor-crosshair' : ''}`}
+              onMouseDown={isGoogleLensMode ? handleLensMouseDown : undefined}
+              onMouseMove={isGoogleLensMode ? handleLensMouseMove : undefined}
+              onMouseUp={isGoogleLensMode ? handleLensMouseUp : undefined}
+              onMouseLeave={isGoogleLensMode ? handleLensMouseUp : undefined}
+              onTouchStart={isGoogleLensMode ? handleLensMouseDown : undefined}
+              onTouchMove={isGoogleLensMode ? handleLensMouseMove : undefined}
+              onTouchEnd={isGoogleLensMode ? handleLensMouseUp : undefined}
+            >
+              {beforeImage && showComparison && !isGoogleLensMode ? (
                 <BeforeAfterSlider 
                   beforeImage={beforeImage} 
                   afterImage={mainImage} 
                 />
               ) : (
                 <img
+                  ref={lensImageRef}
                   src={mainImage}
                   alt="Full size view"
-                  className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+                  className={`max-w-full max-h-full object-contain rounded-lg shadow-2xl ${isGoogleLensMode ? 'select-none pointer-events-none' : ''}`}
+                  draggable={false}
+                  crossOrigin="anonymous"
                 />
+              )}
+              
+              {/* Google Lens Selection Overlay */}
+              {isGoogleLensMode && lensSelection && (
+                <div
+                  className="absolute border-2 border-blue-500 bg-blue-500/20 pointer-events-none"
+                  style={{
+                    left: Math.min(lensSelection.startX, lensSelection.endX),
+                    top: Math.min(lensSelection.startY, lensSelection.endY),
+                    width: Math.abs(lensSelection.endX - lensSelection.startX),
+                    height: Math.abs(lensSelection.endY - lensSelection.startY),
+                  }}
+                >
+                  <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-blue-500 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                    סמן אזור לחיפוש
+                  </div>
+                </div>
+              )}
+              
+              {/* Google Lens Mode Instructions */}
+              {isGoogleLensMode && !lensSelection && (
+                <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
+                  <div className="bg-blue-600/90 backdrop-blur-sm text-white px-4 py-2 rounded-full text-center shadow-lg flex items-center gap-2">
+                    <Search className="w-4 h-4" />
+                    <p className="text-sm font-medium">גרור מלבן מסביב לאובייקט לחיפוש</p>
+                  </div>
+                </div>
+              )}
+              
+              {/* Uploading Indicator */}
+              {isUploadingLensImage && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-20">
+                  <div className="text-center">
+                    <Loader2 className="w-10 h-10 text-blue-400 animate-spin mx-auto mb-2" />
+                    <p className="text-white">מחפש ב-Google Lens...</p>
+                  </div>
+                </div>
               )}
             </div>
 
             {/* Mobile Bottom Bar */}
             {isMobile ? (
-              <div className="fixed bottom-0 left-0 right-0 bg-surface/95 backdrop-blur-xl border-t border-white/10 p-2 pb-8 z-50 grid grid-cols-4 gap-2">
-                <button 
-                  onClick={() => setShowComparison(!showComparison)}
-                  disabled={!beforeImage}
-                  className={`flex flex-col items-center justify-center gap-1 p-2 rounded-xl transition-all ${
-                    showComparison 
-                      ? 'text-primary-300 bg-primary-500/20' 
-                      : 'text-gray-400 hover:text-white disabled:opacity-30'
-                  }`}
-                >
-                  <ArrowLeftRight className="w-5 h-5" />
-                  <span className="text-[10px] font-medium">השוואה</span>
-                </button>
+              isNewGeneration && !hasConfirmedDesign && beforeImage ? (
+                /* Mobile Design Confirmation - Minimal */
+                <div className="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-xl border-t border-white/10 px-3 py-3 pb-7 z-50">
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={handleRevertToOriginal}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-white/5 border border-white/10 text-gray-300 active:bg-white/10 transition-all"
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                      <span className="text-sm font-medium">חזור למקור</span>
+                    </button>
+                    
+                    <button 
+                      onClick={handleConfirmDesign}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold active:from-emerald-600 active:to-teal-600 transition-all"
+                    >
+                      <CheckCircle className="w-4 h-4" />
+                      <span className="text-sm">אהבתי! שמור</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* Mobile Action Buttons */
+                <div className="fixed bottom-0 left-0 right-0 bg-surface/95 backdrop-blur-xl border-t border-white/10 p-2 pb-8 z-50 grid grid-cols-5 gap-1">
+                  <button 
+                    onClick={() => setShowComparison(!showComparison)}
+                    disabled={!beforeImage || isGoogleLensMode}
+                    className={`flex flex-col items-center justify-center gap-1 p-2 rounded-xl transition-all ${
+                      showComparison 
+                        ? 'text-primary-300 bg-primary-500/20' 
+                        : 'text-gray-400 hover:text-white disabled:opacity-30'
+                    }`}
+                  >
+                    <ArrowLeftRight className="w-5 h-5" />
+                    <span className="text-[10px] font-medium">השוואה</span>
+                  </button>
 
-                <button 
-                  onClick={handleWhatsAppShare}
-                  className="flex flex-col items-center justify-center gap-1 p-2 rounded-xl text-green-400 bg-green-500/10 hover:bg-green-500/20 transition-all"
-                >
-                  <Share2 className="w-5 h-5" />
-                  <span className="text-[10px] font-medium">וואטסאפ</span>
-                </button>
-                
-                <button 
-                  onClick={handleDownload}
-                  className="flex flex-col items-center justify-center gap-1 p-2 rounded-xl text-gray-300 hover:text-white hover:bg-white/10 transition-all"
-                >
-                  <Download className="w-5 h-5" />
-                  <span className="text-[10px] font-medium">הורד</span>
-                </button>
+                  {/* Google Lens Button */}
+                  {isGoogleLensMode ? (
+                    <button 
+                      onClick={cancelGoogleLens}
+                      className="flex flex-col items-center justify-center gap-1 p-2 rounded-xl text-red-400 bg-red-500/10 hover:bg-red-500/20 transition-all"
+                    >
+                      <X className="w-5 h-5" />
+                      <span className="text-[10px] font-medium">ביטול</span>
+                    </button>
+                  ) : (
+                    <button 
+                      onClick={handleGoogleLensStart}
+                      className="flex flex-col items-center justify-center gap-1 p-2 rounded-xl text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 transition-all"
+                    >
+                      <Search className="w-5 h-5" />
+                      <span className="text-[10px] font-medium">מוצרים</span>
+                    </button>
+                  )}
 
-                <button 
-                  onClick={handleCloseModal}
-                  className="flex flex-col items-center justify-center gap-1 p-2 rounded-xl text-red-400 hover:bg-red-500/10 transition-all"
-                >
-                  <X className="w-5 h-5" />
-                  <span className="text-[10px] font-medium">סגור</span>
-                </button>
-              </div>
+                  <button 
+                    onClick={handleWhatsAppShare}
+                    disabled={isGoogleLensMode}
+                    className="flex flex-col items-center justify-center gap-1 p-2 rounded-xl text-green-400 bg-green-500/10 hover:bg-green-500/20 transition-all disabled:opacity-30"
+                  >
+                    <Share2 className="w-5 h-5" />
+                    <span className="text-[10px] font-medium">וואטסאפ</span>
+                  </button>
+                  
+                  <button 
+                    onClick={handleDownload}
+                    disabled={isGoogleLensMode}
+                    className="flex flex-col items-center justify-center gap-1 p-2 rounded-xl text-gray-300 hover:text-white hover:bg-white/10 transition-all disabled:opacity-30"
+                  >
+                    <Download className="w-5 h-5" />
+                    <span className="text-[10px] font-medium">הורד</span>
+                  </button>
+
+                  <button 
+                    onClick={isGoogleLensMode ? cancelGoogleLens : handleCloseModal}
+                    className="flex flex-col items-center justify-center gap-1 p-2 rounded-xl text-red-400 hover:bg-red-500/10 transition-all"
+                  >
+                    <X className="w-5 h-5" />
+                    <span className="text-[10px] font-medium">סגור</span>
+                  </button>
+                </div>
+              )
             ) : (
-              /* Desktop Floating Bar */
-              <div className="flex items-center gap-4 bg-black/60 backdrop-blur-md p-3 px-6 rounded-2xl border border-white/10 shadow-2xl">
-                <button 
-                  onClick={() => setShowComparison(!showComparison)}
-                  disabled={!beforeImage}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all whitespace-nowrap ${
-                    showComparison 
-                      ? 'bg-primary-500/20 text-primary-300 border-primary-500/30' 
-                      : 'bg-white/5 text-gray-300 border-white/10 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed'
-                  }`}
-                >
-                  <ArrowLeftRight className="w-5 h-5" />
-                  <span className="font-medium text-sm">השוואה</span>
-                </button>
+              isNewGeneration && !hasConfirmedDesign && beforeImage ? (
+                /* Desktop Design Confirmation Question */
+                <div className="w-full flex justify-center">
+                  <div className="bg-gradient-to-r from-surface/95 via-surface/90 to-surface/95 backdrop-blur-xl p-6 rounded-3xl border border-white/10 shadow-2xl">
+                    <div className="flex items-center gap-8">
+                      {/* Icon & Question */}
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 shadow-lg shadow-amber-500/30">
+                          <Sparkles className="w-7 h-7 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-bold text-white">מה דעתך על העיצוב החדש?</h3>
+                          <p className="text-sm text-gray-400">גרור את הסליידר למעלה להשוואה מלאה</p>
+                        </div>
+                      </div>
 
-                <div className="w-px h-8 bg-white/10 mx-1"></div>
+                      {/* Divider */}
+                      <div className="w-px h-12 bg-white/10"></div>
 
-                <button 
-                  onClick={handleWhatsAppShare}
-                  className="flex items-center gap-2 px-4 py-2 bg-green-600/20 hover:bg-green-600/40 text-green-400 rounded-xl border border-green-500/30 transition-all whitespace-nowrap"
-                >
-                  <Share2 className="w-5 h-5" />
-                  <span className="font-medium text-sm">וואטסאפ</span>
-                </button>
-                
-                <button 
-                  onClick={handleDownload}
-                  className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl border border-white/10 transition-all whitespace-nowrap"
-                >
-                  <Download className="w-5 h-5" />
-                  <span className="font-medium text-sm">הורד</span>
-                </button>
+                      {/* Action Buttons */}
+                      <div className="flex items-center gap-3">
+                        <button 
+                          onClick={handleRevertToOriginal}
+                          className="flex items-center gap-2 px-5 py-3 rounded-xl bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 hover:text-white hover:border-white/20 transition-all whitespace-nowrap group"
+                        >
+                          <RotateCcw className="w-5 h-5 group-hover:-rotate-45 transition-transform" />
+                          <span className="font-medium">חזור לתמונה המקורית</span>
+                        </button>
+                        
+                        <button 
+                          onClick={handleConfirmDesign}
+                          className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold hover:from-emerald-600 hover:to-teal-600 transition-all shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/40 whitespace-nowrap group"
+                        >
+                          <CheckCircle className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                          <span>אהבתי! שמור את העיצוב</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* Desktop Floating Bar - Action Buttons */
+                <div className="flex items-center gap-3 bg-gradient-to-r from-gray-900/90 via-gray-800/90 to-gray-900/90 backdrop-blur-xl p-4 px-8 rounded-2xl border border-white/15 shadow-2xl shadow-black/50">
+                  <button 
+                    onClick={() => setShowComparison(!showComparison)}
+                    disabled={!beforeImage || isGoogleLensMode}
+                    className={`group flex items-center gap-2.5 px-5 py-3.5 rounded-xl border transition-all duration-200 whitespace-nowrap ${
+                      showComparison 
+                        ? 'bg-primary-500/25 text-primary-300 border-primary-500/40 shadow-lg shadow-primary-500/20' 
+                        : 'bg-white/5 text-gray-300 border-white/10 hover:bg-white/10 hover:border-white/20 hover:text-white hover:scale-[1.02] disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100'
+                    }`}
+                  >
+                    <ArrowLeftRight className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                    <span className="font-medium">השוואה</span>
+                  </button>
 
-                <div className="w-px h-8 bg-white/10 mx-1"></div>
+                  <div className="w-px h-10 bg-gradient-to-b from-transparent via-white/20 to-transparent mx-2"></div>
 
-                <button 
-                  onClick={handleCloseModal}
-                  className="flex items-center gap-2 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-xl border border-red-500/20 transition-all whitespace-nowrap"
-                >
-                  <X className="w-5 h-5" />
-                  <span className="font-medium text-sm">סגור</span>
-                </button>
-              </div>
+                  {/* Google Lens Button */}
+                  {isGoogleLensMode ? (
+                    <button 
+                      onClick={cancelGoogleLens}
+                      className="group flex items-center gap-2.5 px-5 py-3.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-xl border border-red-500/30 hover:border-red-500/50 transition-all duration-200 whitespace-nowrap hover:scale-[1.02] hover:shadow-lg hover:shadow-red-500/20"
+                    >
+                      <X className="w-5 h-5 group-hover:rotate-90 transition-transform" />
+                      <span className="font-medium">ביטול חיפוש</span>
+                    </button>
+                  ) : (
+                    <button 
+                      onClick={handleGoogleLensStart}
+                      className="group flex items-center gap-2.5 px-5 py-3.5 bg-blue-600/20 hover:bg-blue-600/35 text-blue-400 hover:text-blue-300 rounded-xl border border-blue-500/30 hover:border-blue-500/50 transition-all duration-200 whitespace-nowrap hover:scale-[1.02] hover:shadow-lg hover:shadow-blue-500/20"
+                    >
+                      <Search className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                      <span className="font-medium">חפשו מוצרים דומים</span>
+                    </button>
+                  )}
+
+                  <div className="w-px h-10 bg-gradient-to-b from-transparent via-white/20 to-transparent mx-2"></div>
+
+                  <button 
+                    onClick={handleWhatsAppShare}
+                    disabled={isGoogleLensMode}
+                    className="group flex items-center gap-2.5 px-5 py-3.5 bg-green-600/20 hover:bg-green-600/35 text-green-400 hover:text-green-300 rounded-xl border border-green-500/30 hover:border-green-500/50 transition-all duration-200 whitespace-nowrap disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100 hover:scale-[1.02] hover:shadow-lg hover:shadow-green-500/20"
+                  >
+                    <Share2 className="w-5 h-5 group-hover:scale-110 group-hover:-rotate-12 transition-transform" />
+                    <span className="font-medium">וואטסאפ</span>
+                  </button>
+                  
+                  <button 
+                    onClick={handleDownload}
+                    disabled={isGoogleLensMode}
+                    className="group flex items-center gap-2.5 px-5 py-3.5 bg-white/10 hover:bg-white/20 text-white rounded-xl border border-white/15 hover:border-white/30 transition-all duration-200 whitespace-nowrap disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100 hover:scale-[1.02] hover:shadow-lg hover:shadow-white/10"
+                  >
+                    <Download className="w-5 h-5 group-hover:translate-y-0.5 transition-transform" />
+                    <span className="font-medium">הורד</span>
+                  </button>
+
+                  <div className="w-px h-10 bg-gradient-to-b from-transparent via-white/20 to-transparent mx-2"></div>
+
+                  <button 
+                    onClick={isGoogleLensMode ? cancelGoogleLens : handleCloseModal}
+                    className="group flex items-center gap-2.5 px-5 py-3.5 bg-red-500/10 hover:bg-red-500/25 text-red-400 hover:text-red-300 rounded-xl border border-red-500/20 hover:border-red-500/40 transition-all duration-200 whitespace-nowrap hover:scale-[1.02]"
+                  >
+                    <X className="w-5 h-5 group-hover:rotate-90 transition-transform" />
+                    <span className="font-medium">סגור</span>
+                  </button>
+                </div>
+              )
             )}
 
           </div>
         </div>
       )}
+
       
       {/* Color Palette Modal */}
       {showColorPalette && (
@@ -3170,12 +3570,18 @@ function App() {
         user={currentUser}
         userCredits={userCredits}
         userUsage={userUsage}
+        userSubscription={userSubscription}
         onLogin={() => {
           setAuthMode('login')
           setShowAuthModal(true)
         }}
         onLogout={() => setShowLogoutModal(true)}
         onSubscriptionClick={openSubscriptionModal}
+        onRedeemCoupon={handleRedeemCoupon}
+        onCouponSuccess={(credits) => {
+          setCouponCreditsGranted(credits)
+          setShowCouponSuccessModal(true)
+        }}
       />
 
       <WelcomePremiumModal 
@@ -3183,6 +3589,56 @@ function App() {
         onClose={() => setShowWelcomePremiumModal(false)}
         subscriptionName={subscriptionNames[userSubscription]}
       />
+
+      {/* Coupon Success Modal */}
+      {showCouponSuccessModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-4 animate-fade-in">
+          <div className="relative w-full max-w-sm bg-gradient-to-br from-emerald-900/90 to-teal-900/90 rounded-3xl overflow-hidden shadow-2xl border border-emerald-500/30 animate-scale-up">
+            {/* Confetti-like decorations */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+              <div className="absolute top-4 left-8 w-3 h-3 bg-yellow-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+              <div className="absolute top-12 right-12 w-2 h-2 bg-emerald-300 rounded-full animate-bounce" style={{ animationDelay: '0.3s' }}></div>
+              <div className="absolute top-8 left-1/3 w-2 h-2 bg-pink-400 rounded-full animate-bounce" style={{ animationDelay: '0.5s' }}></div>
+              <div className="absolute top-16 right-1/4 w-3 h-3 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+            </div>
+            
+            <div className="relative p-8 text-center">
+              {/* Icon */}
+              <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/30 animate-pulse">
+                <Sparkles className="w-12 h-12 text-white" />
+              </div>
+              
+              {/* Title */}
+              <h2 className="text-2xl font-bold text-white mb-2">
+                מזל טוב! 🎉
+              </h2>
+              
+              {/* Credits Display */}
+              <div className="my-6 py-4 px-6 rounded-2xl bg-white/10 border border-white/20">
+                <div className="text-5xl font-bold text-emerald-300 mb-1">
+                  {couponCreditsGranted}
+                </div>
+                <div className="text-emerald-100/80 text-lg">
+                  קרדיטים נוספו לחשבונך
+                </div>
+              </div>
+              
+              {/* Message */}
+              <p className="text-emerald-100/70 mb-6">
+                תהנה מהעיצובים! ✨
+              </p>
+              
+              {/* Close Button */}
+              <button
+                onClick={() => setShowCouponSuccessModal(false)}
+                className="w-full py-4 rounded-2xl bg-white text-emerald-900 font-bold text-lg hover:bg-emerald-50 transition-colors shadow-lg"
+              >
+                יופי, בואו נתחיל!
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Post-Payment Sign Up Modal */}
       {showPostPaymentModal && (
