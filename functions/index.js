@@ -137,7 +137,7 @@ async function checkAndUpdateGenerationCount(userId, deviceId) {
 async function createThumbnail(imageBuffer, maxWidth = 200, maxHeight = 200) {
   return await sharp(imageBuffer)
     .resize(maxWidth, maxHeight, { fit: 'inside', withoutEnlargement: true })
-    .jpeg({ quality: 80 })
+    .jpeg({ quality: 70 })
     .toBuffer();
 }
 
@@ -352,21 +352,27 @@ async function processImageWithGPTImage(prompt, imageData, docId = null, objectI
     
     logger.info(`[GPT-Image-1.5] Selected output size: ${outputSize}`);
     
-    // Convert to PNG using sharp for consistent format (Azure prefers PNG)
-    const pngBuffer = await sharp(imageBuffer)
-      .png()
+    // Parse target dimensions from outputSize
+    const [targetWidth, targetHeight] = outputSize.split('x').map(Number);
+    
+    // Resize and convert to JPEG - this reduces input token costs significantly
+    // by matching input size to output size
+    const jpegBuffer = await sharp(imageBuffer)
+      .resize(targetWidth, targetHeight, { fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: 70 })
       .toBuffer();
     
-    logger.info(`[GPT-Image-1.5] Converted main image to PNG, size: ${pngBuffer.length} bytes`);
+    logger.info(`[GPT-Image-1.5] Resized and converted main image to JPEG: ${inputWidth}x${inputHeight} -> ${targetWidth}x${targetHeight}, size: ${jpegBuffer.length} bytes`);
 
-    // Convert object image to PNG if provided
-    let objectPngBuffer = null;
+    // Convert and resize object image if provided
+    let objectJpegBuffer = null;
     if (objectImageData) {
       const objectBuffer = Buffer.from(objectImageData.inlineData.data, 'base64');
-      objectPngBuffer = await sharp(objectBuffer)
-        .png()
+      objectJpegBuffer = await sharp(objectBuffer)
+        .resize(targetWidth, targetHeight, { fit: 'inside', withoutEnlargement: true })
+        .jpeg({ quality: 70 })
         .toBuffer();
-      logger.info(`[GPT-Image-1.5] Converted object image to PNG, size: ${objectPngBuffer.length} bytes`);
+      logger.info(`[GPT-Image-1.5] Resized and converted object image to JPEG, size: ${objectJpegBuffer.length} bytes`);
     }
 
     // Build the Azure OpenAI edit endpoint URL
@@ -379,18 +385,18 @@ async function processImageWithGPTImage(prompt, imageData, docId = null, objectI
     const formData = new FormData();
     
     // Add main image
-    formData.append('image[]', pngBuffer, {
-      filename: 'input_image.png',
-      contentType: 'image/png',
-      knownLength: pngBuffer.length
+    formData.append('image[]', jpegBuffer, {
+      filename: 'input_image.jpg',
+      contentType: 'image/jpeg',
+      knownLength: jpegBuffer.length
     });
     
     // Add object image if provided (for inpainting the object into the scene)
-    if (objectPngBuffer) {
-      formData.append('image[]', objectPngBuffer, {
-        filename: 'object_image.png',
-        contentType: 'image/png',
-        knownLength: objectPngBuffer.length
+    if (objectJpegBuffer) {
+      formData.append('image[]', objectJpegBuffer, {
+        filename: 'object_image.jpg',
+        contentType: 'image/jpeg',
+        knownLength: objectJpegBuffer.length
       });
       logger.info(`[GPT-Image-1.5] Added object image to request for inpainting`);
     }
