@@ -748,7 +748,11 @@ exports.processImageRequest = onDocumentCreated('userHistory/{docId}', async (ev
 
 // EXPERIMENTAL: Cloud function triggered when a new userHistory document is created with experimental flag
 // This uses Azure GPT-image-1.5 instead of Gemini for image generation
-exports.processImageRequestExperimental = onDocumentCreated('userHistory/{docId}', async (event) => {
+exports.processImageRequestExperimental = onDocumentCreated({
+  document: 'userHistory/{docId}',
+  memory: '1GiB',
+  timeoutSeconds: 300,
+}, async (event) => {
   const docId = event.params.docId;
   const docData = event.data.data();
   
