@@ -21,6 +21,16 @@ const AZURE_DEPLOYMENT_NAME = process.env.AZURE_DEPLOYMENT_NAME || 'gpt-image-1.
 const AZURE_API_VERSION = process.env.AZURE_API_VERSION || '2025-04-01-preview';
 const AZURE_OPENAI_API_KEY = process.env.AZURE_OPENAI_API_KEY;
 
+// In-App Purchase Product Configuration
+const PRODUCT_CREDITS = {
+  'moomhe_starter_monthly': { credits: 50, subscription: 1, period: 'monthly' },
+  'moomhe_starter_yearly': { credits: 50, subscription: 1, period: 'yearly' },
+  'moomhe_pro_monthly': { credits: 200, subscription: 2, period: 'monthly' },
+  'moomhe_pro_yearly': { credits: 200, subscription: 2, period: 'yearly' },
+  'moomhe_business_monthly': { credits: 450, subscription: 3, period: 'monthly' },
+  'moomhe_business_yearly': { credits: 450, subscription: 3, period: 'yearly' },
+};
+
 // Helper function to validate Firebase user token
 async function validateUserToken(authToken) {
   try {
@@ -1619,5 +1629,539 @@ exports.redeemCoupon = onRequest({ cors: true }, async (req, res) => {
       error: error.message || 'שגיאה במימוש הקופון',
       errorCode: 'SERVER_ERROR'
     });
+  }
+});
+
+// ===========================================
+// Google Play In-App Purchase Webhook
+// ===========================================
+// This endpoint receives Real-Time Developer Notifications (RTDN) from Google Play
+// Configure in Google Play Console: Monetization > Monetization setup > Real-time developer notifications
+exports.googlePlayWebhook = onRequest({ cors: true }, async (req, res) => {
+  // Set CORS headers
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+  
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: 'Method not allowed' });
+    return;
+  }
+  
+  try {
+    // Google Cloud Pub/Sub sends the message in a specific format
+    const message = req.body.message;
+    if (!message || !message.data) {
+      logger.warn('[googlePlayWebhook] No message data received');
+      res.status(400).json({ error: 'No message data' });
+      return;
+    }
+    
+    // Decode base64 message data
+    const decodedData = Buffer.from(message.data, 'base64').toString('utf-8');
+    const notification = JSON.parse(decodedData);
+    
+    logger.info('[googlePlayWebhook] Received notification:', JSON.stringify(notification));
+    
+    // Store the raw notification for debugging
+    const notificationId = `gp_${Date.now()}`;
+    await db.collection('iapNotifications').doc(notificationId).set({
+      platform: 'google_play',
+      rawNotification: notification,
+      receivedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    
+    // Handle subscription notifications
+    if (notification.subscriptionNotification) {
+      const subNotification = notification.subscriptionNotification;
+      const purchaseToken = subNotification.purchaseToken;
+      const notificationType = subNotification.notificationType;
+      
+      logger.info(`[googlePlayWebhook] Subscription notification type: ${notificationType}`);
+      
+      // Find the purchase record in Firestore by purchase token
+      const purchasesRef = db.collection('purchases');
+      const purchaseQuery = await purchasesRef
+        .where('verificationData', '==', purchaseToken)
+        .where('platform', '==', 'android')
+        .limit(1)
+        .get();
+      
+      if (purchaseQuery.empty) {
+        logger.warn(`[googlePlayWebhook] No purchase found for token: ${purchaseToken.substring(0, 20)}...`);
+        // Still acknowledge the message to prevent retries
+        res.status(200).json({ success: true, message: 'No matching purchase found' });
+        return;
+      }
+      
+      const purchaseDoc = purchaseQuery.docs[0];
+      const purchaseData = purchaseDoc.data();
+      const userId = purchaseData.userId;
+      const productId = purchaseData.productId;
+      
+      logger.info(`[googlePlayWebhook] Found purchase for user: ${userId}, product: ${productId}`);
+      
+      // Get product configuration
+      const productConfig = PRODUCT_CREDITS[productId];
+      if (!productConfig) {
+        logger.warn(`[googlePlayWebhook] Unknown product: ${productId}`);
+        res.status(200).json({ success: true, message: 'Unknown product' });
+        return;
+      }
+      
+      // Handle different notification types
+      // See: https://developer.android.com/google/play/billing/rtdn-reference
+      switch (notificationType) {
+        case 1: // SUBSCRIPTION_RECOVERED - Subscription restored from account hold
+        case 2: // SUBSCRIPTION_RENEWED - Subscription renewed
+        case 4: // SUBSCRIPTION_PURCHASED - New subscription purchased
+        case 7: // SUBSCRIPTION_RESTARTED - Subscription restarted
+          // Grant/renew subscription credits
+          await db.collection('users').doc(userId).update({
+            subscription: productConfig.subscription,
+            credits: productConfig.credits,
+            subscriptionProductId: productId,
+            subscriptionPlatform: 'android',
+            subscriptionVerified: true,
+            subscriptionUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            lastIapNotification: notificationId,
+          });
+          
+          // Mark purchase as verified
+          await purchaseDoc.ref.update({
+            verified: true,
+            verifiedAt: admin.firestore.FieldValue.serverTimestamp(),
+            lastNotificationType: notificationType,
+          });
+          
+          // Reset monthly usage counter
+          const now = new Date();
+          const monthYear = `${String(now.getMonth() + 1).padStart(2, '0')}-${now.getFullYear()}`;
+          await db.collection('genCount').doc(monthYear).collection('users').doc(userId).set({
+            count: 0,
+            resetAt: admin.firestore.FieldValue.serverTimestamp(),
+          }, { merge: true });
+          
+          logger.info(`[googlePlayWebhook] Granted subscription ${productConfig.subscription} to user ${userId}`);
+          break;
+          
+        case 3: // SUBSCRIPTION_CANCELED - Subscription canceled by user
+          // Mark subscription as canceled but don't remove yet (access until end of period)
+          await db.collection('users').doc(userId).update({
+            subscriptionCanceled: true,
+            subscriptionCanceledAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+          logger.info(`[googlePlayWebhook] Marked subscription as canceled for user ${userId}`);
+          break;
+          
+        case 5: // SUBSCRIPTION_ON_HOLD - Subscription in grace period
+        case 6: // SUBSCRIPTION_IN_GRACE_PERIOD - Payment failed, in grace period
+          // User still has access during grace period
+          await db.collection('users').doc(userId).update({
+            subscriptionGracePeriod: true,
+            subscriptionGracePeriodAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+          logger.info(`[googlePlayWebhook] Subscription in grace period for user ${userId}`);
+          break;
+          
+        case 10: // SUBSCRIPTION_PAUSED - Subscription paused
+          await db.collection('users').doc(userId).update({
+            subscriptionPaused: true,
+            subscriptionPausedAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+          logger.info(`[googlePlayWebhook] Subscription paused for user ${userId}`);
+          break;
+          
+        case 11: // SUBSCRIPTION_PAUSE_SCHEDULE_CHANGED
+          // Just log, no action needed
+          logger.info(`[googlePlayWebhook] Pause schedule changed for user ${userId}`);
+          break;
+          
+        case 12: // SUBSCRIPTION_REVOKED - Subscription revoked (refund, etc.)
+        case 13: // SUBSCRIPTION_EXPIRED - Subscription expired
+          // Remove subscription access
+          await db.collection('users').doc(userId).update({
+            subscription: 0,
+            credits: 3, // Reset to free tier
+            subscriptionProductId: null,
+            subscriptionExpired: true,
+            subscriptionExpiredAt: admin.firestore.FieldValue.serverTimestamp(),
+            subscriptionVerified: false,
+            subscriptionPaused: admin.firestore.FieldValue.delete(),
+            subscriptionGracePeriod: admin.firestore.FieldValue.delete(),
+            subscriptionCanceled: admin.firestore.FieldValue.delete(),
+          });
+          logger.info(`[googlePlayWebhook] Revoked subscription for user ${userId}`);
+          break;
+          
+        default:
+          logger.info(`[googlePlayWebhook] Unhandled notification type: ${notificationType}`);
+      }
+    }
+    
+    // Acknowledge the message
+    res.status(200).json({ success: true });
+    
+  } catch (error) {
+    logger.error('[googlePlayWebhook] Error:', error);
+    // Still return 200 to acknowledge the message and prevent retries
+    res.status(200).json({ success: false, error: error.message });
+  }
+});
+
+// ===========================================
+// Apple App Store In-App Purchase Webhook
+// ===========================================
+// This endpoint receives App Store Server Notifications V2
+// Configure in App Store Connect: App > App Store Server Notifications
+exports.appStoreWebhook = onRequest({ cors: true }, async (req, res) => {
+  // Set CORS headers
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+  
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: 'Method not allowed' });
+    return;
+  }
+  
+  try {
+    const { signedPayload } = req.body;
+    
+    if (!signedPayload) {
+      logger.warn('[appStoreWebhook] No signedPayload received');
+      res.status(400).json({ error: 'No signedPayload' });
+      return;
+    }
+    
+    // App Store Server Notifications V2 sends JWS (JSON Web Signature) format
+    // The payload is a JWT with 3 parts: header.payload.signature
+    // For production, you should verify the signature using Apple's public key
+    // For now, we'll decode and process the payload
+    
+    const parts = signedPayload.split('.');
+    if (parts.length !== 3) {
+      logger.warn('[appStoreWebhook] Invalid JWS format');
+      res.status(400).json({ error: 'Invalid JWS format' });
+      return;
+    }
+    
+    // Decode the payload (base64url)
+    const payloadBase64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const payloadJson = Buffer.from(payloadBase64, 'base64').toString('utf-8');
+    const notification = JSON.parse(payloadJson);
+    
+    logger.info('[appStoreWebhook] Received notification:', JSON.stringify(notification));
+    
+    // Store the raw notification for debugging
+    const notificationId = `as_${Date.now()}`;
+    await db.collection('iapNotifications').doc(notificationId).set({
+      platform: 'app_store',
+      rawNotification: notification,
+      signedPayloadPreview: signedPayload.substring(0, 100) + '...',
+      receivedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    
+    const notificationType = notification.notificationType;
+    const subtype = notification.subtype;
+    const data = notification.data;
+    
+    if (!data) {
+      logger.warn('[appStoreWebhook] No data in notification');
+      res.status(200).json({ success: true, message: 'No data' });
+      return;
+    }
+    
+    // Decode the transaction info (also JWS format)
+    let transactionInfo = null;
+    if (data.signedTransactionInfo) {
+      const txParts = data.signedTransactionInfo.split('.');
+      if (txParts.length === 3) {
+        const txPayloadBase64 = txParts[1].replace(/-/g, '+').replace(/_/g, '/');
+        const txPayloadJson = Buffer.from(txPayloadBase64, 'base64').toString('utf-8');
+        transactionInfo = JSON.parse(txPayloadJson);
+        logger.info('[appStoreWebhook] Transaction info:', JSON.stringify(transactionInfo));
+      }
+    }
+    
+    // Decode renewal info if present
+    let renewalInfo = null;
+    if (data.signedRenewalInfo) {
+      const renewParts = data.signedRenewalInfo.split('.');
+      if (renewParts.length === 3) {
+        const renewPayloadBase64 = renewParts[1].replace(/-/g, '+').replace(/_/g, '/');
+        const renewPayloadJson = Buffer.from(renewPayloadBase64, 'base64').toString('utf-8');
+        renewalInfo = JSON.parse(renewPayloadJson);
+        logger.info('[appStoreWebhook] Renewal info:', JSON.stringify(renewalInfo));
+      }
+    }
+    
+    if (!transactionInfo) {
+      logger.warn('[appStoreWebhook] Could not decode transaction info');
+      res.status(200).json({ success: true, message: 'No transaction info' });
+      return;
+    }
+    
+    const originalTransactionId = transactionInfo.originalTransactionId;
+    const productId = transactionInfo.productId;
+    const appAccountToken = transactionInfo.appAccountToken; // This is the userId we passed
+    
+    // Find user by appAccountToken (userId) or by searching purchases
+    let userId = appAccountToken;
+    
+    if (!userId) {
+      // Try to find by original transaction ID
+      const purchasesRef = db.collection('purchases');
+      const purchaseQuery = await purchasesRef
+        .where('purchaseId', '==', originalTransactionId)
+        .where('platform', '==', 'ios')
+        .limit(1)
+        .get();
+      
+      if (!purchaseQuery.empty) {
+        userId = purchaseQuery.docs[0].data().userId;
+      }
+    }
+    
+    if (!userId) {
+      logger.warn(`[appStoreWebhook] Could not determine user for transaction: ${originalTransactionId}`);
+      res.status(200).json({ success: true, message: 'User not found' });
+      return;
+    }
+    
+    logger.info(`[appStoreWebhook] Processing for user: ${userId}, product: ${productId}`);
+    
+    // Get product configuration
+    const productConfig = PRODUCT_CREDITS[productId];
+    if (!productConfig) {
+      logger.warn(`[appStoreWebhook] Unknown product: ${productId}`);
+      res.status(200).json({ success: true, message: 'Unknown product' });
+      return;
+    }
+    
+    // Handle different notification types
+    // See: https://developer.apple.com/documentation/appstoreservernotifications/notificationtype
+    switch (notificationType) {
+      case 'SUBSCRIBED':
+        // New subscription or resubscription
+        await db.collection('users').doc(userId).update({
+          subscription: productConfig.subscription,
+          credits: productConfig.credits,
+          subscriptionProductId: productId,
+          subscriptionPlatform: 'ios',
+          subscriptionVerified: true,
+          subscriptionUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          lastIapNotification: notificationId,
+        });
+        
+        // Reset monthly usage counter
+        const now = new Date();
+        const monthYear = `${String(now.getMonth() + 1).padStart(2, '0')}-${now.getFullYear()}`;
+        await db.collection('genCount').doc(monthYear).collection('users').doc(userId).set({
+          count: 0,
+          resetAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+        
+        logger.info(`[appStoreWebhook] Granted subscription ${productConfig.subscription} to user ${userId}`);
+        break;
+        
+      case 'DID_RENEW':
+        // Subscription renewed successfully
+        await db.collection('users').doc(userId).update({
+          subscription: productConfig.subscription,
+          credits: productConfig.credits,
+          subscriptionVerified: true,
+          subscriptionUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          subscriptionGracePeriod: admin.firestore.FieldValue.delete(),
+          subscriptionBillingRetry: admin.firestore.FieldValue.delete(),
+        });
+        
+        // Reset monthly usage counter
+        const renewNow = new Date();
+        const renewMonthYear = `${String(renewNow.getMonth() + 1).padStart(2, '0')}-${renewNow.getFullYear()}`;
+        await db.collection('genCount').doc(renewMonthYear).collection('users').doc(userId).set({
+          count: 0,
+          resetAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+        
+        logger.info(`[appStoreWebhook] Renewed subscription for user ${userId}`);
+        break;
+        
+      case 'DID_CHANGE_RENEWAL_STATUS':
+        // User changed auto-renewal status
+        if (subtype === 'AUTO_RENEW_DISABLED') {
+          await db.collection('users').doc(userId).update({
+            subscriptionCanceled: true,
+            subscriptionCanceledAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+          logger.info(`[appStoreWebhook] User ${userId} disabled auto-renew`);
+        } else if (subtype === 'AUTO_RENEW_ENABLED') {
+          await db.collection('users').doc(userId).update({
+            subscriptionCanceled: admin.firestore.FieldValue.delete(),
+          });
+          logger.info(`[appStoreWebhook] User ${userId} enabled auto-renew`);
+        }
+        break;
+        
+      case 'GRACE_PERIOD_EXPIRED':
+      case 'EXPIRED':
+        // Subscription expired
+        await db.collection('users').doc(userId).update({
+          subscription: 0,
+          credits: 3, // Reset to free tier
+          subscriptionProductId: null,
+          subscriptionExpired: true,
+          subscriptionExpiredAt: admin.firestore.FieldValue.serverTimestamp(),
+          subscriptionVerified: false,
+          subscriptionGracePeriod: admin.firestore.FieldValue.delete(),
+          subscriptionCanceled: admin.firestore.FieldValue.delete(),
+        });
+        logger.info(`[appStoreWebhook] Expired subscription for user ${userId}`);
+        break;
+        
+      case 'DID_FAIL_TO_RENEW':
+        // Billing retry period started
+        await db.collection('users').doc(userId).update({
+          subscriptionBillingRetry: true,
+          subscriptionBillingRetryAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        logger.info(`[appStoreWebhook] Billing retry started for user ${userId}`);
+        break;
+        
+      case 'REFUND':
+        // User was refunded
+        await db.collection('users').doc(userId).update({
+          subscription: 0,
+          credits: 3,
+          subscriptionProductId: null,
+          subscriptionRefunded: true,
+          subscriptionRefundedAt: admin.firestore.FieldValue.serverTimestamp(),
+          subscriptionVerified: false,
+        });
+        logger.info(`[appStoreWebhook] Refunded subscription for user ${userId}`);
+        break;
+        
+      case 'REVOKE':
+        // Family sharing revoked or other revocation
+        await db.collection('users').doc(userId).update({
+          subscription: 0,
+          credits: 3,
+          subscriptionProductId: null,
+          subscriptionRevoked: true,
+          subscriptionRevokedAt: admin.firestore.FieldValue.serverTimestamp(),
+          subscriptionVerified: false,
+        });
+        logger.info(`[appStoreWebhook] Revoked subscription for user ${userId}`);
+        break;
+        
+      default:
+        logger.info(`[appStoreWebhook] Unhandled notification type: ${notificationType} (subtype: ${subtype})`);
+    }
+    
+    // App Store expects a 200 response
+    res.status(200).json({ success: true });
+    
+  } catch (error) {
+    logger.error('[appStoreWebhook] Error:', error);
+    // Still return 200 to prevent retries
+    res.status(200).json({ success: false, error: error.message });
+  }
+});
+
+// ===========================================
+// Verify Purchase Endpoint (Client-initiated)
+// ===========================================
+// Called by the app after a purchase to verify and sync state
+exports.verifyPurchase = onRequest({ cors: true }, async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+  
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: 'Method not allowed' });
+    return;
+  }
+  
+  try {
+    const { authToken, productId, purchaseId, platform, verificationData } = req.body;
+    
+    if (!authToken || !productId || !purchaseId || !platform) {
+      res.status(400).json({ 
+        success: false, 
+        error: 'Missing required fields' 
+      });
+      return;
+    }
+    
+    // Validate user token
+    const user = await validateUserToken(authToken);
+    const userId = user.uid;
+    
+    logger.info(`[verifyPurchase] User ${userId} verifying ${productId} on ${platform}`);
+    
+    // Get product configuration
+    const productConfig = PRODUCT_CREDITS[productId];
+    if (!productConfig) {
+      res.status(400).json({ success: false, error: 'Unknown product' });
+      return;
+    }
+    
+    // Store/update purchase record
+    await db.collection('purchases').doc(purchaseId).set({
+      userId,
+      productId,
+      purchaseId,
+      platform,
+      verificationData,
+      verified: true, // For now, trust the client; webhooks will update later
+      verifiedAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+    
+    // Update user subscription
+    await db.collection('users').doc(userId).update({
+      subscription: productConfig.subscription,
+      credits: productConfig.credits,
+      subscriptionProductId: productId,
+      subscriptionPlatform: platform,
+      subscriptionVerified: true,
+      subscriptionUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      lastPurchaseId: purchaseId,
+    });
+    
+    // Reset monthly usage counter
+    const now = new Date();
+    const monthYear = `${String(now.getMonth() + 1).padStart(2, '0')}-${now.getFullYear()}`;
+    await db.collection('genCount').doc(monthYear).collection('users').doc(userId).set({
+      count: 0,
+      resetAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+    
+    logger.info(`[verifyPurchase] Verified purchase for user ${userId}: ${productId}`);
+    
+    res.json({
+      success: true,
+      subscription: productConfig.subscription,
+      credits: productConfig.credits,
+    });
+    
+  } catch (error) {
+    logger.error('[verifyPurchase] Error:', error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });

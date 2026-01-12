@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "951714207506",
+    "project_id": "moomhe-6de30",
+    "storage_bucket": "moomhe-6de30.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:951714207506:android:b3df2e8abe961b2c4345cb",
+        "android_client_info": {
+          "package_name": "com.kalromsystems.moomhe"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBG3HmDlUiU0j-TonIh1thGxkQVUAoXlwg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

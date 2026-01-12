@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Deletion - MoomHe</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 700px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        .header .app-name {
+            font-size: 18px;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px 30px;
+        }
+
+        .section {
+            margin-bottom: 30px;
+        }
+
+        .section h2 {
+            font-size: 20px;
+            color: #667eea;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section h2 .icon {
+            width: 28px;
+            height: 28px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 14px;
+        }
+
+        .steps {
+            background: #f8f9ff;
+            border-radius: 12px;
+            padding: 25px;
+        }
+
+        .step {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .step:last-child {
+            margin-bottom: 0;
+        }
+
+        .step-number {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .step-content {
+            padding-top: 4px;
+        }
+
+        .step-content strong {
+            color: #333;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        .data-table th {
+            background: #f8f9ff;
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .data-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-deleted {
+            background: #ffe0e0;
+            color: #c53030;
+        }
+
+        .badge-retained {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .timeline-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 25px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .timeline-box .days {
+            font-size: 48px;
+            font-weight: bold;
+        }
+
+        .timeline-box .label {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+
+        .note {
+            background: #fff8e6;
+            border-left: 4px solid #f0b429;
+            padding: 15px 20px;
+            border-radius: 0 8px 8px 0;
+            margin-top: 20px;
+        }
+
+        .note strong {
+            color: #856404;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 20px 30px 30px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .footer a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 20px 15px;
+            }
+
+            .header {
+                padding: 30px 20px;
+            }
+
+            .header h1 {
+                font-size: 24px;
+            }
+
+            .content {
+                padding: 30px 20px;
+            }
+
+            .timeline-box .days {
+                font-size: 36px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Account Deletion Request</h1>
+            <div class="app-name">MoomHe by Kalrom Systems</div>
+        </div>
+
+        <div class="content">
+            <div class="section">
+                <h2><span class="icon">📋</span> How to Request Account Deletion</h2>
+                <div class="steps">
+                    <div class="step">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <strong>Open the MoomHe App or Website</strong><br>
+                            Launch the MoomHe application on your device or visit our website.
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <strong>Log In to Your Account</strong><br>
+                            Sign in using your existing credentials (email or social login).
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <strong>Open the Contact Form</strong><br>
+                            Navigate to the contact form within the app.
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">4</div>
+                        <div class="step-content">
+                            <strong>Submit Your Deletion Request</strong><br>
+                            Use the contact form to submit a request for account deletion. Please include "Account Deletion Request" in your message.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2><span class="icon">⏱️</span> Processing Time</h2>
+                <div class="timeline-box">
+                    <div class="days">30</div>
+                    <div class="label">Days to Complete Deletion</div>
+                </div>
+                <p style="margin-top: 15px; color: #666;">
+                    Your account deletion request will be processed within 30 days of submission. You will receive a confirmation email once the deletion is complete.
+                </p>
+            </div>
+
+            <div class="section">
+                <h2><span class="icon">🗃️</span> Data Handling</h2>
+                <p style="margin-bottom: 15px; color: #666;">
+                    When your account is deleted, the following data will be handled as described:
+                </p>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Data Type</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Account information (email, name)</td>
+                            <td><span class="badge badge-deleted">Deleted</span></td>
+                        </tr>
+                        <tr>
+                            <td>Profile data and preferences</td>
+                            <td><span class="badge badge-deleted">Deleted</span></td>
+                        </tr>
+                        <tr>
+                            <td>Generated images and history</td>
+                            <td><span class="badge badge-deleted">Deleted</span></td>
+                        </tr>
+                        <tr>
+                            <td>Usage analytics (anonymized)</td>
+                            <td><span class="badge badge-retained">Retained*</span></td>
+                        </tr>
+                        <tr>
+                            <td>Transaction records</td>
+                            <td><span class="badge badge-retained">Retained*</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div class="note">
+                    <strong>* Retention Note:</strong> Anonymized analytics and transaction records may be retained for up to 7 years for legal and financial compliance purposes. This data cannot be used to identify you personally.
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>© 2026 MoomHe by Kalrom Systems. All rights reserved.</p>
+            <p style="margin-top: 8px;">
+                <a href="privacy.html">Privacy Policy</a> · <a href="eula.html">Terms of Service</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>
