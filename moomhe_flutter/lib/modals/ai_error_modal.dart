@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../theme/app_colors.dart';
+import '../l10n/localized_options.dart';
 
 /// Modal to display AI processing errors in a user-friendly way
 class AIErrorModal extends StatelessWidget {
@@ -30,22 +31,24 @@ class AIErrorModal extends StatelessWidget {
     return lowerError.contains('timeout') || lowerError.contains('timed out');
   }
 
-  String get title {
+  String _getTitle(BuildContext context) {
+    final l10n = context.l10n;
     if (isModerationError) {
-      return 'תוכן לא מורשה';
+      return l10n.contentNotAllowed;
     } else if (isTimeoutError) {
-      return 'הבקשה נכשלה';
+      return l10n.requestFailed;
     }
-    return 'אופס! משהו השתבש';
+    return l10n.oopsSomethingWrong;
   }
 
-  String get message {
+  String _getMessage(BuildContext context) {
+    final l10n = context.l10n;
     if (isModerationError) {
-      return 'לא ניתן לעבד את התמונה או הבקשה.\n\nייתכן שהתמונה או הבקשה מכילות תוכן שאינו מותר לעיבוד.\n\nנסה עם תמונה אחרת או שנה את הבקשה.';
+      return l10n.moderationError;
     } else if (isTimeoutError) {
-      return 'הבקשה לקחה יותר מדי זמן.\n\nנסה שוב מאוחר יותר.';
+      return l10n.timeoutError;
     }
-    return 'לא הצלחנו לעבד את הבקשה.\n\nנסה שוב או פנה לתמיכה אם הבעיה נמשכת.';
+    return l10n.genericError;
   }
 
   IconData get icon {
@@ -97,7 +100,7 @@ class AIErrorModal extends StatelessWidget {
 
             // Title
             Text(
-              title,
+              _getTitle(context),
               style: const TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
@@ -109,7 +112,7 @@ class AIErrorModal extends StatelessWidget {
 
             // Message
             Text(
-              message,
+              _getMessage(context),
               style: TextStyle(
                 fontSize: 15,
                 color: Colors.white.withValues(alpha: 0.8),
@@ -136,9 +139,9 @@ class AIErrorModal extends StatelessWidget {
                         side: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
                       ),
                     ),
-                    child: const Text(
-                      'סגור',
-                      style: TextStyle(
+                    child: Text(
+                      context.l10n.close,
+                      style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
                         color: Colors.white70,
@@ -162,14 +165,14 @@ class AIErrorModal extends StatelessWidget {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(LucideIcons.refreshCw, size: 18, color: Colors.white),
-                          SizedBox(width: 6),
+                          const Icon(LucideIcons.refreshCw, size: 18, color: Colors.white),
+                          const SizedBox(width: 6),
                           Text(
-                            'נסה שוב',
-                            style: TextStyle(
+                            context.l10n.tryAgain,
+                            style: const TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
                               color: Colors.white,

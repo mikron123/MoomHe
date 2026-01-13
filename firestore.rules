@@ -38,6 +38,13 @@ service cloud.firestore {
       allow read, update, delete: if false; // Users cannot read or modify support messages
     }
 
+    // Purchases - users can create their own purchase records for server verification
+    match /purchases/{purchaseId} {
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow update, delete: if false; // Only server can update/delete purchase records
+    }
+
     // Allow reading genCount by deviceId if needed, but generally users query by UID
     // If we wanted to enforce device limits on client side (unlikely), we'd need read access.
     // Keeping it restricted for now.

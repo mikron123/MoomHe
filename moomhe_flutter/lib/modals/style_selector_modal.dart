@@ -4,6 +4,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../theme/app_colors.dart';
 import '../models/style_option.dart';
+import '../l10n/localized_options.dart';
 
 class StyleSelectorModal extends StatelessWidget {
   final Function(StyleOption) onStyleSelect;
@@ -30,9 +31,9 @@ class StyleSelectorModal extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'בחר סגנון עיצוב',
-                  style: TextStyle(
+                Text(
+                  context.l10n.selectDesignStyle,
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
                     color: Colors.white,
@@ -49,18 +50,23 @@ class StyleSelectorModal extends StatelessWidget {
 
           // Styles Grid
           Expanded(
-            child: GridView.builder(
-              padding: const EdgeInsets.all(16),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                childAspectRatio: 1.1,
-              ),
-              itemCount: StyleOption.interiorStyles.length,
-              itemBuilder: (context, index) {
-                final style = StyleOption.interiorStyles[index];
-                return _buildStyleCard(context, style);
+            child: Builder(
+              builder: (builderContext) {
+                final styles = builderContext.localizedOptions.interiorStyles;
+                return GridView.builder(
+                  padding: const EdgeInsets.all(16),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: 1.1,
+                  ),
+                  itemCount: styles.length,
+                  itemBuilder: (gridContext, index) {
+                    final style = styles[index];
+                    return _buildStyleCard(gridContext, style);
+                  },
+                );
               },
             ),
           ),

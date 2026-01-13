@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../models/color_option.dart';
+import '../l10n/localized_options.dart';
 
 class ColorPaletteModal extends StatefulWidget {
   final Function(ColorOption, String prompt) onColorSelect;
@@ -34,9 +35,9 @@ class _ColorPaletteModalState extends State<ColorPaletteModal> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'פלטת צבעים',
-                  style: TextStyle(
+                Text(
+                  context.l10n.colorPalette,
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
                     color: Colors.white,
@@ -54,67 +55,73 @@ class _ColorPaletteModalState extends State<ColorPaletteModal> {
           // Category Tabs
           SizedBox(
             height: 50,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              itemCount: ColorPalette.categories.length,
-              itemBuilder: (context, index) {
-                final category = ColorPalette.categories[index];
-                final isActive = index == _activeCategory;
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: GestureDetector(
-                    onTap: () => setState(() => _activeCategory = index),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: isActive
-                            ? AppColors.primary500
-                            : Colors.white.withValues(alpha: 0.05),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: isActive
-                              ? AppColors.primary400
-                              : Colors.white.withValues(alpha: 0.05),
-                        ),
-                        boxShadow: isActive
-                            ? [
-                                BoxShadow(
-                                  color: AppColors.primary500.withValues(alpha: 0.3),
-                                  blurRadius: 8,
+            child: Builder(
+              builder: (tabContext) {
+                final categoryNames = tabContext.localizedOptions.colorCategoryNames;
+                return ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  itemCount: ColorPalette.categories.length,
+                  itemBuilder: (listContext, index) {
+                    final category = ColorPalette.categories[index];
+                    final isActive = index == _activeCategory;
+                    final localizedName = index < categoryNames.length ? categoryNames[index] : category.name;
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: GestureDetector(
+                        onTap: () => setState(() => _activeCategory = index),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: isActive
+                                ? AppColors.primary500
+                                : Colors.white.withValues(alpha: 0.05),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: isActive
+                                  ? AppColors.primary400
+                                  : Colors.white.withValues(alpha: 0.05),
+                            ),
+                            boxShadow: isActive
+                                ? [
+                                    BoxShadow(
+                                      color: AppColors.primary500.withValues(alpha: 0.3),
+                                      blurRadius: 8,
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 16,
+                                height: 16,
+                                decoration: BoxDecoration(
+                                  color: category.categoryColor,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.white.withValues(alpha: 0.3),
+                                    width: 1,
+                                  ),
                                 ),
-                              ]
-                            : null,
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 16,
-                            height: 16,
-                            decoration: BoxDecoration(
-                              color: category.categoryColor,
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.3),
-                                width: 1,
                               ),
-                            ),
+                              const SizedBox(width: 8),
+                              Text(
+                                localizedName,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: isActive ? Colors.white : AppColors.textMuted,
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 8),
-                          Text(
-                            category.name,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: isActive ? Colors.white : AppColors.textMuted,
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
-                    ),
-                  ),
+                    );
+                  },
                 );
               },
             ),
@@ -263,10 +270,10 @@ class _ColorApplicationDialogState extends State<ColorApplicationDialog> {
                   ),
                 ),
                 const SizedBox(width: 12),
-                const Expanded(
+                Expanded(
                   child: Text(
-                    'שינוי צבע',
-                    style: TextStyle(
+                    context.l10n.colorChange,
+                    style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
                       color: Colors.white,
@@ -284,14 +291,14 @@ class _ColorApplicationDialogState extends State<ColorApplicationDialog> {
             // Options
             _buildOption(
               value: 'all',
-              title: 'כל הקירות',
-              subtitle: 'צבע את כל הקירות בחדר',
+              title: context.l10n.allWalls,
+              subtitle: context.l10n.paintAllWalls,
             ),
             const SizedBox(height: 12),
             _buildOption(
               value: 'custom',
-              title: 'אובייקט ספציפי',
-              subtitle: 'בחר מה תרצה לצבוע',
+              title: context.l10n.specificObject,
+              subtitle: context.l10n.selectWhatToPaint,
             ),
 
             // Custom target input
@@ -301,7 +308,7 @@ class _ColorApplicationDialogState extends State<ColorApplicationDialog> {
                 onChanged: (value) => setState(() => _customTarget = value),
                 style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
-                  hintText: 'לדוגמה: ספה, תקרה, ארון...',
+                  hintText: context.l10n.exampleObjects,
                   hintStyle: TextStyle(color: Colors.grey.shade600),
                   filled: true,
                   fillColor: Colors.black.withValues(alpha: 0.2),
@@ -330,7 +337,7 @@ class _ColorApplicationDialogState extends State<ColorApplicationDialog> {
                 TextButton(
                   onPressed: () => Navigator.pop(context),
                   child: Text(
-                    'ביטול',
+                    context.l10n.cancel,
                     style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
                   ),
                 ),
@@ -347,12 +354,12 @@ class _ColorApplicationDialogState extends State<ColorApplicationDialog> {
                     ),
                     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text('אישור', style: TextStyle(color: Colors.white)),
-                      SizedBox(width: 8),
-                      Icon(Icons.check, size: 18, color: Colors.white),
+                      Text(context.l10n.confirm, style: const TextStyle(color: Colors.white)),
+                      const SizedBox(width: 8),
+                      const Icon(Icons.check, size: 18, color: Colors.white),
                     ],
                   ),
                 ),

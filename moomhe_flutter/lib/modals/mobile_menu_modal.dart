@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../theme/app_colors.dart';
+import '../l10n/localized_options.dart';
 
 class MobileMenuModal extends StatefulWidget {
   final bool isLoggedIn;
@@ -32,7 +33,7 @@ class MobileMenuModal extends StatefulWidget {
 
 class _MobileMenuModalState extends State<MobileMenuModal> {
   String get _initial => (widget.userEmail ?? 'U')[0].toUpperCase();
-  String get _displayName => widget.userEmail?.split('@')[0] ?? 'אורח';
+  String _displayName(BuildContext context) => widget.userEmail?.split('@')[0] ?? context.l10n.guest;
   bool get _hasEmail => widget.userEmail != null && widget.userEmail!.isNotEmpty;
 
   @override
@@ -105,7 +106,7 @@ class _MobileMenuModalState extends State<MobileMenuModal> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  _hasEmail ? _displayName : 'אורח',
+                  _hasEmail ? _displayName(context) : context.l10n.guest,
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -116,7 +117,7 @@ class _MobileMenuModalState extends State<MobileMenuModal> {
                 Text(
                   _hasEmail
                       ? widget.userEmail!
-                      : 'התחבר כדי לשמור את העיצובים שלך',
+                      : context.l10n.loginToSaveDesigns,
                   style: TextStyle(
                     fontSize: 14,
                     color: Colors.white.withValues(alpha: 0.6),
@@ -141,8 +142,8 @@ class _MobileMenuModalState extends State<MobileMenuModal> {
                   borderColor: _hasEmail
                       ? Colors.red.withValues(alpha: 0.2)
                       : Colors.blue.withValues(alpha: 0.2),
-                  title: _hasEmail ? 'התנתק' : 'התחברות',
-                  subtitle: _hasEmail ? 'יציאה מהחשבון' : 'התחבר עם אימייל לשמירת העיצובים',
+                  title: _hasEmail ? context.l10n.logout : context.l10n.login,
+                  subtitle: _hasEmail ? context.l10n.exitAccount : context.l10n.loginWithEmail,
                   onTap: () {
                     Navigator.pop(context);
                     if (_hasEmail) {
@@ -163,10 +164,10 @@ class _MobileMenuModalState extends State<MobileMenuModal> {
                     Colors.orange.withValues(alpha: 0.1),
                   ],
                   borderColor: Colors.amber.withValues(alpha: 0.2),
-                  title: 'המנוי שלי',
+                  title: context.l10n.mySubscription,
                   subtitle: widget.userCredits > 0
-                      ? '${widget.userCredits} קרדיטים נותרו'
-                      : 'שדרג לפרימיום',
+                      ? context.l10n.creditsRemaining(widget.userCredits)
+                      : context.l10n.upgradeToPremium,
                   onTap: () {
                     Navigator.pop(context);
                     widget.onSubscriptionClick();
@@ -183,8 +184,8 @@ class _MobileMenuModalState extends State<MobileMenuModal> {
                     Colors.teal.withValues(alpha: 0.1),
                   ],
                   borderColor: const Color(0xFF10B981).withValues(alpha: 0.2),
-                  title: 'יש לי קופון',
-                  subtitle: 'הזן קוד קופון לקבלת קרדיטים',
+                  title: context.l10n.iHaveCoupon,
+                  subtitle: context.l10n.enterCouponCode,
                   onTap: () {
                     Navigator.pop(context);
                     widget.onCouponClick();

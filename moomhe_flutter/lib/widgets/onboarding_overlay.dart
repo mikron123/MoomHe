@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../theme/app_colors.dart';
+import '../l10n/localized_options.dart';
 
 class OnboardingStep {
   final String title;
@@ -123,7 +124,7 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
             ),
           ),
 
-          // Tooltip content
+          // Tooltip content - Force LTR to display correctly in all languages
           Positioned(
             left: 20,
             right: 20,
@@ -137,8 +138,10 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
                     : null,
             child: FadeTransition(
               opacity: _fadeAnimation,
-              child: Center(
-                child: Container(
+              child: Directionality(
+                textDirection: TextDirection.ltr,
+                child: Center(
+                  child: Container(
                   constraints: const BoxConstraints(maxWidth: 340),
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
@@ -243,7 +246,7 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
                           TextButton(
                             onPressed: widget.onSkip,
                             child: Text(
-                              'דלג',
+                              context.l10n.skip,
                               style: TextStyle(
                                 color: Colors.white.withValues(alpha: 0.5),
                               ),
@@ -258,7 +261,7 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
                                     backgroundColor: Colors.white.withValues(alpha: 0.1),
                                   ),
                                   icon: const Icon(
-                                    LucideIcons.chevronRight,
+                                    LucideIcons.chevronLeft,
                                     color: Colors.white,
                                   ),
                                 ),
@@ -280,8 +283,8 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
                                   children: [
                                     Text(
                                       _currentStep < widget.steps.length - 1
-                                          ? 'הבא'
-                                          : 'התחל!',
+                                          ? context.l10n.next
+                                          : context.l10n.finish,
                                       style: const TextStyle(
                                         fontWeight: FontWeight.w600,
                                         color: Colors.white,
@@ -290,8 +293,8 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
                                     const SizedBox(width: 4),
                                     Icon(
                                       _currentStep < widget.steps.length - 1
-                                          ? LucideIcons.chevronLeft
-                                          : LucideIcons.sparkles,
+                                          ? LucideIcons.chevronRight
+                                          : LucideIcons.check,
                                       size: 18,
                                       color: Colors.white,
                                     ),
@@ -305,6 +308,7 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
                     ],
                   ),
                 ),
+              ),
               ),
             ),
           ),

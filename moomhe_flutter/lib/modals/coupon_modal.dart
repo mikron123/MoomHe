@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../theme/app_colors.dart';
+import '../l10n/localized_options.dart';
 
 class CouponModal extends StatefulWidget {
   final Future<Map<String, dynamic>> Function(String) onRedeemCoupon;
@@ -29,11 +30,12 @@ class _CouponModalState extends State<CouponModal> {
 
   Future<void> _handleRedeemCoupon() async {
     final code = _couponController.text.replaceAll(' ', '').toUpperCase().trim();
+    final l10n = context.l10n;
     
     if (code.isEmpty) {
       setState(() {
         _status = 'error';
-        _message = 'יש להזין קוד קופון';
+        _message = l10n.mustEnterCoupon;
       });
       return;
     }
@@ -48,7 +50,7 @@ class _CouponModalState extends State<CouponModal> {
       if (result['success'] == true) {
         setState(() {
           _status = 'success';
-          _message = result['message'] ?? 'קופון הופעל בהצלחה!';
+          _message = result['message'] ?? l10n.couponActivated;
         });
         
         // Wait a moment to show success, then close
@@ -60,13 +62,13 @@ class _CouponModalState extends State<CouponModal> {
       } else {
         setState(() {
           _status = 'error';
-          _message = result['error'] ?? 'שגיאה במימוש הקופון';
+          _message = result['error'] ?? l10n.errorRedeemingCoupon;
         });
       }
     } catch (e) {
       setState(() {
         _status = 'error';
-        _message = 'שגיאה במימוש הקופון';
+        _message = l10n.errorRedeemingCoupon;
       });
     }
   }
@@ -138,9 +140,9 @@ class _CouponModalState extends State<CouponModal> {
                       const SizedBox(height: 32),
 
                       // Title
-                      const Text(
-                        'הזן קוד קופון',
-                        style: TextStyle(
+                      Text(
+                        context.l10n.enterCouponCodeTitle,
+                        style: const TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
@@ -148,7 +150,7 @@ class _CouponModalState extends State<CouponModal> {
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        'הזן את קוד הקופון שקיבלת כדי לקבל קרדיטים חינם',
+                        context.l10n.enterCouponCodeSubtitle,
                         style: TextStyle(
                           fontSize: 14,
                           color: Colors.white.withValues(alpha: 0.6),
@@ -170,7 +172,7 @@ class _CouponModalState extends State<CouponModal> {
                         ),
                         textCapitalization: TextCapitalization.characters,
                         decoration: InputDecoration(
-                          hintText: 'קוד הקופון',
+                          hintText: context.l10n.couponCode,
                           hintStyle: TextStyle(
                             color: Colors.grey.shade600,
                             fontSize: 18,
@@ -272,9 +274,9 @@ class _CouponModalState extends State<CouponModal> {
                                     color: Colors.white,
                                   ),
                                 )
-                              : const Text(
-                                  'מימוש קופון',
-                                  style: TextStyle(
+                              : Text(
+                                  context.l10n.redeemCoupon,
+                                  style: const TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.w600,
                                   ),

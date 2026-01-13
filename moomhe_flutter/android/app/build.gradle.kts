@@ -65,7 +65,11 @@ flutter {
 }
 
 dependencies {
-    // Google Play Billing Library (required for Play Store)
-    implementation("com.android.billingclient:billing:7.0.0")
-    implementation("com.android.billingclient:billing-ktx:7.0.0")
+    // Force minimum BillingClient version required by Google Play
+    // The in_app_purchase_android package includes billing client, but we ensure minimum version
+    constraints {
+        implementation("com.android.billingclient:billing:7.0.0") {
+            because("Google Play requires BillingClient 6.0+ minimum")
+        }
+    }
 }

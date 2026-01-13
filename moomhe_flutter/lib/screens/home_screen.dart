@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -19,8 +21,8 @@ import '../modals/coupon_modal.dart';
 import '../modals/contact_modal.dart';
 import '../modals/ai_error_modal.dart';
 import '../models/history_entry.dart';
-import '../models/prompt_option.dart';
 import '../services/ai_service.dart';
+import '../l10n/localized_options.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -29,17 +31,24 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin, WidgetsBindingObserver {
+class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, WidgetsBindingObserver {
   // AI Service
   final AIService _aiService = AIService();
   
   // Image state
   String? _mainImage;
-  String? _originalImage;
+  String? _originalImage; // The very first uploaded image (for full revert)
+  String? _beforeImage; // The image before the last processing (for comparison)
   String? _objectImage; // Object/item image to add to main image
   bool _isProcessing = false;
   String? _lastPrompt;
   String _processingStatus = '';
+  int _currentPhraseIndex = 0;
+  
+  // Fun AI-related phrases - now loaded from localization
+  List<String> _getFunPhrases(BuildContext context) {
+    return context.localizedOptions.funPhrases;
+  }
   
   // Keyboard visibility tracking
   double _previousBottomInset = 0;
@@ -57,6 +66,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   // UI state
   bool _showOnboarding = false;
   late AnimationController _processingController;
+  late AnimationController _shimmerController;
+  late AnimationController _pulseController;
+  late AnimationController _iconRotateController;
+  Timer? _phraseTimer;
   
   // Prompt input
   final TextEditingController _promptController = TextEditingController();
@@ -65,22 +78,17 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   // Keys for onboarding
   final GlobalKey _uploadKey = GlobalKey();
-  final GlobalKey _toolsKey = GlobalKey();
   final GlobalKey _historyKey = GlobalKey();
+  final GlobalKey _redesignKey = GlobalKey();
+  final GlobalKey _promptKey = GlobalKey();
+  final GlobalKey _addItemKey = GlobalKey();
 
   final ImagePicker _picker = ImagePicker();
 
-  // Design actions (interior design mode only)
-  final List<Map<String, dynamic>> _designActions = [
-    {'label': 'סגנון עיצוב', 'icon': LucideIcons.palette, 'action': 'style'},
-    {'label': 'צבע קירות', 'icon': LucideIcons.paintbrush, 'action': 'color'},
-    {'label': 'תאורה', 'icon': LucideIcons.lamp, 'action': 'lighting'},
-    {'label': 'ריהוט', 'icon': LucideIcons.sofa, 'action': 'furniture'},
-    {'label': 'חלונות ודלתות', 'icon': LucideIcons.home, 'action': 'doors_windows'},
-    {'label': 'רחצה', 'icon': LucideIcons.droplets, 'action': 'bathroom'},
-    {'label': 'תיקונים', 'icon': LucideIcons.hammer, 'action': 'repairs'},
-    {'label': 'כללי', 'icon': LucideIcons.wand2, 'action': 'custom'},
-  ];
+  // Design actions - loaded from localization
+  List<Map<String, dynamic>> _getDesignActions(BuildContext context) {
+    return context.localizedOptions.designActions;
+  }
 
   // Default image constant
   static const String _defaultAssetImage = 'assets/images/design_img.jpg';
@@ -90,6 +98,21 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     super.initState();
     _processingController = AnimationController(
       duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    )..repeat();
+    
+    _shimmerController = AnimationController(
+      duration: const Duration(milliseconds: 2000),
+      vsync: this,
+    )..repeat();
+    
+    _pulseController = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    )..repeat(reverse: true);
+    
+    _iconRotateController = AnimationController(
+      duration: const Duration(milliseconds: 3000),
       vsync: this,
     )..repeat();
     
@@ -132,15 +155,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       // Sign in anonymously
       await _aiService.ensureSignedIn();
       
-      // Load user credits
+      // Load user credits (also loads subscription, email, and login status)
       await _loadUserCredits();
       
       // Load history
       await _loadHistory();
-      
-      if (mounted) {
-        setState(() => _isLoggedIn = true);
-      }
     } catch (e) {
       print('Error initializing app: $e');
     }
@@ -164,6 +183,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             prompt: data['prompt'],
             createdAt: data['createdAt']?.toDate() ?? DateTime.now(),
           )));
+          
+          // Set the main image to the most recent history entry if available
+          if (_imageHistory.isNotEmpty) {
+            final lastEntry = _imageHistory.first;
+            _mainImage = lastEntry.imageUrl;
+            _originalImage = lastEntry.originalImageUrl ?? lastEntry.imageUrl;
+            _beforeImage = lastEntry.originalImageUrl;
+            _lastPrompt = lastEntry.prompt;
+          }
         });
       }
     } catch (e) {
@@ -179,6 +207,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _processingController.dispose();
+    _shimmerController.dispose();
+    _pulseController.dispose();
+    _iconRotateController.dispose();
+    _phraseTimer?.cancel();
     _promptController.dispose();
     _promptFocusNode.removeListener(_onPromptFocusChange);
     _promptFocusNode.dispose();
@@ -281,7 +313,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       });
 
       // Add default prompt if prompt is empty, or append it
-      const defaultPrompt = 'הוסף את הפריט המצורף לתמונה';
+      final l10n = context.l10n;
+      final defaultPrompt = l10n.addAttachedItem;
       final currentPrompt = _promptController.text.trim();
       
       if (currentPrompt.isEmpty) {
@@ -293,7 +326,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       // Show toast/snackbar
       if (mounted) {
         _showToast(
-          message: 'תמונת פריט נטענה! תאר בשורת הפרומפט איפה להוסיף אותו.',
+          message: l10n.itemImageLoaded,
           icon: LucideIcons.check,
           backgroundColor: Colors.green.shade600,
         );
@@ -302,11 +335,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   Future<void> _uploadImageToHistory(String imagePath) async {
+    final l10n = context.l10n;
     setState(() {
       _mainImage = imagePath;
       _originalImage = imagePath;
+      _beforeImage = imagePath; // Initialize before image for first comparison
       _isProcessing = true;
-      _processingStatus = 'מעלה תמונה...';
+      _processingStatus = l10n.uploadingImage;
     });
 
     try {
@@ -317,6 +352,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         setState(() {
           _mainImage = storageUrl;
           _originalImage = storageUrl;
+          _beforeImage = storageUrl; // Update before image for comparison
           _isProcessing = false;
           
           // Add to local history
@@ -336,7 +372,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           _isProcessing = false;
         });
         _showToast(
-          message: 'שגיאה בהעלאת התמונה',
+          message: context.l10n.errorUploadingImage,
           icon: LucideIcons.alertCircle,
           backgroundColor: Colors.red.shade600,
         );
@@ -382,7 +418,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   void _showUploadPrompt() {
     _showToast(
-      message: 'יש להעלות תמונה קודם',
+      message: context.l10n.uploadImageFirst,
       icon: LucideIcons.upload,
       backgroundColor: AppColors.primary600,
     );
@@ -399,7 +435,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           // Use Future.delayed to ensure modal is closed before processing
           Future.delayed(const Duration(milliseconds: 100), () {
             if (mounted) {
-              _processWithPrompt('שנה את הסגנון ל${style.name}');
+              // Process immediately for style selection
+              _processWithPrompt(style.prompt);
             }
           });
         },
@@ -417,6 +454,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           debugPrint('🎨 Color selected: ${color.name}, prompt: $prompt');
           Future.delayed(const Duration(milliseconds: 100), () {
             if (mounted) {
+              // Process immediately for color selection
               _processWithPrompt(prompt);
             }
           });
@@ -426,18 +464,20 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   void _showLightingOptions() {
+    final l10n = context.l10n;
+    final options = context.localizedOptions.lightingOptions;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (modalContext) => OptionsModal(
-        title: 'בחר סוג תאורה',
-        options: LightingOptions.options,
+        title: l10n.selectLightingType,
+        options: options,
         onSelect: (option) {
           debugPrint('💡 Lighting selected: ${option.name}, prompt: ${option.prompt}');
           Future.delayed(const Duration(milliseconds: 100), () {
             if (mounted) {
-              _processWithPrompt(option.prompt);
+              _setPromptText(option.prompt);
             }
           });
         },
@@ -446,18 +486,20 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   void _showFurnitureOptions() {
+    final l10n = context.l10n;
+    final options = context.localizedOptions.furnitureOptions;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (modalContext) => OptionsModal(
-        title: 'בחר סוג ריהוט',
-        options: FurnitureOptions.options,
+        title: l10n.selectFurnitureType,
+        options: options,
         onSelect: (option) {
           debugPrint('🪑 Furniture selected: ${option.name}, prompt: ${option.prompt}');
           Future.delayed(const Duration(milliseconds: 100), () {
             if (mounted) {
-              _processWithPrompt(option.prompt);
+              _setPromptText(option.prompt);
             }
           });
         },
@@ -466,18 +508,20 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   void _showDoorsWindowsOptions() {
+    final l10n = context.l10n;
+    final groups = context.localizedOptions.doorsWindowsGroups;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (modalContext) => GroupedOptionsModal(
-        title: 'חלונות ודלתות',
-        groups: DoorsWindowsOptions.groups,
+        title: l10n.doorsWindows,
+        groups: groups,
         onSelect: (option) {
           debugPrint('🚪 Door/Window selected: ${option.name}, prompt: ${option.prompt}');
           Future.delayed(const Duration(milliseconds: 100), () {
             if (mounted) {
-              _processWithPrompt(option.prompt);
+              _setPromptText(option.prompt);
             }
           });
         },
@@ -486,18 +530,20 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   void _showBathroomOptions() {
+    final l10n = context.l10n;
+    final groups = context.localizedOptions.bathroomGroups;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (modalContext) => GroupedOptionsModal(
-        title: 'אפשרויות רחצה',
-        groups: BathroomOptions.groups,
+        title: l10n.bathroomOptions,
+        groups: groups,
         onSelect: (option) {
           debugPrint('🚿 Bathroom selected: ${option.name}, prompt: ${option.prompt}');
           Future.delayed(const Duration(milliseconds: 100), () {
             if (mounted) {
-              _processWithPrompt(option.prompt);
+              _setPromptText(option.prompt);
             }
           });
         },
@@ -506,18 +552,20 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   void _showRepairsOptions() {
+    final l10n = context.l10n;
+    final options = context.localizedOptions.repairsOptions;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (modalContext) => OptionsModal(
-        title: 'בחר סוג תיקון/נזק',
-        options: RepairsOptions.options,
+        title: l10n.selectRepairType,
+        options: options,
         onSelect: (option) {
           debugPrint('🔧 Repairs selected: ${option.name}, prompt: ${option.prompt}');
           Future.delayed(const Duration(milliseconds: 100), () {
             if (mounted) {
-              _processWithPrompt(option.prompt);
+              _setPromptText(option.prompt);
             }
           });
         },
@@ -527,9 +575,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   void _showCustomPromptDialog() {
     final controller = TextEditingController();
+    final l10n = context.l10n;
     showDialog(
       context: context,
-      builder: (context) => Dialog(
+      builder: (dialogContext) => Dialog(
         backgroundColor: AppColors.surface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
@@ -540,9 +589,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
-                'מה לעשות?',
-                style: TextStyle(
+              Text(
+                l10n.whatToDo,
+                style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
@@ -553,8 +602,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 controller: controller,
                 maxLines: 3,
                 style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                  hintText: 'תאר את השינוי הרצוי...',
+                decoration: InputDecoration(
+                  hintText: l10n.describeChange,
                 ),
               ),
               const SizedBox(height: 16),
@@ -562,8 +611,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 children: [
                   Expanded(
                     child: TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('ביטול'),
+                      onPressed: () => Navigator.pop(dialogContext),
+                      child: Text(l10n.cancel),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -571,11 +620,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     child: ElevatedButton(
                       onPressed: () {
                         if (controller.text.isNotEmpty) {
-                          Navigator.pop(context);
+                          Navigator.pop(dialogContext);
                           _processWithPrompt(controller.text);
                         }
                       },
-                      child: const Text('בצע'),
+                      child: Text(l10n.execute),
                     ),
                   ),
                 ],
@@ -589,9 +638,24 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   void _showComingSoon(String feature) {
     _showToast(
-      message: '$feature - בקרוב!',
+      message: context.l10n.comingSoon(feature),
       icon: LucideIcons.sparkles,
       backgroundColor: AppColors.secondary600,
+    );
+  }
+
+  /// Sets the prompt text without auto-submitting, allowing user to edit
+  void _setPromptText(String prompt) {
+    _promptController.text = prompt;
+    // Move cursor to end of text
+    _promptController.selection = TextSelection.fromPosition(
+      TextPosition(offset: _promptController.text.length),
+    );
+    // Show notification to user
+    _showToast(
+      message: context.l10n.promptAddedToInput,
+      icon: LucideIcons.pencil,
+      backgroundColor: AppColors.primary600,
     );
   }
 
@@ -608,10 +672,27 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     // Dismiss keyboard if open
     FocusScope.of(context).unfocus();
     
+    // Save current image as "before" for comparison
+    _beforeImage = _mainImage;
+    
+    final funPhrases = _getFunPhrases(context);
     setState(() {
       _isProcessing = true;
       _lastPrompt = prompt;
-      _processingStatus = 'מתחיל...';
+      _processingStatus = context.l10n.processingStarting;
+      _currentPhraseIndex = Random().nextInt(funPhrases.length);
+    });
+    
+    // Start phrase cycling timer
+    _phraseTimer?.cancel();
+    _phraseTimer = Timer.periodic(const Duration(milliseconds: 3500), (timer) {
+      if (mounted && _isProcessing) {
+        setState(() {
+          _currentPhraseIndex = (_currentPhraseIndex + 1) % funPhrases.length;
+        });
+      } else {
+        timer.cancel();
+      }
     });
 
     try {
@@ -633,16 +714,18 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         debugPrint('🎉 AI Success! imageUrl: ${result.imageUrl}');
         
         // Create history entry with result
+        // Store _beforeImage (the image that was processed) for comparison
         final entry = HistoryEntry(
           id: DateTime.now().millisecondsSinceEpoch.toString(),
           imageUrl: result.imageUrl!,
           thumbnailUrl: result.thumbnailUrl,
-          originalImageUrl: result.originalImageUrl ?? _originalImage,
+          originalImageUrl: _beforeImage ?? _originalImage,
           prompt: prompt,
           createdAt: DateTime.now(),
         );
 
         debugPrint('📝 Setting state: _isProcessing=false, _mainImage=${result.imageUrl}');
+        _phraseTimer?.cancel();
         setState(() {
           _isProcessing = false;
           _mainImage = result.imageUrl;
@@ -664,13 +747,34 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       }
     } catch (e) {
       if (mounted) {
+        _phraseTimer?.cancel();
         setState(() => _isProcessing = false);
         
-        // Show nice error modal instead of snackbar
-        AIErrorModal.show(
-          context,
-          errorMessage: e.toString(),
-        );
+        final errorMessage = e.toString();
+        
+        // Check if this is a "limit reached" error from the server
+        if (errorMessage.contains('limit reached') || errorMessage.contains('Generation limit')) {
+          // Parse usage and limit from error message if available (format: "Generation limit reached (19/3)")
+          int? parsedUsage;
+          int? parsedLimit;
+          final match = RegExp(r'\((\d+)/(\d+)\)').firstMatch(errorMessage);
+          if (match != null) {
+            parsedUsage = int.tryParse(match.group(1) ?? '');
+            parsedLimit = int.tryParse(match.group(2) ?? '');
+          }
+          
+          // Show the limit reached modal to prompt upgrade
+          _showLimitReachedModal(
+            customUsage: parsedUsage,
+            customLimit: parsedLimit,
+          );
+        } else {
+          // Show generic error modal for other errors
+          AIErrorModal.show(
+            context,
+            errorMessage: errorMessage,
+          );
+        }
       }
     }
   }
@@ -680,17 +784,24 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     if (mounted) {
       setState(() {
         _userCredits = info.remaining;
+        _userSubscription = info.subscription;
+        _userEmail = _aiService.currentUserEmail;
+        _isLoggedIn = !_aiService.isAnonymous;
       });
     }
   }
 
-  void _showLimitReachedModal() {
+  void _showLimitReachedModal({int? customUsage, int? customLimit}) {
+    // Use parsed values from error or fall back to local state
+    final usage = customUsage ?? (3 - _userCredits);
+    final limit = customLimit ?? 3;
+    
     showDialog(
       context: context,
       builder: (context) => LimitReachedModal(
         userSubscription: _userSubscription,
-        currentUsage: 3 - _userCredits,
-        limit: 3,
+        currentUsage: usage,
+        limit: limit,
         onShowPricing: _showSubscriptionModal,
       ),
     );
@@ -706,8 +817,61 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           onPurchaseComplete: () {
             // Refresh user credits after purchase
             _loadUserCredits();
+            
+            // If user is anonymous, prompt them to secure their purchase
+            if (_aiService.isAnonymous) {
+              _showSecureAccountDialog();
+            }
           },
         ),
+      ),
+    );
+  }
+  
+  void _showSecureAccountDialog() {
+    final l10n = context.l10n;
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            const Icon(LucideIcons.shieldCheck, color: AppColors.secondary500, size: 24),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                l10n.secureYourSubscription,
+                style: const TextStyle(color: Colors.white, fontSize: 18),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          l10n.secureSubscriptionMessage,
+          style: const TextStyle(color: Colors.white70, fontSize: 14, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(
+              l10n.later,
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              _showAuthModal(true);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.secondary500,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: Text(l10n.loginNow),
+          ),
+        ],
       ),
     );
   }
@@ -728,12 +892,20 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           _showAuthModal(true);
         },
         onSubscriptionClick: _showSubscriptionModal,
-        onLogout: () {
+        onLogout: () async {
           // Note: mobile menu already pops itself before calling this
-          setState(() {
-            _isLoggedIn = false;
-            _userEmail = null;
-          });
+          await _aiService.signOut();
+          // Sign back in anonymously and refresh state
+          await _aiService.ensureSignedIn();
+          await _loadUserCredits();
+          await _loadHistory();
+          if (mounted) {
+            _showToast(
+              message: context.l10n.loggedOutSuccess,
+              icon: LucideIcons.logOut,
+              backgroundColor: AppColors.primary600,
+            );
+          }
         },
         onCouponClick: () {
           // Note: mobile menu already pops itself before calling this
@@ -786,22 +958,76 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
     // Handle auth result if user submitted
     if (result != null && mounted) {
-      setState(() {
-        _isLoggedIn = true;
-        _userEmail = result.email;
-      });
+      final l10n = context.l10n;
+      try {
+        // Show loading indicator
+        _showToast(
+          message: result.isLogin ? l10n.loggingIn : l10n.creatingAccount,
+          icon: LucideIcons.loader,
+          backgroundColor: AppColors.primary600,
+        );
+
+        // Actually perform Firebase authentication
+        if (result.isLogin) {
+          await _aiService.signInWithEmail(result.email, result.password);
+        } else {
+          await _aiService.createAccountWithEmail(result.email, result.password);
+        }
+
+        // Refresh user data (credits, subscription, email)
+        await _loadUserCredits();
+        
+        // Reload history for the logged-in user
+        await _loadHistory();
+
+        if (mounted) {
+          // Show success toast
+          _showToast(
+            message: result.isLogin ? l10n.loginSuccess : l10n.accountCreated,
+            icon: LucideIcons.checkCircle,
+            backgroundColor: Colors.green.shade600,
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          String errorMessage = l10n.loginError;
+          final errorString = e.toString().toLowerCase();
+          
+          if (errorString.contains('user-not-found')) {
+            errorMessage = l10n.userNotFound;
+          } else if (errorString.contains('wrong-password') || errorString.contains('invalid-credential')) {
+            errorMessage = l10n.wrongPassword;
+          } else if (errorString.contains('email-already-in-use')) {
+            errorMessage = l10n.emailInUse;
+          } else if (errorString.contains('weak-password')) {
+            errorMessage = l10n.weakPassword;
+          } else if (errorString.contains('invalid-email')) {
+            errorMessage = l10n.invalidEmail;
+          }
+
+          _showToast(
+            message: errorMessage,
+            icon: LucideIcons.alertCircle,
+            backgroundColor: Colors.red.shade600,
+          );
+        }
+      }
     }
   }
 
   Future<void> _openImageModal({bool showComparison = false, bool isNewResult = false}) async {
     if (_mainImage == null) return;
 
+    // Use _beforeImage for comparison (the image before last processing)
+    // Fall back to _originalImage if _beforeImage is not set
+    final comparisonImage = _beforeImage ?? _originalImage;
+
     final result = await Navigator.push<String>(
       context,
       MaterialPageRoute(
         builder: (context) => ImageModal(
           imageUrl: _mainImage!,
-          originalImageUrl: _originalImage,
+          originalImageUrl: comparisonImage,
           prompt: _lastPrompt,
           initialShowComparison: showComparison,
           isNewResult: isNewResult,
@@ -810,10 +1036,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
 
     // Handle result after modal closes
-    if (result == 'revert' && _originalImage != null && mounted) {
-      debugPrint('↩️ User reverted to original');
+    if (result == 'revert' && comparisonImage != null && mounted) {
+      debugPrint('↩️ User reverted to before image');
       setState(() {
-        _mainImage = _originalImage;
+        _mainImage = comparisonImage;
       });
     } else if (result == 'keep') {
       debugPrint('✅ User kept the AI result');
@@ -827,28 +1053,36 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   void _handleHistoryTap(HistoryEntry entry) {
     setState(() {
       _mainImage = entry.imageUrl;
-      _originalImage = entry.originalImageUrl;
+      _beforeImage = entry.originalImageUrl; // For comparison
       _lastPrompt = entry.prompt;
     });
   }
 
-  List<OnboardingStep> get _onboardingSteps => [
-    OnboardingStep(
-      title: 'ברוכים הבאים למומחה!',
-      description: 'בעזרת בינה מלאכותית, תוכלו להפוך כל חלל לעיצוב חלומותיכם בלחיצת כפתור.',
-      targetKey: _uploadKey,
-    ),
-    OnboardingStep(
-      title: 'בחרו כלי עיצוב',
-      description: 'כאן תמצאו את כל הכלים לעיצוב - סגנונות, צבעים, תאורה ועוד.',
-      targetKey: _toolsKey,
-    ),
-    OnboardingStep(
-      title: 'היסטוריית העיצובים',
-      description: 'כל העיצובים שלכם נשמרים כאן. תוכלו לחזור אליהם בכל עת.',
-      targetKey: _historyKey,
-    ),
-  ];
+  List<OnboardingStep> _getOnboardingSteps(BuildContext context) {
+    final l10n = context.l10n;
+    return [
+      OnboardingStep(
+        title: l10n.onboardingUploadTitle,
+        description: l10n.onboardingUploadDesc,
+        targetKey: _uploadKey,
+      ),
+      OnboardingStep(
+        title: l10n.onboardingStyleTitle,
+        description: l10n.onboardingStyleDesc,
+        targetKey: _redesignKey,
+      ),
+      OnboardingStep(
+        title: l10n.onboardingCreateTitle,
+        description: l10n.onboardingCreateDesc,
+        targetKey: _promptKey,
+      ),
+      OnboardingStep(
+        title: l10n.onboardingItemTipTitle,
+        description: l10n.onboardingItemTipDesc,
+        targetKey: _addItemKey,
+      ),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -901,7 +1135,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           // Onboarding overlay
           if (_showOnboarding)
             OnboardingOverlay(
-              steps: _onboardingSteps,
+              steps: _getOnboardingSteps(context),
               onComplete: () => setState(() => _showOnboarding = false),
               onSkip: () => setState(() => _showOnboarding = false),
             ),
@@ -913,44 +1147,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   Widget _buildTopBar() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Row(
-        children: [
-          // Left side - Help and Contact buttons
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Help button (most left)
-              IconButton(
-                onPressed: () {
-                  setState(() => _showOnboarding = true);
-                },
-                style: IconButton.styleFrom(
-                  backgroundColor: Colors.transparent,
-                ),
-                icon: Icon(
-                  LucideIcons.helpCircle,
-                  color: Colors.white.withValues(alpha: 0.7),
-                  size: 22,
-                ),
-              ),
-              // Contact button (to the right of help)
-              IconButton(
-                onPressed: _showFeedbackDialog,
-                style: IconButton.styleFrom(
-                  backgroundColor: Colors.transparent,
-                ),
-                icon: Icon(
-                  LucideIcons.messageSquare,
-                  color: Colors.white.withValues(alpha: 0.7),
-                  size: 22,
-                ),
-              ),
-            ],
-          ),
-
-          // Center - Logo
-          Expanded(
-            child: Center(
+      child: SizedBox(
+        height: 48,
+        child: Stack(
+          children: [
+            // Center - Logo (absolutely centered on screen)
+            Center(
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -958,9 +1160,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     shaderCallback: (bounds) => const LinearGradient(
                       colors: [AppColors.primary300, Colors.white, AppColors.secondary300],
                     ).createShader(bounds),
-                    child: const Text(
-                      'מומחה',
-                      style: TextStyle(
+                    child: Text(
+                      context.l10n.appName,
+                      style: const TextStyle(
                         fontSize: 26,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
@@ -999,83 +1201,122 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 ],
               ),
             ),
-          ),
 
-          // Right side - Avatar with credits badge
-          GestureDetector(
-            onTap: _showMobileMenu,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                // Avatar circle
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceHighlight,
-                    borderRadius: BorderRadius.circular(22),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-                  ),
-                  child: Center(
-                    child: _userEmail != null
-                        ? Text(
-                            _userEmail!.substring(0, 1).toUpperCase(),
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Icon(
-                            LucideIcons.user,
-                            color: Colors.white,
-                            size: 22,
-                          ),
-                  ),
-                ),
-                // Credits badge
-                Positioned(
-                  bottom: -4,
-                  right: -4,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [AppColors.gold, Color(0xFFFFB300)],
-                      ),
-                      borderRadius: BorderRadius.circular(10),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.gold.withValues(alpha: 0.4),
-                          blurRadius: 4,
-                        ),
-                      ],
+            // Left side buttons - top left corner
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Help button
+                  IconButton(
+                    onPressed: () {
+                      setState(() => _showOnboarding = true);
+                    },
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.transparent,
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          LucideIcons.crown,
-                          size: 10,
-                          color: Colors.black87,
-                        ),
-                        const SizedBox(width: 2),
-                        Text(
-                          '$_userCredits',
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                          ),
-                        ),
-                      ],
+                    icon: Icon(
+                      LucideIcons.helpCircle,
+                      color: Colors.white.withValues(alpha: 0.7),
+                      size: 22,
                     ),
                   ),
-                ),
-              ],
+                  // Contact button
+                  IconButton(
+                    onPressed: _showFeedbackDialog,
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                    ),
+                    icon: Icon(
+                      LucideIcons.messageSquare,
+                      color: Colors.white.withValues(alpha: 0.7),
+                      size: 22,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+
+            // Right side - Avatar with credits badge - top right corner
+            Align(
+              alignment: Alignment.centerRight,
+              child: GestureDetector(
+                onTap: _showMobileMenu,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    // Avatar circle
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceHighlight,
+                        borderRadius: BorderRadius.circular(22),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                      ),
+                      child: Center(
+                        child: _userEmail != null && _userEmail!.isNotEmpty
+                            ? Text(
+                                _userEmail!.substring(0, 1).toUpperCase(),
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(
+                                LucideIcons.user,
+                                color: Colors.white,
+                                size: 22,
+                              ),
+                      ),
+                    ),
+                    // Credits badge
+                    Positioned(
+                      bottom: -4,
+                      right: -4,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [AppColors.gold, Color(0xFFFFB300)],
+                          ),
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.gold.withValues(alpha: 0.4),
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              LucideIcons.crown,
+                              size: 10,
+                              color: Colors.black87,
+                            ),
+                            const SizedBox(width: 2),
+                            Text(
+                              '$_userCredits',
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1103,7 +1344,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: GlassCard(
-          key: _uploadKey,
           child: _mainImage == null
               ? _buildUploadArea()
               : _buildImageDisplay(),
@@ -1113,6 +1353,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   Widget _buildUploadArea() {
+    final l10n = context.l10n;
     return GestureDetector(
       onTap: _pickImage,
       child: Container(
@@ -1145,9 +1386,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               ),
             ),
             const SizedBox(height: 20),
-            const Text(
-              'העלה תמונה',
-              style: TextStyle(
+            Text(
+              l10n.uploadImage,
+              style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
@@ -1155,7 +1396,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             ),
             const SizedBox(height: 8),
             Text(
-              'לחץ כאן להעלאת תמונה מהגלריה',
+              l10n.clickToUploadImage,
               style: TextStyle(
                 fontSize: 13,
                 color: Colors.white.withValues(alpha: 0.6),
@@ -1167,13 +1408,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               children: [
                 _buildUploadOption(
                   icon: LucideIcons.image,
-                  label: 'גלריה',
+                  label: l10n.gallery,
                   onTap: _pickImage,
                 ),
                 const SizedBox(width: 16),
                 _buildUploadOption(
                   icon: LucideIcons.camera,
-                  label: 'מצלמה',
+                  label: l10n.camera,
                   onTap: _takePhoto,
                 ),
               ],
@@ -1356,18 +1597,19 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         children: [
           Icon(LucideIcons.alertCircle, color: Colors.red.shade400, size: 48),
           const SizedBox(height: 8),
-          const Text('שגיאה בטעינת התמונה',
-              style: TextStyle(color: Colors.white70)),
+          Text(context.l10n.errorDownloadingImage,
+              style: const TextStyle(color: Colors.white70)),
         ],
       ),
     );
   }
 
   Widget _buildPromptInput() {
+    final l10n = context.l10n;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Container(
-        key: _toolsKey,
+        key: _promptKey,
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(16),
@@ -1381,9 +1623,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 controller: _promptController,
                 focusNode: _promptFocusNode,
                 style: const TextStyle(color: Colors.white, fontSize: 14),
-                textDirection: TextDirection.rtl,
                 decoration: InputDecoration(
-                  hintText: 'מה לשנות?',
+                  hintText: l10n.whatToChange,
                   hintStyle: TextStyle(
                     color: Colors.white.withValues(alpha: 0.4),
                     fontSize: 14,
@@ -1446,45 +1687,49 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   Widget _buildActionButtons() {
+    final l10n = context.l10n;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
       child: Row(
         children: [
-          // העלה תמונה (Upload image) button - Blue
+          // Upload image button - Blue
           Expanded(
             child: _buildActionButton(
               icon: LucideIcons.upload,
-              label: 'העלה תמונה',
+              label: l10n.uploadImage,
               color: const Color(0xFF2196F3), // Blue
               onTap: _pickImage,
+              buttonKey: _uploadKey,
             ),
           ),
           const SizedBox(width: 10),
-          // העלה פריט (Add item) button - Green
+          // Add item button - Green
           Expanded(
             child: _buildActionButton(
               icon: LucideIcons.plus,
-              label: 'העלה פריט',
+              label: l10n.uploadItem,
               color: _objectImage != null ? AppColors.primary500 : const Color(0xFF4CAF50), // Green, or purple if has object
               onTap: _pickObjectImage,
+              buttonKey: _addItemKey,
             ),
           ),
           const SizedBox(width: 10),
-          // עיצוב מחדש (Redesign) button - Purple
+          // Redesign button - Purple
           Expanded(
             child: _buildActionButton(
               icon: LucideIcons.wand2,
-              label: 'עיצוב מחדש',
+              label: l10n.redesign,
               color: const Color(0xFF9C27B0), // Purple
               onTap: _showStyleSelector,
+              buttonKey: _redesignKey,
             ),
           ),
           const SizedBox(width: 10),
-          // עוד (More) button - Opens bottom drawer
+          // More button - Opens bottom drawer
           Expanded(
             child: _buildActionButton(
               icon: LucideIcons.moreHorizontal,
-              label: 'עוד',
+              label: l10n.more,
               color: Colors.grey.shade700,
               onTap: _showMoreOptionsDrawer,
             ),
@@ -1499,8 +1744,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     required String label,
     required Color color,
     required VoidCallback onTap,
+    Key? buttonKey,
   }) {
     return GestureDetector(
+      key: buttonKey,
       onTap: onTap,
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -1535,6 +1782,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   Widget _buildHistorySection() {
+    final l10n = context.l10n;
     return GestureDetector(
       key: _historyKey,
       onTap: _showHistoryDrawer,
@@ -1559,7 +1807,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             const SizedBox(height: 2),
             // History text
             Text(
-              'היסטוריה',
+              l10n.history,
               style: TextStyle(
                 fontSize: 11,
                 color: Colors.white.withValues(alpha: 0.5),
@@ -1572,12 +1820,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   void _showHistoryDrawer() {
+    final l10n = context.l10n;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.5,
+      builder: (modalContext) => Container(
+        height: MediaQuery.of(modalContext).size.height * 0.5,
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
@@ -1605,9 +1854,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     children: [
                       const Icon(LucideIcons.history, color: AppColors.primary400, size: 20),
                       const SizedBox(width: 8),
-                      const Text(
-                        'היסטוריה',
-                        style: TextStyle(
+                      Text(
+                        l10n.history,
+                        style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w600,
                           color: Colors.white,
@@ -1616,7 +1865,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     ],
                   ),
                   IconButton(
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () => Navigator.pop(modalContext),
                     icon: const Icon(Icons.close, color: AppColors.textMuted),
                   ),
                 ],
@@ -1637,7 +1886,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                           ),
                           const SizedBox(height: 16),
                           Text(
-                            'עדיין אין היסטוריה',
+                            l10n.noHistoryYet,
                             style: TextStyle(
                               color: Colors.white.withValues(alpha: 0.5),
                               fontSize: 14,
@@ -1645,7 +1894,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'התמונות שתעלה ותערוך יופיעו כאן',
+                            l10n.uploadedImagesWillAppear,
                             style: TextStyle(
                               color: Colors.white.withValues(alpha: 0.3),
                               fontSize: 12,
@@ -1712,12 +1961,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   void _showMoreOptionsDrawer() {
+    final l10n = context.l10n;
+    final designActions = _getDesignActions(context);
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.6,
+      builder: (modalContext) => Container(
+        height: MediaQuery.of(modalContext).size.height * 0.6,
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
@@ -1731,16 +1982,16 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'עוד אפשרויות',
-                    style: TextStyle(
+                  Text(
+                    l10n.moreOptions,
+                    style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
                       color: Colors.white,
                     ),
                   ),
                   IconButton(
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () => Navigator.pop(modalContext),
                     icon: const Icon(Icons.close, color: AppColors.textMuted),
                   ),
                 ],
@@ -1757,14 +2008,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   mainAxisSpacing: 12,
                   childAspectRatio: 1.0,
                 ),
-                itemCount: _designActions.length,
-                itemBuilder: (context, index) {
-                  final action = _designActions[index];
+                itemCount: designActions.length,
+                itemBuilder: (gridContext, index) {
+                  final action = designActions[index];
                   return _buildMoreOptionItem(
                     icon: action['icon'] as IconData,
                     label: action['label'] as String,
                     onTap: () {
-                      Navigator.pop(context);
+                      Navigator.pop(modalContext);
                       _handleActionTap(action['action'] as String);
                     },
                   );
@@ -1818,56 +2069,345 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   Widget _buildProcessingOverlay() {
-    return Container(
-      color: Colors.black.withValues(alpha: 0.85),
-      child: Center(
-        child: Container(
-          margin: const EdgeInsets.all(32),
-          padding: const EdgeInsets.all(32),
+    return AnimatedBuilder(
+      animation: Listenable.merge([_shimmerController, _pulseController, _iconRotateController]),
+      builder: (context, child) {
+        final shimmerValue = _shimmerController.value;
+        final pulseValue = _pulseController.value;
+        final rotateValue = _iconRotateController.value;
+        
+        return Container(
           decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.primary500.withValues(alpha: 0.2),
-                blurRadius: 30,
-              ),
-            ],
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.black.withValues(alpha: 0.92),
+                AppColors.primary900.withValues(alpha: 0.85),
+                Colors.black.withValues(alpha: 0.92),
+              ],
+            ),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+          child: Stack(
             children: [
-              // Simple loader
-              const SizedBox(
-                width: 60,
-                height: 60,
-                child: CircularProgressIndicator(
-                  color: AppColors.primary400,
-                  strokeWidth: 3,
-                ),
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'המומחה עובד...',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                _processingStatus.isNotEmpty ? _processingStatus : 'מעצב את התמונה שלך',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.white.withValues(alpha: 0.6),
+              // Animated background particles/sparkles
+              ...List.generate(6, (index) {
+                final offset = (shimmerValue + index * 0.15) % 1.0;
+                final x = 0.1 + (index % 3) * 0.35;
+                final y = offset;
+                return Positioned(
+                  left: MediaQuery.of(context).size.width * x,
+                  top: MediaQuery.of(context).size.height * y,
+                  child: Opacity(
+                    opacity: (sin(offset * 3.14159) * 0.5 + 0.3).clamp(0.0, 1.0),
+                    child: Transform.scale(
+                      scale: 0.8 + pulseValue * 0.4,
+                      child: Icon(
+                        [LucideIcons.sparkles, LucideIcons.star, LucideIcons.wand2][index % 3],
+                        size: 16 + (index % 3) * 4,
+                        color: AppColors.primary300.withValues(alpha: 0.3),
+                      ),
+                    ),
+                  ),
+                );
+              }),
+              
+              // Main content
+              Center(
+                child: Container(
+                  margin: const EdgeInsets.all(24),
+                  constraints: const BoxConstraints(maxWidth: 340),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Animated icon container with glow
+                      Transform.scale(
+                        scale: 0.95 + pulseValue * 0.1,
+                        child: Container(
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                AppColors.primary500.withValues(alpha: 0.2),
+                                AppColors.primary600.withValues(alpha: 0.1),
+                              ],
+                            ),
+                            border: Border.all(
+                              color: AppColors.primary400.withValues(alpha: 0.3 + pulseValue * 0.2),
+                              width: 2,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.primary400.withValues(alpha: 0.2 + pulseValue * 0.15),
+                                blurRadius: 30 + pulseValue * 15,
+                                spreadRadius: 5,
+                              ),
+                              BoxShadow(
+                                color: AppColors.primary300.withValues(alpha: 0.1),
+                                blurRadius: 60,
+                                spreadRadius: 10,
+                              ),
+                            ],
+                          ),
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              // Rotating outer ring
+                              Transform.rotate(
+                                angle: rotateValue * 2 * 3.14159,
+                                child: SizedBox(
+                                  width: 80,
+                                  height: 80,
+                                  child: CustomPaint(
+                                    painter: _ArcPainter(
+                                      color: AppColors.primary400,
+                                      strokeWidth: 3,
+                                      progress: shimmerValue,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              // Inner rotating icon
+                              Transform.rotate(
+                                angle: -rotateValue * 3.14159,
+                                child: ShaderMask(
+                                  shaderCallback: (bounds) => LinearGradient(
+                                    colors: [
+                                      AppColors.primary300,
+                                      AppColors.primary400,
+                                      Colors.white,
+                                    ],
+                                    stops: [
+                                      shimmerValue.clamp(0.0, 0.4),
+                                      shimmerValue.clamp(0.3, 0.7),
+                                      shimmerValue.clamp(0.6, 1.0),
+                                    ],
+                                  ).createShader(bounds),
+                                  child: const Icon(
+                                    LucideIcons.wand2,
+                                    size: 40,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 32),
+                      
+                      // Animated title with shimmer
+                      ShaderMask(
+                        shaderCallback: (bounds) => LinearGradient(
+                          colors: [
+                            Colors.white,
+                            AppColors.primary300,
+                            Colors.white,
+                          ],
+                          stops: [
+                            (shimmerValue - 0.3).clamp(0.0, 1.0),
+                            shimmerValue,
+                            (shimmerValue + 0.3).clamp(0.0, 1.0),
+                          ],
+                        ).createShader(bounds),
+                        child: Text(
+                          '🎨  ${context.l10n.processingMagic}  ✨',
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            letterSpacing: 1,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 16),
+                      
+                      // Status pill
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary500.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: AppColors.primary400.withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColors.primary400,
+                                value: null,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Text(
+                              _processingStatus.isNotEmpty ? _processingStatus : context.l10n.processing,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: AppColors.primary300,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 24),
+                      
+                      // Fun phrase with fade animation
+                      Builder(
+                        builder: (phraseContext) {
+                          final funPhrases = _getFunPhrases(phraseContext);
+                          final safeIndex = _currentPhraseIndex % funPhrases.length;
+                          return AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 500),
+                            transitionBuilder: (child, animation) => FadeTransition(
+                              opacity: animation,
+                              child: SlideTransition(
+                                position: Tween<Offset>(
+                                  begin: const Offset(0, 0.3),
+                                  end: Offset.zero,
+                                ).animate(animation),
+                                child: child,
+                              ),
+                            ),
+                            child: Container(
+                              key: ValueKey(safeIndex),
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Colors.white.withValues(alpha: 0.05),
+                                    Colors.white.withValues(alpha: 0.02),
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.08),
+                                ),
+                              ),
+                              child: Text(
+                                funPhrases[safeIndex],
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.white.withValues(alpha: 0.85),
+                                  fontWeight: FontWeight.w400,
+                                  height: 1.4,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      
+                      const SizedBox(height: 20),
+                      
+                      // Animated dots
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(3, (index) {
+                          final delay = index * 0.2;
+                          final dotProgress = ((shimmerValue + delay) % 1.0);
+                          final scale = 0.6 + (sin(dotProgress * 3.14159) * 0.4);
+                          final opacity = 0.4 + (sin(dotProgress * 3.14159) * 0.6);
+                          
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            child: Transform.scale(
+                              scale: scale,
+                              child: Container(
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: AppColors.primary400.withValues(alpha: opacity),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: AppColors.primary400.withValues(alpha: opacity * 0.5),
+                                      blurRadius: 8,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        }),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
           ),
-        ),
-      ),
+        );
+      },
     );
+  }
+}
+
+// Custom painter for the rotating arc
+class _ArcPainter extends CustomPainter {
+  final Color color;
+  final double strokeWidth;
+  final double progress;
+
+  _ArcPainter({
+    required this.color,
+    required this.strokeWidth,
+    required this.progress,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color.withValues(alpha: 0.3)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round;
+
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = (size.width - strokeWidth) / 2;
+
+    // Background circle
+    canvas.drawCircle(center, radius, paint);
+
+    // Animated arc
+    paint.color = color;
+    final sweepAngle = 2.0; // ~120 degrees
+    final startAngle = progress * 2 * 3.14159 * 2;
+    
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      startAngle,
+      sweepAngle,
+      false,
+      paint,
+    );
+    
+    // Second arc on opposite side
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      startAngle + 3.14159,
+      sweepAngle * 0.7,
+      false,
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _ArcPainter oldDelegate) {
+    return oldDelegate.progress != progress;
   }
 }

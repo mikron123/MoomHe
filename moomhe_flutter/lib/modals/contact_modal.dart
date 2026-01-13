@@ -3,6 +3,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../theme/app_colors.dart';
+import '../l10n/localized_options.dart';
 
 class ContactModal extends StatefulWidget {
   const ContactModal({super.key});
@@ -42,14 +43,15 @@ class _ContactModalState extends State<ContactModal> {
     final phone = _phoneController.text.trim();
     final email = _emailController.text.trim();
     final message = _messageController.text.trim();
+    final l10n = context.l10n;
 
     // Validation
     if (phone.isEmpty && email.isEmpty) {
-      setState(() => _errorText = 'נא להזין לפחות טלפון או אימייל');
+      setState(() => _errorText = l10n.pleaseEnterPhoneOrEmail);
       return;
     }
     if (message.isEmpty) {
-      setState(() => _errorText = 'נא להזין הודעה');
+      setState(() => _errorText = l10n.pleaseEnterMessage);
       return;
     }
 
@@ -67,7 +69,7 @@ class _ContactModalState extends State<ContactModal> {
       if (mounted) {
         setState(() {
           _isSubmitting = false;
-          _errorText = 'שגיאה בשליחת ההודעה. נסה שוב.';
+          _errorText = l10n.errorSendingMessage;
         });
       }
     }
@@ -129,9 +131,9 @@ class _ContactModalState extends State<ContactModal> {
                     ),
                     Row(
                       children: [
-                        const Text(
-                          'צור קשר',
-                          style: TextStyle(
+                        Text(
+                          context.l10n.contactUs,
+                          style: const TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
@@ -155,27 +157,26 @@ class _ContactModalState extends State<ContactModal> {
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const SizedBox(height: 16),
                       
                       // Subtitle
                       Text(
-                        'נשמח לשמוע ממך! מלא את הפרטים ונחזור אליך בהקדם.',
+                        context.l10n.contactSubtitle,
                         style: TextStyle(
                           fontSize: 14,
                           color: Colors.white.withValues(alpha: 0.7),
                         ),
-                        textAlign: TextAlign.right,
                       ),
                       const SizedBox(height: 32),
 
                       // Phone field
-                      const Align(
-                        alignment: Alignment.centerRight,
+                      Align(
+                        alignment: Alignment.centerLeft,
                         child: Text(
-                          'טלפון',
-                          style: TextStyle(
+                          context.l10n.phone,
+                          style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
                             color: Colors.white,
@@ -218,11 +219,11 @@ class _ContactModalState extends State<ContactModal> {
                       const SizedBox(height: 20),
 
                       // Email field
-                      const Align(
-                        alignment: Alignment.centerRight,
+                      Align(
+                        alignment: Alignment.centerLeft,
                         child: Text(
-                          'אימייל',
-                          style: TextStyle(
+                          context.l10n.email,
+                          style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
                             color: Colors.white,
@@ -265,11 +266,11 @@ class _ContactModalState extends State<ContactModal> {
                       const SizedBox(height: 20),
 
                       // Message field
-                      const Align(
-                        alignment: Alignment.centerRight,
+                      Align(
+                        alignment: Alignment.centerLeft,
                         child: Text(
-                          'הודעה',
-                          style: TextStyle(
+                          context.l10n.message,
+                          style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
                             color: Colors.white,
@@ -282,11 +283,10 @@ class _ContactModalState extends State<ContactModal> {
                         focusNode: _messageFocusNode,
                         maxLines: 5,
                         minLines: 3,
-                        textDirection: TextDirection.rtl,
                         textInputAction: TextInputAction.newline,
                         style: const TextStyle(color: Colors.white),
                         decoration: InputDecoration(
-                          hintText: 'כתוב את הודעתך כאן...',
+                          hintText: context.l10n.writeYourMessage,
                           hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
                           filled: true,
                           fillColor: Colors.white.withValues(alpha: 0.05),
@@ -309,7 +309,7 @@ class _ContactModalState extends State<ContactModal> {
 
                       // Note
                       Text(
-                        '* נא להזין לפחות טלפון או אימייל',
+                        context.l10n.enterPhoneOrEmail,
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.white.withValues(alpha: 0.5),
@@ -382,14 +382,14 @@ class _ContactModalState extends State<ContactModal> {
                                       color: Colors.white,
                                     ),
                                   )
-                                : const Row(
+                                : Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      Icon(LucideIcons.send, color: Colors.white, size: 18),
-                                      SizedBox(width: 8),
+                                      const Icon(LucideIcons.send, color: Colors.white, size: 18),
+                                      const SizedBox(width: 8),
                                       Text(
-                                        'שלח הודעה',
-                                        style: TextStyle(
+                                        context.l10n.sendMessage,
+                                        style: const TextStyle(
                                           fontSize: 16,
                                           fontWeight: FontWeight.w600,
                                           color: Colors.white,

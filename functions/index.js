@@ -1308,6 +1308,7 @@ exports.paymentWebhook = onRequest({ cors: true }, async (req, res) => {
             subscription: newSubscription,
             credits: newCredits,
             lastPaymentEvent: eventId,
+            subscriptionPlatform: 'web', // Mark as web payment so sync won't reset it
             subscriptionUpdatedAt: admin.firestore.FieldValue.serverTimestamp()
           });
           logger.info(`Updated user ${userId} subscription to ${newSubscription}, credits: ${newCredits}`);
@@ -1429,9 +1430,10 @@ exports.onUserEmailUpdate = onDocumentUpdated('users/{userId}', async (event) =>
           subscription: newSubscription,
           credits: newCredits,
           lastPaymentEvent: paymentDoc.id,
+          subscriptionPlatform: 'web', // Mark as web payment so sync won't reset it
           subscriptionUpdatedAt: admin.firestore.FieldValue.serverTimestamp()
         });
-        
+
         logger.info(`[onUserEmailUpdate] SUCCESS: Granted subscription ${newSubscription} (${newCredits} credits) to user ${event.params.userId} from payment event ${paymentDoc.id}`);
       } else {
         logger.warn(`[onUserEmailUpdate] Unknown subscription description for email ${afterEmail}: "${description}"`);
@@ -2165,3 +2167,183 @@ exports.verifyPurchase = onRequest({ cors: true }, async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 });
+
+// ===========================================
+// Sync Subscription Status
+// ===========================================
+// Called by app on startup when store shows no subscription but Firestore does
+// This catches expired subscriptions that webhooks may have missed
+exports.syncSubscription = onRequest({ cors: true }, async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+  
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: 'Method not allowed' });
+    return;
+  }
+  
+  try {
+    const { authToken, platform } = req.body;
+    
+    if (!authToken) {
+      res.status(400).json({ success: false, error: 'Missing auth token' });
+      return;
+    }
+    
+    // Validate user
+    const user = await validateUserToken(authToken);
+    const userId = user.uid;
+    
+    logger.info(`[syncSubscription] Checking subscription for user ${userId} on ${platform}`);
+    
+    // Get current Firestore subscription status
+    const userDoc = await db.collection('users').doc(userId).get();
+    const userData = userDoc.data();
+    
+    if (!userData) {
+      res.json({ success: true, message: 'No user data found' });
+      return;
+    }
+    
+    const currentSubscription = userData.subscription || 0;
+    
+    // If user doesn't have a subscription in Firestore, nothing to sync
+    if (currentSubscription === 0) {
+      res.json({ success: true, message: 'No subscription to sync' });
+      return;
+    }
+    
+    // Get the last purchase record
+    const lastPurchaseId = userData.lastPurchaseId;
+    if (!lastPurchaseId) {
+      // No purchase record - likely an old account or data issue
+      // Reset to free tier to be safe
+      logger.warn(`[syncSubscription] User ${userId} has subscription but no lastPurchaseId, resetting`);
+      await _resetToFreeTier(userId, 'no_purchase_record');
+      res.json({ 
+        success: true, 
+        message: 'Subscription reset - no purchase record found',
+        subscriptionReset: true 
+      });
+      return;
+    }
+    
+    const purchaseDoc = await db.collection('purchases').doc(lastPurchaseId).get();
+    if (!purchaseDoc.exists) {
+      logger.warn(`[syncSubscription] Purchase ${lastPurchaseId} not found for user ${userId}, resetting`);
+      await _resetToFreeTier(userId, 'purchase_not_found');
+      res.json({ 
+        success: true, 
+        message: 'Subscription reset - purchase not found',
+        subscriptionReset: true 
+      });
+      return;
+    }
+    
+    const purchaseData = purchaseDoc.data();
+    
+    // Before resetting, check if subscription came from WEB PAYMENT instead of in-app purchase
+    // Web payments are tracked in paymentEvents collection
+    const webPaymentQuery = await db.collection('paymentEvents')
+      .where('data.payerEmail', '==', userData.email)
+      .where('status', '==', '1') // status 1 = successful
+      .orderBy('receivedAt', 'desc')
+      .limit(1)
+      .get();
+    
+    // Also check by userId if email doesn't match
+    let hasValidWebPayment = !webPaymentQuery.empty;
+    
+    if (!hasValidWebPayment && userData.email) {
+      // Try alternative query - some payment events might use different email field
+      const altPaymentQuery = await db.collection('paymentEvents')
+        .where('data.payerEmail', '==', userData.email)
+        .where('data.statusCode', '==', '2') // statusCode 2 = successful payment
+        .orderBy('receivedAt', 'desc')
+        .limit(1)
+        .get();
+      
+      hasValidWebPayment = !altPaymentQuery.empty;
+    }
+    
+    if (hasValidWebPayment) {
+      // User has a valid web payment - DO NOT reset their subscription
+      logger.info(`[syncSubscription] User ${userId} has valid web payment, keeping subscription`);
+      res.json({ 
+        success: true, 
+        message: 'Subscription valid - web payment found',
+        subscriptionReset: false,
+        source: 'web_payment'
+      });
+      return;
+    }
+    
+    // Also check subscriptionPlatform - if it's 'web' or null (legacy), don't reset
+    if (userData.subscriptionPlatform === 'web' || userData.subscriptionSource === 'web') {
+      logger.info(`[syncSubscription] User ${userId} has web subscription source, keeping subscription`);
+      res.json({ 
+        success: true, 
+        message: 'Subscription valid - web platform',
+        subscriptionReset: false,
+        source: 'web'
+      });
+      return;
+    }
+    
+    // Only reset if:
+    // 1. No active store subscription AND
+    // 2. No valid web payment AND  
+    // 3. Subscription platform is android/ios (not web)
+    const subscriptionPlatform = userData.subscriptionPlatform;
+    if (subscriptionPlatform !== 'android' && subscriptionPlatform !== 'ios') {
+      // Unknown or missing platform - could be web payment, don't reset
+      logger.info(`[syncSubscription] User ${userId} has unknown platform '${subscriptionPlatform}', not resetting`);
+      res.json({ 
+        success: true, 
+        message: 'Subscription kept - unknown platform (might be web)',
+        subscriptionReset: false
+      });
+      return;
+    }
+    
+    // Safe to reset - confirmed in-app purchase with no active store subscription
+    logger.info(`[syncSubscription] User ${userId} has ${subscriptionPlatform} subscription but no active store subscription, resetting`);
+    await _resetToFreeTier(userId, 'store_no_active_subscription');
+    
+    res.json({ 
+      success: true, 
+      message: 'Subscription reset - no active store subscription found',
+      subscriptionReset: true 
+    });
+    
+  } catch (error) {
+    logger.error('[syncSubscription] Error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Helper function to reset user to free tier
+async function _resetToFreeTier(userId, reason) {
+  await db.collection('users').doc(userId).update({
+    subscription: 0,
+    credits: 3,
+    subscriptionProductId: null,
+    subscriptionExpired: true,
+    subscriptionExpiredAt: admin.firestore.FieldValue.serverTimestamp(),
+    subscriptionVerified: false,
+    subscriptionSyncReset: true,
+    subscriptionSyncResetReason: reason,
+    subscriptionSyncResetAt: admin.firestore.FieldValue.serverTimestamp(),
+    // Clean up status flags
+    subscriptionPaused: admin.firestore.FieldValue.delete(),
+    subscriptionGracePeriod: admin.firestore.FieldValue.delete(),
+    subscriptionCanceled: admin.firestore.FieldValue.delete(),
+  });
+  logger.info(`[_resetToFreeTier] Reset user ${userId} to free tier, reason: ${reason}`);
+}

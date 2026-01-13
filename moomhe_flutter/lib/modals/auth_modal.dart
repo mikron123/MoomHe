@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_colors.dart';
+import '../l10n/localized_options.dart';
 
 /// Result returned when auth modal is closed after successful login/signup
 class AuthResult {
@@ -53,14 +56,15 @@ class _AuthModalState extends State<AuthModal> {
   void _handleSubmit() {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
+    final l10n = context.l10n;
 
     if (email.isEmpty || password.isEmpty) {
-      setState(() => _error = 'יש למלא את כל השדות');
+      setState(() => _error = l10n.fillAllFields);
       return;
     }
 
     if (!_isLogin && password != _confirmPasswordController.text) {
-      setState(() => _error = 'הסיסמאות אינן תואמות');
+      setState(() => _error = l10n.passwordsDoNotMatch);
       return;
     }
 
@@ -74,6 +78,13 @@ class _AuthModalState extends State<AuthModal> {
 
   void _handleClose() {
     Navigator.of(context).pop(null);
+  }
+
+  Future<void> _launchUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 
   @override
@@ -122,9 +133,9 @@ class _AuthModalState extends State<AuthModal> {
                         shaderCallback: (bounds) => const LinearGradient(
                           colors: [AppColors.primary300, Colors.white, AppColors.secondary300],
                         ).createShader(bounds),
-                        child: const Text(
-                          'מומחה',
-                          style: TextStyle(
+                        child: Text(
+                          context.l10n.appName,
+                          style: const TextStyle(
                             fontSize: 48,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
@@ -170,7 +181,7 @@ class _AuthModalState extends State<AuthModal> {
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Text(
-                                    'צור חשבון חדש',
+                                    context.l10n.createNewAccount,
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
                                       fontSize: 16,
@@ -192,7 +203,7 @@ class _AuthModalState extends State<AuthModal> {
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Text(
-                                    'התחברות',
+                                    context.l10n.login,
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
                                       fontSize: 16,
@@ -209,8 +220,8 @@ class _AuthModalState extends State<AuthModal> {
                       const SizedBox(height: 16),
                       Text(
                         _isLogin
-                            ? 'ברוכים השבים! התחבר כדי להמשיך'
-                            : 'הצטרף אלינו כדי לשמור עיצובים ולקבל גישה לכל הפיצ\'רים',
+                            ? context.l10n.welcomeBack
+                            : context.l10n.joinUs,
                         style: TextStyle(
                           fontSize: 14,
                           color: Colors.white.withValues(alpha: 0.6),
@@ -224,9 +235,9 @@ class _AuthModalState extends State<AuthModal> {
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
                         style: const TextStyle(color: Colors.white, fontSize: 16),
-                        decoration: const InputDecoration(
-                          hintText: 'אימייל',
-                          prefixIcon: Icon(LucideIcons.mail, size: 22),
+                        decoration: InputDecoration(
+                          hintText: context.l10n.email,
+                          prefixIcon: const Icon(LucideIcons.mail, size: 22),
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -234,9 +245,9 @@ class _AuthModalState extends State<AuthModal> {
                         controller: _passwordController,
                         obscureText: true,
                         style: const TextStyle(color: Colors.white, fontSize: 16),
-                        decoration: const InputDecoration(
-                          hintText: 'סיסמה',
-                          prefixIcon: Icon(LucideIcons.lock, size: 22),
+                        decoration: InputDecoration(
+                          hintText: context.l10n.password,
+                          prefixIcon: const Icon(LucideIcons.lock, size: 22),
                         ),
                       ),
                       if (!_isLogin) ...[
@@ -245,9 +256,9 @@ class _AuthModalState extends State<AuthModal> {
                           controller: _confirmPasswordController,
                           obscureText: true,
                           style: const TextStyle(color: Colors.white, fontSize: 16),
-                          decoration: const InputDecoration(
-                            hintText: 'אמת סיסמה',
-                            prefixIcon: Icon(LucideIcons.lock, size: 22),
+                          decoration: InputDecoration(
+                            hintText: context.l10n.confirmPassword,
+                            prefixIcon: const Icon(LucideIcons.lock, size: 22),
                           ),
                         ),
                       ],
@@ -290,7 +301,7 @@ class _AuthModalState extends State<AuthModal> {
                             ),
                           ),
                           child: Text(
-                            _isLogin ? 'התחבר' : 'צור חשבון',
+                            _isLogin ? context.l10n.loginButton : context.l10n.createAccountButton,
                             style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w600,
@@ -306,13 +317,13 @@ class _AuthModalState extends State<AuthModal> {
                           onPressed: () {
                             final email = _emailController.text.trim();
                             if (email.isEmpty) {
-                              setState(() => _error = 'אנא הזן כתובת אימייל תחילה');
+                              setState(() => _error = context.l10n.enterEmailFirst);
                               return;
                             }
                             widget.onPasswordReset!(email);
                           },
                           child: Text(
-                            'שכחת סיסמה?',
+                            context.l10n.forgotPassword,
                             style: TextStyle(
                               fontSize: 14,
                               color: Colors.white.withValues(alpha: 0.6),
@@ -323,14 +334,37 @@ class _AuthModalState extends State<AuthModal> {
 
                       const SizedBox(height: 32),
 
-                      // Terms
-                      Text(
-                        'בהתחברותך אתה מסכים לתנאי השימוש ולמדיניות הפרטיות',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.white.withValues(alpha: 0.5),
-                        ),
+                      // Terms with clickable links
+                      RichText(
                         textAlign: TextAlign.center,
+                        text: TextSpan(
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.white.withValues(alpha: 0.5),
+                          ),
+                          children: [
+                            TextSpan(text: '${context.l10n.termsAgreement} '),
+                            TextSpan(
+                              text: context.l10n.termsOfService,
+                              style: TextStyle(
+                                color: AppColors.primary400,
+                                decoration: TextDecoration.underline,
+                              ),
+                              recognizer: TapGestureRecognizer()
+                                ..onTap = () => _launchUrl(context.l10n.termsOfServiceUrl),
+                            ),
+                            TextSpan(text: ' ${context.l10n.and} '),
+                            TextSpan(
+                              text: context.l10n.privacyPolicy,
+                              style: TextStyle(
+                                color: AppColors.primary400,
+                                decoration: TextDecoration.underline,
+                              ),
+                              recognizer: TapGestureRecognizer()
+                                ..onTap = () => _launchUrl(context.l10n.privacyPolicyUrl),
+                            ),
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 40),
                     ],

@@ -1,11 +1,14 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:in_app_purchase_android/in_app_purchase_android.dart';
+import 'package:in_app_purchase_android/billing_client_wrappers.dart';
 import 'package:in_app_purchase_storekit/in_app_purchase_storekit.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:http/http.dart' as http;
 
 /// Subscription tier enum
 enum SubscriptionTier {
@@ -123,6 +126,13 @@ class PurchaseService {
   List<ProductDetails> _products = [];
   bool _isAvailable = false;
   bool _isInitialized = false;
+  
+  // Current subscription for upgrades (Android)
+  // We store the actual PurchaseDetails to use for subscription changes
+  GooglePlayPurchaseDetails? _currentAndroidPurchase;
+  
+  // Track if any active subscription was found during restore
+  bool _hasActiveStoreSubscription = false;
 
   // Callbacks for UI updates
   Function(PurchaseUiStatus status, String? message)? onPurchaseStatusChanged;
@@ -184,7 +194,7 @@ class PurchaseService {
     // Load products
     await loadProducts();
 
-    // Restore purchases on init
+    // Restore purchases on init (this also loads current subscription for upgrades)
     await restorePurchases();
 
     _isInitialized = true;
@@ -218,6 +228,8 @@ class PurchaseService {
 
       for (final product in _products) {
         debugPrint('  - ${product.id}: ${product.price}');
+        debugPrint('    title: ${product.title}');
+        debugPrint('    description: ${product.description}');
       }
 
       onProductsLoaded?.call(_products);
@@ -228,7 +240,7 @@ class PurchaseService {
     }
   }
 
-  /// Purchase a subscription
+  /// Purchase a subscription (handles new purchases and upgrades)
   Future<bool> purchaseSubscription(String productId) async {
     if (!_isAvailable) {
       onPurchaseStatusChanged?.call(
@@ -249,18 +261,60 @@ class PurchaseService {
     try {
       // Get current user ID for obfuscation
       final userId = _auth.currentUser?.uid ?? '';
+      
+      // Check if this is an upgrade (user has existing Android subscription)
+      final isAndroidUpgrade = Platform.isAndroid && 
+                               _currentAndroidPurchase != null && 
+                               _currentAndroidPurchase!.productID != productId;
+      
+      if (isAndroidUpgrade) {
+        debugPrint('🔄 This is a subscription upgrade from ${_currentAndroidPurchase!.productID} to $productId');
+      }
 
-      final PurchaseParam purchaseParam = PurchaseParam(
-        productDetails: product,
-        applicationUserName: userId,
-      );
+      late PurchaseParam purchaseParam;
 
-      // For subscriptions, use buyNonConsumable
+      // Use platform-specific purchase param
+      if (Platform.isAndroid) {
+        if (isAndroidUpgrade && _currentAndroidPurchase != null) {
+          // For upgrades on Android, specify the old subscription
+          purchaseParam = GooglePlayPurchaseParam(
+            productDetails: product,
+            applicationUserName: userId,
+            changeSubscriptionParam: ChangeSubscriptionParam(
+              oldPurchaseDetails: _currentAndroidPurchase!,
+              replacementMode: ReplacementMode.withTimeProration,
+            ),
+          );
+          debugPrint('🔄 Using upgrade purchase param with proration');
+        } else {
+          // New purchase on Android
+          purchaseParam = GooglePlayPurchaseParam(
+            productDetails: product,
+            applicationUserName: userId,
+          );
+        }
+      } else {
+        // iOS uses standard purchase param
+        // Apple handles upgrades automatically within subscription groups
+        purchaseParam = PurchaseParam(
+          productDetails: product,
+          applicationUserName: userId,
+        );
+      }
+
+      debugPrint('🛒 Calling buyNonConsumable for product: ${product.id}');
+      debugPrint('🛒 Product details - title: ${product.title}, price: ${product.price}');
+      
       final bool success =
           await _inAppPurchase.buyNonConsumable(purchaseParam: purchaseParam);
 
+      debugPrint('🛒 buyNonConsumable returned: $success');
+      
       if (!success) {
-        debugPrint('❌ Purchase initiation failed');
+        debugPrint('❌ Purchase initiation failed - this usually means:');
+        debugPrint('   1. Not running release build (flutter run --release)');
+        debugPrint('   2. Account not added as License Tester in Play Console');
+        debugPrint('   3. App not uploaded to Internal Testing track');
         onPurchaseStatusChanged?.call(
             PurchaseUiStatus.error, 'Failed to initiate purchase');
         return false;
@@ -281,13 +335,85 @@ class PurchaseService {
 
     debugPrint('🔄 Restoring purchases...');
     onPurchaseStatusChanged?.call(PurchaseUiStatus.loading, 'Restoring...');
+    
+    // Reset flag before restore
+    _hasActiveStoreSubscription = false;
 
     try {
       await _inAppPurchase.restorePurchases();
       debugPrint('✅ Restore initiated');
+      // Reset to idle after initiating restore
+      // Actual restore results will come through the purchase stream
+      onPurchaseStatusChanged?.call(PurchaseUiStatus.idle, null);
+      
+      // Wait a bit for restore to complete, then verify subscription status
+      Future.delayed(const Duration(seconds: 3), () {
+        _verifySubscriptionStatus();
+      });
     } catch (e) {
       debugPrint('❌ Restore error: $e');
       onPurchaseStatusChanged?.call(PurchaseUiStatus.error, e.toString());
+    }
+  }
+  
+  /// Verify that Firestore subscription matches store subscription
+  /// Called after restore to catch expired subscriptions that webhooks missed
+  Future<void> _verifySubscriptionStatus() async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return;
+      
+      // Get Firestore subscription status
+      final userDoc = await _firestore.collection('users').doc(user.uid).get();
+      final userData = userDoc.data();
+      
+      if (userData == null) return;
+      
+      final firestoreSubscription = userData['subscription'] as int? ?? 0;
+      
+      // If Firestore says user has subscription but store says no active subscription
+      if (firestoreSubscription > 0 && !_hasActiveStoreSubscription) {
+        debugPrint('⚠️ Subscription mismatch! Firestore: $firestoreSubscription, Store: none');
+        debugPrint('📤 Calling syncSubscription to verify with server...');
+        
+        // Call server to verify and potentially reset subscription
+        await _syncSubscriptionWithServer(user.uid);
+      } else if (firestoreSubscription > 0 && _hasActiveStoreSubscription) {
+        debugPrint('✅ Subscription verified: Firestore and Store match');
+      } else {
+        debugPrint('ℹ️ No subscription in Firestore (free user)');
+      }
+    } catch (e) {
+      debugPrint('❌ Error verifying subscription status: $e');
+    }
+  }
+  
+  /// Call server to verify subscription and sync status
+  Future<void> _syncSubscriptionWithServer(String userId) async {
+    try {
+      final authToken = await _auth.currentUser?.getIdToken();
+      if (authToken == null) return;
+      
+      final response = await http.post(
+        Uri.parse('https://us-central1-moomhe-6de30.cloudfunctions.net/syncSubscription'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'authToken': authToken,
+          'platform': Platform.isAndroid ? 'android' : 'ios',
+        }),
+      );
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        debugPrint('📥 Subscription sync response: ${data['message']}');
+        if (data['subscriptionReset'] == true) {
+          debugPrint('⚠️ Subscription was reset to free tier');
+        }
+      } else {
+        debugPrint('❌ Sync request failed: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('❌ Error syncing subscription: $e');
     }
   }
 
@@ -307,6 +433,18 @@ class PurchaseService {
 
         case PurchaseStatus.purchased:
         case PurchaseStatus.restored:
+          // Mark that we found an active subscription in the store
+          if (ProductIds.allProductIds.contains(purchaseDetails.productID)) {
+            _hasActiveStoreSubscription = true;
+            debugPrint('✅ Found active store subscription: ${purchaseDetails.productID}');
+          }
+          
+          // Store Android purchase details for future upgrades
+          if (Platform.isAndroid && purchaseDetails is GooglePlayPurchaseDetails) {
+            _currentAndroidPurchase = purchaseDetails;
+            debugPrint('📦 Stored Android purchase for future upgrades: ${purchaseDetails.productID}');
+          }
+          
           // Verify and deliver the purchase
           final success = await _verifyAndDeliverPurchase(purchaseDetails);
           if (success) {
@@ -319,8 +457,14 @@ class PurchaseService {
 
         case PurchaseStatus.error:
           debugPrint('❌ Purchase error: ${purchaseDetails.error?.message}');
+          debugPrint('❌ Error code: ${purchaseDetails.error?.code}');
+          debugPrint('❌ Error details: ${purchaseDetails.error?.details}');
+          debugPrint('❌ Product ID: ${purchaseDetails.productID}');
+          // Common error codes:
+          // - BillingResponse.itemUnavailable: Product not available for purchase
+          // - BillingResponse.itemAlreadyOwned: User already owns this subscription
           onPurchaseStatusChanged?.call(
-              PurchaseUiStatus.error, purchaseDetails.error?.message);
+              PurchaseUiStatus.error, purchaseDetails.error?.message ?? 'Purchase failed');
           break;
 
         case PurchaseStatus.canceled:
@@ -337,7 +481,7 @@ class PurchaseService {
     }
   }
 
-  /// Verify purchase and update user subscription in Firestore
+  /// Verify purchase and update user subscription via Cloud Function
   Future<bool> _verifyAndDeliverPurchase(PurchaseDetails purchaseDetails) async {
     debugPrint('🔐 Verifying purchase: ${purchaseDetails.productID}');
 
@@ -366,43 +510,58 @@ class PurchaseService {
         return false;
       }
 
-      // Save purchase to Firestore for server-side verification
+      // Save purchase to Firestore for server-side verification (webhook backup)
+      final purchaseId = purchaseDetails.purchaseID ?? DateTime.now().toIso8601String();
       final purchaseRecord = {
         'userId': user.uid,
         'productId': purchaseDetails.productID,
-        'purchaseId': purchaseDetails.purchaseID,
+        'purchaseId': purchaseId,
         'transactionDate': purchaseDetails.transactionDate,
         'verificationData': verificationData,
         'platform': platform,
         'status': purchaseDetails.status.toString(),
         'createdAt': FieldValue.serverTimestamp(),
-        'verified': false, // Will be set to true by server webhook
+        'verified': false, // Will be set to true by verifyPurchase endpoint
       };
 
       await _firestore
           .collection('purchases')
-          .doc(purchaseDetails.purchaseID ?? DateTime.now().toIso8601String())
+          .doc(purchaseId)
           .set(purchaseRecord);
 
       debugPrint('✅ Purchase record saved to Firestore');
 
-      // Optimistically update user subscription (server will verify and confirm)
-      final credits = ProductIds.getCredits(purchaseDetails.productID);
-      final subscriptionCode =
-          ProductIds.getSubscriptionCode(purchaseDetails.productID);
+      // Call verifyPurchase Cloud Function to update subscription
+      // (Firestore rules prevent client from updating credits/subscription directly)
+      final authToken = await user.getIdToken();
+      
+      final response = await http.post(
+        Uri.parse('https://us-central1-moomhe-6de30.cloudfunctions.net/verifyPurchase'),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'authToken': authToken,
+          'productId': purchaseDetails.productID,
+          'purchaseId': purchaseId,
+          'platform': platform,
+          'verificationData': verificationData,
+        }),
+      );
 
-      await _firestore.collection('users').doc(user.uid).update({
-        'subscription': subscriptionCode,
-        'credits': credits,
-        'subscriptionProductId': purchaseDetails.productID,
-        'subscriptionUpdatedAt': FieldValue.serverTimestamp(),
-        'lastPurchaseId': purchaseDetails.purchaseID,
-      });
-
-      debugPrint(
-          '✅ User subscription updated: tier=$subscriptionCode, credits=$credits');
-
-      return true;
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        if (responseData['success'] == true) {
+          debugPrint('✅ Purchase verified by server: ${responseData['subscription']} subscription, ${responseData['credits']} credits');
+          return true;
+        } else {
+          debugPrint('❌ Server verification failed: ${responseData['error']}');
+          return false;
+        }
+      } else {
+        debugPrint('❌ Server verification request failed: ${response.statusCode} - ${response.body}');
+        return false;
+      }
     } catch (e) {
       debugPrint('❌ Error verifying purchase: $e');
       return false;

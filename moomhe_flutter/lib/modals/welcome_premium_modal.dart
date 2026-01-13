@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../theme/app_colors.dart';
+import '../l10n/localized_options.dart';
 
 class WelcomePremiumModal extends StatelessWidget {
   final String subscriptionName;
@@ -133,7 +134,7 @@ class WelcomePremiumModal extends StatelessWidget {
                       ],
                     ).createShader(bounds),
                     child: Text(
-                      'ברוך הבא למנוי $subscriptionName!',
+                      context.l10n.welcomeToPlan(subscriptionName),
                       style: const TextStyle(
                         fontSize: 26,
                         fontWeight: FontWeight.bold,
@@ -146,7 +147,7 @@ class WelcomePremiumModal extends StatelessWidget {
 
                   // Description
                   Text(
-                    'תודה שהצטרפת למשפחת המנויים שלנו. החשבון שלך שודרג בהצלחה וכעת יש לך גישה לכל התכונות המתקדמות ולקרדיטים נוספים.',
+                    context.l10n.thankYouForJoining,
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.white.withValues(alpha: 0.7),
@@ -171,11 +172,11 @@ class WelcomePremiumModal extends StatelessWidget {
                     ),
                     child: Column(
                       children: [
-                        _buildFeatureItem(LucideIcons.sparkles, 'קרדיטים נוספו לחשבונך'),
+                        _buildFeatureItem(LucideIcons.sparkles, context.l10n.creditsAddedToYourAccount),
                         const SizedBox(height: 12),
-                        _buildFeatureItem(LucideIcons.check, 'גישה ללא הגבלה לכל הסגנונות'),
+                        _buildFeatureItem(LucideIcons.check, context.l10n.unlimitedStyleAccess),
                         const SizedBox(height: 12),
-                        _buildFeatureItem(LucideIcons.crown, 'תמיכה ביוצרים ומעצבים'),
+                        _buildFeatureItem(LucideIcons.crown, context.l10n.supportCreators),
                       ],
                     ),
                   ),
@@ -193,7 +194,7 @@ class WelcomePremiumModal extends StatelessWidget {
                           borderRadius: BorderRadius.circular(14),
                         ),
                       ).copyWith(
-                        backgroundBuilder: (context, states, child) {
+                        backgroundBuilder: (btnContext, states, child) {
                           return Container(
                             decoration: BoxDecoration(
                               gradient: const LinearGradient(
@@ -212,19 +213,19 @@ class WelcomePremiumModal extends StatelessWidget {
                           );
                         },
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
-                            'התחל לעצב',
-                            style: TextStyle(
+                            context.l10n.startDesigning,
+                            style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
                             ),
                           ),
-                          SizedBox(width: 8),
-                          Icon(LucideIcons.sparkles, size: 20, color: Colors.white),
+                          const SizedBox(width: 8),
+                          const Icon(LucideIcons.sparkles, size: 20, color: Colors.white),
                         ],
                       ),
                     ),

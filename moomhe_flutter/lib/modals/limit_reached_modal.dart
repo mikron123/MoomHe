@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../theme/app_colors.dart';
+import '../l10n/localized_options.dart';
 
 class LimitReachedModal extends StatelessWidget {
   final int userSubscription;
@@ -99,8 +100,8 @@ class LimitReachedModal extends StatelessWidget {
                   // Title
                   Text(
                     userSubscription > 0
-                        ? 'נגמרו הקרדיטים לחודש זה'
-                        : 'הגעת למגבלת השימוש החינמי',
+                        ? context.l10n.creditsRanOut
+                        : context.l10n.freeLimitReached,
                     style: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
@@ -113,8 +114,8 @@ class LimitReachedModal extends StatelessWidget {
                   // Description
                   Text(
                     userSubscription > 0
-                        ? 'הגעת למגבלת הקרדיטים שלך ($limit קרדיטים). ניתן לשדרג לחבילה גדולה יותר או לחכות לחודש הבא.'
-                        : 'ניצלת את כל $limit הקרדיטים החינמיים שלך. כדי להמשיך לעצב ללא הגבלה ולקבל תכונות מתקדמות, שדרג למנוי מקצועי.',
+                        ? context.l10n.creditsLimitReached(limit)
+                        : context.l10n.freeCreditsUsed(limit),
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.white.withValues(alpha: 0.7),
@@ -139,7 +140,7 @@ class LimitReachedModal extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'שימוש נוכחי',
+                                context.l10n.currentUsage,
                                 style: TextStyle(
                                   fontSize: 11,
                                   color: Colors.white.withValues(alpha: 0.5),
@@ -147,7 +148,7 @@ class LimitReachedModal extends StatelessWidget {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                '$currentUsage עיצובים',
+                                context.l10n.designsCount(currentUsage),
                                 style: const TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
@@ -167,7 +168,7 @@ class LimitReachedModal extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Text(
-                                'מגבלה',
+                                context.l10n.limit,
                                 style: TextStyle(
                                   fontSize: 11,
                                   color: Colors.white.withValues(alpha: 0.5),
@@ -175,7 +176,7 @@ class LimitReachedModal extends StatelessWidget {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                '$limit עיצובים',
+                                context.l10n.designsCount(limit),
                                 style: const TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
@@ -230,7 +231,7 @@ class LimitReachedModal extends StatelessWidget {
                           const Icon(LucideIcons.crown, size: 20),
                           const SizedBox(width: 8),
                           Text(
-                            userSubscription > 0 ? 'שדרג חבילה' : 'עבור למנוי מקצועי',
+                            userSubscription > 0 ? context.l10n.upgradePlan : context.l10n.goPro,
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
@@ -244,7 +245,7 @@ class LimitReachedModal extends StatelessWidget {
                   TextButton(
                     onPressed: () => Navigator.pop(context),
                     child: Text(
-                      'לא עכשיו, תודה',
+                      context.l10n.notNowThanks,
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.white.withValues(alpha: 0.5),

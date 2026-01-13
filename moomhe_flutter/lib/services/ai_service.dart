@@ -107,6 +107,74 @@ class AIService {
   /// Get current user ID
   String? get currentUserId => _auth.currentUser?.uid;
 
+  /// Get current user email
+  String? get currentUserEmail => _auth.currentUser?.email;
+
+  /// Check if current user is anonymous
+  bool get isAnonymous => _auth.currentUser?.isAnonymous ?? true;
+
+  /// Sign in with email and password (for existing accounts)
+  /// Signs out any anonymous user first, then signs in with email
+  Future<User> signInWithEmail(String email, String password) async {
+    try {
+      final currentUser = _auth.currentUser;
+      
+      // If we have an anonymous user, sign out first
+      if (currentUser != null && currentUser.isAnonymous) {
+        debugPrint('🔐 Signing out anonymous user before email login...');
+        await _auth.signOut();
+      }
+      
+      // Sign in with email/password
+      final userCredential = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      debugPrint('🔐 Signed in with email - UID: ${userCredential.user!.uid}');
+      await createOrUpdateUser(userCredential.user!);
+      return userCredential.user!;
+    } catch (e) {
+      debugPrint('❌ Error signing in with email: $e');
+      rethrow;
+    }
+  }
+
+  /// Create account with email and password
+  /// If user is anonymous, link the credential to the anonymous account
+  Future<User> createAccountWithEmail(String email, String password) async {
+    try {
+      final currentUser = _auth.currentUser;
+      
+      // If we have an anonymous user, link the credential
+      if (currentUser != null && currentUser.isAnonymous) {
+        debugPrint('🔐 Linking anonymous account with new email...');
+        final credential = EmailAuthProvider.credential(email: email, password: password);
+        final result = await currentUser.linkWithCredential(credential);
+        debugPrint('🔐 Successfully linked anonymous account with email: ${result.user?.email}');
+        await createOrUpdateUser(result.user!);
+        return result.user!;
+      }
+      
+      // Create new account
+      final userCredential = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      debugPrint('🔐 Created account with email - UID: ${userCredential.user!.uid}');
+      await createOrUpdateUser(userCredential.user!);
+      return userCredential.user!;
+    } catch (e) {
+      debugPrint('❌ Error creating account with email: $e');
+      rethrow;
+    }
+  }
+
+  /// Sign out the current user
+  Future<void> signOut() async {
+    await _auth.signOut();
+    debugPrint('🔐 User signed out');
+  }
+
   /// Upload image to Firebase Storage and return download URL
   Future<String> uploadImage(String localPath, String userId) async {
     final file = File(localPath);
@@ -338,7 +406,7 @@ class AIService {
     Function(String status)? onStatusUpdate,
   }) async {
     try {
-      onStatusUpdate?.call('מתחבר...');
+      onStatusUpdate?.call('מתחבר לענן... ☁️');
       
       final user = await ensureSignedIn();
       
@@ -352,9 +420,9 @@ class AIService {
       if (imagePath.startsWith('http')) {
         debugPrint('📷 Using existing URL: $imagePath');
         imageUrl = imagePath;
-        onStatusUpdate?.call('שולח בקשה ל-AI...');
+        onStatusUpdate?.call('שולח ל-AI... 🤖');
       } else {
-        onStatusUpdate?.call('מעלה תמונה...');
+        onStatusUpdate?.call('מעלה תמונה... 📤');
         
         // Handle asset images - copy to temp file first
         if (imagePath.startsWith('assets/')) {
@@ -365,14 +433,14 @@ class AIService {
         // Upload local file to storage first
         imageUrl = await uploadImage(actualImagePath, user.uid);
         debugPrint('📷 Uploaded image to: $imageUrl');
-        onStatusUpdate?.call('שולח בקשה ל-AI...');
+        onStatusUpdate?.call('שולח ל-AI... 🤖');
       }
       
       // Process object image if available (like web's fileToGenerativePart)
       Map<String, dynamic>? objectImageData;
       if (objectImagePath != null) {
         debugPrint('🖼️ Processing object image: $objectImagePath');
-        onStatusUpdate?.call('מעבד תמונת פריט...');
+        onStatusUpdate?.call('מנתח פריט... 🔍');
         objectImageData = await fileToGenerativePart(objectImagePath);
         debugPrint('🖼️ Object image processed successfully');
       }
@@ -385,7 +453,7 @@ class AIService {
         objectImageData: objectImageData,
       );
       
-      onStatusUpdate?.call('מעבד...');
+      onStatusUpdate?.call('יוצר עיצוב... ✨');
       
       // Wait for completion
       final result = await waitForRequestCompletion(docId);
@@ -416,26 +484,30 @@ class AIService {
       final now = DateTime.now();
       final monthYear = '${now.month.toString().padLeft(2, '0')}-${now.year}';
       
-      // Get generation count for this month
-      final genCountDoc = await _firestore
+      // Get generation count for this month (user-based only, server handles device checks)
+      final userGenCountDoc = await _firestore
           .collection('genCount')
           .doc(monthYear)
           .collection('users')
           .doc(user.uid)
           .get();
       
-      // Get user profile for credits limit
+      // Get user profile for credits limit and subscription status
       final userDoc = await _firestore
           .collection('users')
           .doc(user.uid)
           .get();
       
-      final count = genCountDoc.exists ? (genCountDoc.data()?['count'] ?? 0) as int : 0;
+      final userCount = userGenCountDoc.exists ? (userGenCountDoc.data()?['count'] ?? 0) as int : 0;
       final userData = userDoc.data();
       final limit = userData?['credits'] as int? ?? 0;
+      final subscription = userData?['subscription'] as int? ?? 0;
       
-      return UserCreditsInfo(count: count, limit: limit);
+      debugPrint('📊 Credits Info: userCount=$userCount, limit=$limit, subscription=$subscription');
+      
+      return UserCreditsInfo(count: userCount, limit: limit, subscription: subscription);
     } catch (e) {
+      debugPrint('❌ Error getting credits info: $e');
       return UserCreditsInfo(count: 0, limit: 0);
     }
   }
@@ -573,8 +645,9 @@ class AIResult {
 class UserCreditsInfo {
   final int count;
   final int limit;
+  final int subscription;
 
-  UserCreditsInfo({required this.count, required this.limit});
+  UserCreditsInfo({required this.count, required this.limit, this.subscription = 0});
   
   int get remaining => limit - count;
   bool get canGenerate => count < limit;

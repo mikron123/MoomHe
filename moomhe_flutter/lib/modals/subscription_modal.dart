@@ -4,6 +4,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import '../theme/app_colors.dart';
 import '../services/purchase_service.dart' show PurchaseService, PurchaseUiStatus, ProductIds;
+import '../l10n/localized_options.dart';
 
 class SubscriptionPlan {
   final String name;
@@ -12,7 +13,9 @@ class SubscriptionPlan {
   final String mainFeature;
   final List<String> extraFeatures;
   final bool isPopular;
+  final bool isProfessional;
   final String? discount;
+  final String? badgeText;
 
   const SubscriptionPlan({
     required this.name,
@@ -21,7 +24,9 @@ class SubscriptionPlan {
     required this.mainFeature,
     this.extraFeatures = const [],
     this.isPopular = false,
+    this.isProfessional = false,
     this.discount,
+    this.badgeText,
   });
 }
 
@@ -57,38 +62,44 @@ class _SubscriptionModalState extends State<SubscriptionModal> with TickerProvid
   late Animation<Offset> _headerSlideAnimation;
   late Animation<double> _footerFadeAnimation;
 
-  // Monthly subscription plans (Hebrew)
-  static const List<SubscriptionPlan> plans = [
-    SubscriptionPlan(
-      name: 'מתחיל',
-      credits: 50,
-      productId: ProductIds.starterMonthly,
-      mainFeature: '50 תמונות בחודש',
-    ),
-    SubscriptionPlan(
-      name: 'משתלם',
-      credits: 200,
-      productId: ProductIds.proMonthly,
-      mainFeature: '200 תמונות בחודש',
-      extraFeatures: [
-        'תמיכה בווצאפ',
-        'גישה מוקדמת לפיצ\'רים',
-      ],
-      isPopular: true,
-      discount: 'חסוך 35%',
-    ),
-    SubscriptionPlan(
-      name: 'מקצועי',
-      credits: 450,
-      productId: ProductIds.businessMonthly,
-      mainFeature: '450 תמונות בחודש',
-      extraFeatures: [
-        'תמיכה VIP בווצאפ',
-        'עדיפות בתור העיבוד',
-      ],
-      discount: 'חסוך 50%',
-    ),
-  ];
+  // Monthly subscription plans - loaded from localization
+  List<SubscriptionPlan> _getPlans(BuildContext context) {
+    final l10n = context.l10n;
+    return [
+      SubscriptionPlan(
+        name: l10n.starterPlan,
+        credits: 50,
+        productId: ProductIds.starterMonthly,
+        mainFeature: l10n.imagesPerMonth(50),
+      ),
+      SubscriptionPlan(
+        name: l10n.valuePlan,
+        credits: 200,
+        productId: ProductIds.proMonthly,
+        mainFeature: l10n.imagesPerMonth(200),
+        extraFeatures: [
+          l10n.whatsappSupport,
+          l10n.historyStorage,
+        ],
+        isPopular: true,
+        badgeText: l10n.bestValue,
+        discount: l10n.savePerImage('35'),
+      ),
+      SubscriptionPlan(
+        name: l10n.proPlan,
+        credits: 450,
+        productId: ProductIds.businessMonthly,
+        mainFeature: l10n.imagesPerMonth(450),
+        extraFeatures: [
+          l10n.vipWhatsappSupport,
+          l10n.processingPriority,
+        ],
+        isProfessional: true,
+        badgeText: l10n.forProfessionals,
+        discount: l10n.savePerImage('42'),
+      ),
+    ];
+  }
 
   @override
   void initState() {
@@ -188,7 +199,7 @@ class _SubscriptionModalState extends State<SubscriptionModal> with TickerProvid
         case PurchaseUiStatus.error:
           _isPurchasing = false;
           _purchasingProductId = null;
-          _errorMessage = message ?? 'הרכישה נכשלה';
+          _errorMessage = message ?? context.l10n.purchaseFailed;
           break;
         case PurchaseUiStatus.cancelled:
           _isPurchasing = false;
@@ -279,9 +290,9 @@ class _SubscriptionModalState extends State<SubscriptionModal> with TickerProvid
                     padding: const EdgeInsets.symmetric(horizontal: 24),
                     child: Column(
                       children: [
-                        const Text(
-                          'מנוי מקצועי',
-                          style: TextStyle(
+                        Text(
+                          context.l10n.professionalSubscription,
+                          style: const TextStyle(
                             fontSize: 28,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
@@ -296,9 +307,9 @@ class _SubscriptionModalState extends State<SubscriptionModal> with TickerProvid
                             ),
                             borderRadius: BorderRadius.circular(16),
                           ),
-                          child: const Text(
-                            'מחירי השקה מיוחדים 🚀',
-                            style: TextStyle(
+                          child: Text(
+                            context.l10n.specialLaunchPrices,
+                            style: const TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
                               color: Colors.white,
@@ -337,7 +348,7 @@ class _SubscriptionModalState extends State<SubscriptionModal> with TickerProvid
                   ),
                 ),
 
-              // Plans - takes remaining space with animations
+              // Plans - takes remaining space with animations and scroll support
               Expanded(
                 child: _isLoading
                     ? const Center(
@@ -345,52 +356,62 @@ class _SubscriptionModalState extends State<SubscriptionModal> with TickerProvid
                           color: AppColors.secondary500,
                         ),
                       )
-                    : Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: List.generate(plans.length, (index) {
-                            return AnimatedBuilder(
-                              animation: _plansController,
-                              builder: (context, child) {
-                                final delay = index * 0.15;
-                                final start = delay;
-                                final end = (delay + 0.6).clamp(0.0, 1.0);
-                                
-                                final curvedAnimation = CurvedAnimation(
-                                  parent: _plansController,
-                                  curve: Interval(start, end, curve: Curves.easeOutCubic),
-                                );
-                                
-                                final slideOffset = Tween<Offset>(
-                                  begin: Offset(index.isEven ? -0.5 : 0.5, 0),
-                                  end: Offset.zero,
-                                ).evaluate(curvedAnimation);
-                                
-                                final opacity = Tween<double>(
-                                  begin: 0.0,
-                                  end: 1.0,
-                                ).evaluate(curvedAnimation);
-                                
-                                final scale = Tween<double>(
-                                  begin: 0.9,
-                                  end: 1.0,
-                                ).evaluate(curvedAnimation);
-                                
-                                return Transform.translate(
-                                  offset: Offset(slideOffset.dx * 100, 0),
-                                  child: Opacity(
-                                    opacity: opacity,
-                                    child: Transform.scale(
-                                      scale: scale,
-                                      child: _buildCompactPlanCard(plans[index]),
-                                    ),
+                    : Builder(
+                        builder: (builderContext) {
+                          final plans = _getPlans(builderContext);
+                          return SingleChildScrollView(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            child: Column(
+                              children: List.generate(plans.length, (index) {
+                                return Padding(
+                                  padding: EdgeInsets.only(
+                                    top: index == 0 ? 8 : 12,
+                                    bottom: index == plans.length - 1 ? 8 : 0,
+                                  ),
+                                  child: AnimatedBuilder(
+                                    animation: _plansController,
+                                    builder: (animContext, child) {
+                                      final delay = index * 0.15;
+                                      final start = delay;
+                                      final end = (delay + 0.6).clamp(0.0, 1.0);
+                                      
+                                      final curvedAnimation = CurvedAnimation(
+                                        parent: _plansController,
+                                        curve: Interval(start, end, curve: Curves.easeOutCubic),
+                                      );
+                                      
+                                      final slideOffset = Tween<Offset>(
+                                        begin: Offset(index.isEven ? -0.5 : 0.5, 0),
+                                        end: Offset.zero,
+                                      ).evaluate(curvedAnimation);
+                                      
+                                      final opacity = Tween<double>(
+                                        begin: 0.0,
+                                        end: 1.0,
+                                      ).evaluate(curvedAnimation);
+                                      
+                                      final scale = Tween<double>(
+                                        begin: 0.9,
+                                        end: 1.0,
+                                      ).evaluate(curvedAnimation);
+                                      
+                                      return Transform.translate(
+                                        offset: Offset(slideOffset.dx * 100, 0),
+                                        child: Opacity(
+                                          opacity: opacity,
+                                          child: Transform.scale(
+                                            scale: scale,
+                                            child: _buildCompactPlanCard(plans[index]),
+                                          ),
+                                        ),
+                                      );
+                                    },
                                   ),
                                 );
-                              },
-                            );
-                          }),
-                        ),
+                              }),
+                            ),
+                          );
+                        },
                       ),
               ),
 
@@ -407,11 +428,11 @@ class _SubscriptionModalState extends State<SubscriptionModal> with TickerProvid
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            _buildFeatureChip('כל כלי העיצוב'),
+                            _buildFeatureChip(context.l10n.allDesignTools),
                             const SizedBox(width: 8),
-                            _buildFeatureChip('תמיכה מהירה'),
+                            _buildFeatureChip(context.l10n.fastSupport),
                             const SizedBox(width: 8),
-                            _buildFeatureChip('ללא פרסומות'),
+                            _buildFeatureChip(context.l10n.noAds),
                           ],
                         ),
                       ),
@@ -423,7 +444,7 @@ class _SubscriptionModalState extends State<SubscriptionModal> with TickerProvid
                               ? null
                               : () => _purchaseService.restorePurchases(),
                           child: Text(
-                            'שחזור רכישות',
+                            context.l10n.restorePurchases,
                             style: TextStyle(
                               color: Colors.white.withValues(alpha: 0.5),
                               fontSize: 13,
@@ -472,228 +493,225 @@ class _SubscriptionModalState extends State<SubscriptionModal> with TickerProvid
     final isCurrentPlan = _isPlanCurrent(plan);
     final isPurchasingThis = _purchasingProductId == plan.productId;
     final price = _getPrice(plan);
-    final hasExtraFeatures = plan.extraFeatures.isNotEmpty;
 
-    return Container(
+    // Define colors based on plan type
+    final Color accentColor;
+    final Color priceColor;
+    final Color checkColor;
+    
+    if (plan.isProfessional) {
+      accentColor = const Color(0xFFFFB300);
+      priceColor = const Color(0xFFFFB300);
+      checkColor = const Color(0xFFFFB300);
+    } else if (plan.isPopular) {
+      accentColor = const Color(0xFFFFD54F);
+      priceColor = const Color(0xFFFFD54F);
+      checkColor = const Color(0xFF26A69A);
+    } else {
+      accentColor = Colors.white;
+      priceColor = Colors.white;
+      checkColor = const Color(0xFF26A69A);
+    }
+
+    Widget cardContent = Container(
       decoration: BoxDecoration(
-        color: plan.isPopular
-            ? AppColors.surfaceHighlight.withValues(alpha: 0.5)
-            : AppColors.surfaceHighlight.withValues(alpha: 0.25),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: plan.isPopular
-              ? AppColors.secondary500.withValues(alpha: 0.6)
-              : Colors.white.withValues(alpha: 0.1),
-          width: plan.isPopular ? 2 : 1,
-        ),
-        boxShadow: plan.isPopular
-            ? [
-                BoxShadow(
-                  color: AppColors.secondary500.withValues(alpha: 0.2),
-                  blurRadius: 16,
-                ),
-              ]
+        gradient: plan.isProfessional
+            ? const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF3D2E1F), Color(0xFF2A2015)],
+              )
             : null,
+        color: plan.isProfessional
+            ? null
+            : plan.isPopular
+                ? AppColors.surfaceHighlight.withValues(alpha: 0.5)
+                : AppColors.surfaceHighlight.withValues(alpha: 0.25),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: plan.isProfessional
+              ? const Color(0xFFFFB300).withValues(alpha: 0.5)
+              : plan.isPopular
+                  ? const Color(0xFFFFD54F).withValues(alpha: 0.4)
+                  : Colors.white.withValues(alpha: 0.1),
+          width: (plan.isPopular || plan.isProfessional) ? 1.5 : 1,
+        ),
+        boxShadow: plan.isProfessional
+            ? [BoxShadow(color: const Color(0xFFFFB300).withValues(alpha: 0.2), blurRadius: 12)]
+            : plan.isPopular
+                ? [BoxShadow(color: const Color(0xFFFFD54F).withValues(alpha: 0.12), blurRadius: 10)]
+                : null,
       ),
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          // Popular badge
-          if (plan.isPopular)
+          // Badge - Popular
+          if (plan.isPopular && plan.badgeText != null)
             Positioned(
               top: -10,
               left: 0,
               right: 0,
               child: Center(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                   decoration: BoxDecoration(
-                    color: AppColors.secondary500,
+                    gradient: const LinearGradient(colors: [Color(0xFFFFD54F), Color(0xFFFFC107)]),
                     borderRadius: BorderRadius.circular(10),
+                    boxShadow: [BoxShadow(color: const Color(0xFFFFD54F).withValues(alpha: 0.4), blurRadius: 6)],
                   ),
-                  child: const Text(
-                    'הכי משתלם 🔥',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
+                  child: Text(
+                    plan.badgeText!,
+                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.black87),
+                  ),
+                ),
+              ),
+            ),
+
+          // Badge - Professional (centered like popular badge)
+          if (plan.isProfessional && plan.badgeText != null)
+            Positioned(
+              top: -10,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(colors: [Color(0xFFFFB300), Color(0xFFFF8F00)]),
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: [BoxShadow(color: const Color(0xFFFFB300).withValues(alpha: 0.4), blurRadius: 6)],
+                  ),
+                  child: Text(
+                    plan.badgeText!,
+                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.black87),
                   ),
                 ),
               ),
             ),
 
           Padding(
-            padding: EdgeInsets.fromLTRB(16, plan.isPopular ? 16 : 12, 16, 12),
+            padding: EdgeInsets.fromLTRB(12, (plan.isPopular || plan.isProfessional) ? 14 : 10, 12, 10),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Row(
                   children: [
-                    // Plan info (left side)
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Row(
-                            children: [
-                              Text(
-                                plan.name,
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: plan.isPopular ? AppColors.secondary300 : Colors.white,
-                                ),
-                              ),
-                              if (plan.discount != null) ...[
-                                const SizedBox(width: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: Colors.green.withValues(alpha: 0.2),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Text(
-                                    plan.discount!,
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.green.shade400,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                          const SizedBox(height: 4),
                           Text(
-                            plan.mainFeature,
+                            plan.name,
                             style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.white.withValues(alpha: 0.6),
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                              color: plan.isProfessional ? const Color(0xFFFFD54F) : accentColor,
                             ),
                           ),
+                          if (plan.discount != null)
+                            Text(
+                              plan.discount!,
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w500,
+                                color: plan.isProfessional 
+                                    ? const Color(0xFFFFB300)
+                                    : plan.isPopular
+                                        ? const Color(0xFFFFD54F)
+                                        : Colors.white.withValues(alpha: 0.5),
+                              ),
+                            ),
                         ],
                       ),
                     ),
-
-                    // Price and button (right side)
-                    Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.end,
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
                       children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.baseline,
-                          textBaseline: TextBaseline.alphabetic,
-                          children: [
-                            Text(
-                              price,
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: plan.isPopular ? AppColors.secondary400 : Colors.white,
-                              ),
-                            ),
-                            Text(
-                              '/חודש',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.white.withValues(alpha: 0.5),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        SizedBox(
-                          width: 100,
-                          height: 36,
-                          child: ElevatedButton(
-                            onPressed: isCurrentPlan || _isPurchasing
-                                ? null
-                                : () => _handlePurchase(plan),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: isCurrentPlan
-                                  ? Colors.green.withValues(alpha: 0.2)
-                                  : plan.isPopular
-                                      ? AppColors.secondary500
-                                      : Colors.white.withValues(alpha: 0.1),
-                              disabledBackgroundColor: isCurrentPlan
-                                  ? Colors.green.withValues(alpha: 0.2)
-                                  : Colors.grey.withValues(alpha: 0.2),
-                              padding: EdgeInsets.zero,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                side: BorderSide(
-                                  color: isCurrentPlan
-                                      ? Colors.green.withValues(alpha: 0.5)
-                                      : Colors.white.withValues(alpha: 0.1),
-                                ),
-                              ),
-                            ),
-                            child: isPurchasingThis
-                                ? const SizedBox(
-                                    height: 16,
-                                    width: 16,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : isCurrentPlan
-                                    ? Icon(
-                                        LucideIcons.checkCircle,
-                                        size: 18,
-                                        color: Colors.green.shade400,
-                                      )
-                                    : const Text(
-                                        'בחר',
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                          ),
-                        ),
+                        Text(price, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: priceColor)),
+                        Text(context.l10n.perMonth, style: TextStyle(fontSize: 10, color: Colors.white.withValues(alpha: 0.5))),
                       ],
                     ),
                   ],
                 ),
                 
-                // Extra features row
-                if (hasExtraFeatures) ...[
-                  const SizedBox(height: 10),
-                  Row(
-                    children: plan.extraFeatures.map((feature) => Expanded(
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            LucideIcons.sparkles,
-                            size: 12,
-                            color: plan.isPopular 
-                                ? AppColors.secondary400 
-                                : AppColors.primary400,
+                const SizedBox(height: 6),
+                
+                Column(
+                  children: [
+                    _buildFeatureRow(plan.mainFeature, checkColor),
+                    ...plan.extraFeatures.map((feature) => _buildFeatureRow(feature, checkColor)),
+                  ],
+                ),
+                const SizedBox(height: 8),
+
+                SizedBox(
+                  width: double.infinity,
+                  height: 36,
+                  child: isPurchasingThis
+                      ? Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(10),
                           ),
-                          const SizedBox(width: 4),
-                          Flexible(
-                            child: Text(
-                              feature,
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.white.withValues(alpha: 0.7),
+                          child: const Center(
+                            child: SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+                          ),
+                        )
+                      : isCurrentPlan
+                          ? Container(
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF26A69A).withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: const Color(0xFF26A69A).withValues(alpha: 0.5)),
                               ),
-                              overflow: TextOverflow.ellipsis,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(LucideIcons.checkCircle, size: 14, color: const Color(0xFF26A69A)),
+                                  const SizedBox(width: 6),
+                                  Text(context.l10n.yourCurrentPlan, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF26A69A))),
+                                ],
+                              ),
+                            )
+                          : Container(
+                              decoration: BoxDecoration(
+                                gradient: plan.isProfessional ? const LinearGradient(colors: [Color(0xFFFFB300), Color(0xFFFF8F00)]) : null,
+                                color: plan.isProfessional ? null : Colors.white.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(10),
+                                border: plan.isProfessional ? null : Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  context.l10n.selectPlan,
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: plan.isProfessional ? Colors.black87 : Colors.white),
+                                ),
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                    )).toList(),
-                  ),
-                ],
+                ),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+
+    return GestureDetector(
+      onTap: (isCurrentPlan || _isPurchasing) ? null : () => _handlePurchase(plan),
+      child: cardContent,
+    );
+  }
+
+  Widget _buildFeatureRow(String feature, Color checkColor) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          Icon(LucideIcons.check, size: 14, color: checkColor),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(feature, style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.85))),
           ),
         ],
       ),
