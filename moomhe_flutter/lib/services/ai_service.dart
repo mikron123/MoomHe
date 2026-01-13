@@ -9,6 +9,15 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 
+/// Enum for processing status updates (to be localized by the caller)
+enum ProcessingStatus {
+  connectingToCloud,
+  uploadingImage,
+  sendingToAI,
+  analyzingItem,
+  creatingDesign,
+}
+
 /// Service for handling AI image generation requests through Firebase
 class AIService {
   static final AIService _instance = AIService._internal();
@@ -403,10 +412,10 @@ class AIService {
     required String imagePath,
     required String prompt,
     String? objectImagePath,
-    Function(String status)? onStatusUpdate,
+    Function(ProcessingStatus status)? onStatusUpdate,
   }) async {
     try {
-      onStatusUpdate?.call('מתחבר לענן... ☁️');
+      onStatusUpdate?.call(ProcessingStatus.connectingToCloud);
       
       final user = await ensureSignedIn();
       
@@ -420,9 +429,9 @@ class AIService {
       if (imagePath.startsWith('http')) {
         debugPrint('📷 Using existing URL: $imagePath');
         imageUrl = imagePath;
-        onStatusUpdate?.call('שולח ל-AI... 🤖');
+        onStatusUpdate?.call(ProcessingStatus.sendingToAI);
       } else {
-        onStatusUpdate?.call('מעלה תמונה... 📤');
+        onStatusUpdate?.call(ProcessingStatus.uploadingImage);
         
         // Handle asset images - copy to temp file first
         if (imagePath.startsWith('assets/')) {
@@ -433,14 +442,14 @@ class AIService {
         // Upload local file to storage first
         imageUrl = await uploadImage(actualImagePath, user.uid);
         debugPrint('📷 Uploaded image to: $imageUrl');
-        onStatusUpdate?.call('שולח ל-AI... 🤖');
+        onStatusUpdate?.call(ProcessingStatus.sendingToAI);
       }
       
       // Process object image if available (like web's fileToGenerativePart)
       Map<String, dynamic>? objectImageData;
       if (objectImagePath != null) {
         debugPrint('🖼️ Processing object image: $objectImagePath');
-        onStatusUpdate?.call('מנתח פריט... 🔍');
+        onStatusUpdate?.call(ProcessingStatus.analyzingItem);
         objectImageData = await fileToGenerativePart(objectImagePath);
         debugPrint('🖼️ Object image processed successfully');
       }
@@ -453,7 +462,7 @@ class AIService {
         objectImageData: objectImageData,
       );
       
-      onStatusUpdate?.call('יוצר עיצוב... ✨');
+      onStatusUpdate?.call(ProcessingStatus.creatingDesign);
       
       // Wait for completion
       final result = await waitForRequestCompletion(docId);

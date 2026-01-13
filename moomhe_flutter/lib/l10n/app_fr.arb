@@ -29,6 +29,10 @@
   "processingStarting": "Démarrage...",
   "processingMagic": "La magie opère",
   "processing": "Traitement...",
+  "connectingToCloud": "Connexion au cloud... ☁️",
+  "sendingToAI": "Envoi à l'IA... 🤖",
+  "analyzingItem": "Analyse de l'objet... 🔍",
+  "creatingDesign": "Création du design... ✨",
 
   "funPhrase1": "Envoi de l'image dans une autre dimension... 🌀",
   "funPhrase2": "Enseigner à l'IA à apprécier le bon design... 🎨",
@@ -397,5 +401,11 @@
   "selectAreaToSearch": "Dessinez un rectangle autour de l'objet que vous souhaitez rechercher",
   "searchingWithGoogleLens": "Recherche avec Google Lens...",
   "selectAreaWithinImage": "Veuillez sélectionner une zone dans l'image",
-  "googleLensSearchFailed": "La recherche a échoué. Veuillez réessayer."
+  "googleLensSearchFailed": "La recherche a échoué. Veuillez réessayer.",
+
+  "rateAppTitle": "Vous aimez l'application ?",
+  "rateAppMessage": "Nous aimerions savoir ce que vous en pensez ! Vos commentaires nous aident à nous améliorer.",
+  "rateAppYes": "Oui, j'adore ! 😍",
+  "rateAppNo": "Pas vraiment",
+  "rateAppLater": "Plus tard"
 }

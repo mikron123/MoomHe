@@ -87,6 +87,18 @@ class AppLocalizationsEs extends AppLocalizations {
   String get processing => 'Procesando...';
 
   @override
+  String get connectingToCloud => 'Conectando a la nube... ☁️';
+
+  @override
+  String get sendingToAI => 'Enviando a la IA... 🤖';
+
+  @override
+  String get analyzingItem => 'Analizando objeto... 🔍';
+
+  @override
+  String get creatingDesign => 'Creando diseño... ✨';
+
+  @override
   String get funPhrase1 => 'Enviando la imagen a otra dimensión... 🌀';
 
   @override
@@ -1141,4 +1153,20 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get googleLensSearchFailed => 'La búsqueda falló. Inténtalo de nuevo.';
+
+  @override
+  String get rateAppTitle => '¿Disfrutando la app?';
+
+  @override
+  String get rateAppMessage =>
+      '¡Nos encantaría saber lo que piensas! Tu opinión nos ayuda a mejorar.';
+
+  @override
+  String get rateAppYes => '¡Sí, me encanta! 😍';
+
+  @override
+  String get rateAppNo => 'No realmente';
+
+  @override
+  String get rateAppLater => 'Pregúntame luego';
 }

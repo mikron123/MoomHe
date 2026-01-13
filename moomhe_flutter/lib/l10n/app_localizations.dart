@@ -252,6 +252,30 @@ abstract class AppLocalizations {
   /// **'Processing...'**
   String get processing;
 
+  /// No description provided for @connectingToCloud.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting to cloud... ☁️'**
+  String get connectingToCloud;
+
+  /// No description provided for @sendingToAI.
+  ///
+  /// In en, this message translates to:
+  /// **'Sending to AI... 🤖'**
+  String get sendingToAI;
+
+  /// No description provided for @analyzingItem.
+  ///
+  /// In en, this message translates to:
+  /// **'Analyzing item... 🔍'**
+  String get analyzingItem;
+
+  /// No description provided for @creatingDesign.
+  ///
+  /// In en, this message translates to:
+  /// **'Creating design... ✨'**
+  String get creatingDesign;
+
   /// No description provided for @funPhrase1.
   ///
   /// In en, this message translates to:
@@ -2267,6 +2291,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Search failed. Please try again.'**
   String get googleLensSearchFailed;
+
+  /// No description provided for @rateAppTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Enjoying the app?'**
+  String get rateAppTitle;
+
+  /// No description provided for @rateAppMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'We\'d love to hear what you think! Your feedback helps us improve.'**
+  String get rateAppMessage;
+
+  /// No description provided for @rateAppYes.
+  ///
+  /// In en, this message translates to:
+  /// **'Yes, I love it! 😍'**
+  String get rateAppYes;
+
+  /// No description provided for @rateAppNo.
+  ///
+  /// In en, this message translates to:
+  /// **'Not really'**
+  String get rateAppNo;
+
+  /// No description provided for @rateAppLater.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask me later'**
+  String get rateAppLater;
 }
 
 class _AppLocalizationsDelegate

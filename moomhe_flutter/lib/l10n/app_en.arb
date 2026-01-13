@@ -29,6 +29,10 @@
   "processingStarting": "Starting...",
   "processingMagic": "The magic is happening",
   "processing": "Processing...",
+  "connectingToCloud": "Connecting to cloud... ☁️",
+  "sendingToAI": "Sending to AI... 🤖",
+  "analyzingItem": "Analyzing item... 🔍",
+  "creatingDesign": "Creating design... ✨",
 
   "funPhrase1": "Sending the image through another dimension... 🌀",
   "funPhrase2": "Teaching the AI to appreciate good design... 🎨",
@@ -452,5 +456,11 @@
   "selectAreaToSearch": "Draw a rectangle around the item you want to search",
   "searchingWithGoogleLens": "Searching with Google Lens...",
   "selectAreaWithinImage": "Please select an area within the image",
-  "googleLensSearchFailed": "Search failed. Please try again."
+  "googleLensSearchFailed": "Search failed. Please try again.",
+
+  "rateAppTitle": "Enjoying the app?",
+  "rateAppMessage": "We'd love to hear what you think! Your feedback helps us improve.",
+  "rateAppYes": "Yes, I love it! 😍",
+  "rateAppNo": "Not really",
+  "rateAppLater": "Ask me later"
 }

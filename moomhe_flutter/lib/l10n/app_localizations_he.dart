@@ -85,6 +85,18 @@ class AppLocalizationsHe extends AppLocalizations {
   String get processing => 'מעבד...';
 
   @override
+  String get connectingToCloud => 'מתחבר לענן... ☁️';
+
+  @override
+  String get sendingToAI => 'שולח ל-AI... 🤖';
+
+  @override
+  String get analyzingItem => 'מנתח פריט... 🔍';
+
+  @override
+  String get creatingDesign => 'יוצר עיצוב... ✨';
+
+  @override
   String get funPhrase1 => 'שולח את התמונה למימד אחר... 🌀';
 
   @override
@@ -1124,4 +1136,19 @@ class AppLocalizationsHe extends AppLocalizations {
 
   @override
   String get googleLensSearchFailed => 'החיפוש נכשל. נסה שוב.';
+
+  @override
+  String get rateAppTitle => 'נהנים מהאפליקציה?';
+
+  @override
+  String get rateAppMessage => 'נשמח לשמוע מה דעתך! המשוב שלך עוזר לנו להשתפר.';
+
+  @override
+  String get rateAppYes => 'כן, אני אוהב/ת! 😍';
+
+  @override
+  String get rateAppNo => 'לא ממש';
+
+  @override
+  String get rateAppLater => 'תשאל אותי אחר כך';
 }

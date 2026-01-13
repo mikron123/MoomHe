@@ -2,7 +2,7 @@ name: moomhe_flutter
 description: "MoomHe - AI Interior Design App"
 publish_to: 'none'
 
-version: 1.0.4+5
+version: 1.0.6+7
 
 environment:
   sdk: ^3.10.4
@@ -48,8 +48,14 @@ dependencies:
   # In-App Purchases
   in_app_purchase: ^3.2.0
   
+  # In-App Review
+  in_app_review: ^2.0.10
+  
   # HTTP
   http: ^1.2.0
+  
+  # Local Storage
+  shared_preferences: ^2.3.5
 
 dev_dependencies:
   flutter_test:

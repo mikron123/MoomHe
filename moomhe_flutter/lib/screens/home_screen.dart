@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_colors.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/onboarding_overlay.dart';
@@ -20,9 +21,11 @@ import '../modals/subscription_modal.dart';
 import '../modals/coupon_modal.dart';
 import '../modals/contact_modal.dart';
 import '../modals/ai_error_modal.dart';
+import '../modals/rate_app_modal.dart';
 import '../models/history_entry.dart';
 import '../services/ai_service.dart';
 import '../l10n/localized_options.dart';
+import 'package:in_app_review/in_app_review.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -92,6 +95,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
 
   // Default image constant
   static const String _defaultAssetImage = 'assets/images/design_img.jpg';
+  
+  // Shared preferences key for onboarding
+  static const String _onboardingShownKey = 'onboarding_shown';
 
   @override
   void initState() {
@@ -160,8 +166,28 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
       
       // Load history
       await _loadHistory();
+      
+      // Check if this is the first launch and show onboarding
+      await _checkFirstLaunchOnboarding();
     } catch (e) {
       print('Error initializing app: $e');
+    }
+  }
+  
+  Future<void> _checkFirstLaunchOnboarding() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final hasSeenOnboarding = prefs.getBool(_onboardingShownKey) ?? false;
+      
+      if (!hasSeenOnboarding && mounted) {
+        // Show onboarding on first launch
+        setState(() => _showOnboarding = true);
+        
+        // Mark onboarding as shown
+        await prefs.setBool(_onboardingShownKey, true);
+      }
+    } catch (e) {
+      print('Error checking first launch onboarding: $e');
     }
   }
 
@@ -703,7 +729,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
         objectImagePath: _objectImage,
         onStatusUpdate: (status) {
           if (mounted) {
-            setState(() => _processingStatus = status);
+            final l10n = context.l10n;
+            final localizedStatus = switch (status) {
+              ProcessingStatus.connectingToCloud => l10n.connectingToCloud,
+              ProcessingStatus.uploadingImage => l10n.uploadingImage,
+              ProcessingStatus.sendingToAI => l10n.sendingToAI,
+              ProcessingStatus.analyzingItem => l10n.analyzingItem,
+              ProcessingStatus.creatingDesign => l10n.creatingDesign,
+            };
+            setState(() => _processingStatus = localizedStatus);
           }
         },
       );
@@ -1031,6 +1065,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
           prompt: _lastPrompt,
           initialShowComparison: showComparison,
           isNewResult: isNewResult,
+          onKeepResult: isNewResult ? () => _onUserKeptResult() : null,
         ),
       ),
     );
@@ -1043,6 +1078,50 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
       });
     } else if (result == 'keep') {
       debugPrint('✅ User kept the AI result');
+    }
+  }
+
+  /// Called when user clicks "Love it! Save" on a new AI result
+  Future<void> _onUserKeptResult() async {
+    debugPrint('✅ User kept the AI result');
+    
+    // Get the current count of kept results
+    final prefs = await SharedPreferences.getInstance();
+    final keptCount = prefs.getInt('kept_results_count') ?? 0;
+    final hasRated = prefs.getBool('has_rated_app') ?? false;
+    
+    // Increment the count
+    final newCount = keptCount + 1;
+    await prefs.setInt('kept_results_count', newCount);
+    
+    debugPrint('📊 User has kept $newCount results (hasRated: $hasRated)');
+    
+    // Show rating modal on the 2nd kept result (and hasn't rated before)
+    if (newCount == 2 && !hasRated && mounted) {
+      // Small delay to let the UI settle
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (!mounted) return;
+      
+      final rateResult = await RateAppModal.show(context);
+      
+      if (rateResult == RateAppResult.yes) {
+        // User likes the app, show in-app review
+        debugPrint('💖 User likes the app, showing in-app review');
+        await prefs.setBool('has_rated_app', true);
+        
+        final inAppReview = InAppReview.instance;
+        if (await inAppReview.isAvailable()) {
+          await inAppReview.requestReview();
+        }
+      } else if (rateResult == RateAppResult.no) {
+        // User doesn't like it, mark as rated so we don't ask again
+        debugPrint('😢 User doesn\'t like the app');
+        await prefs.setBool('has_rated_app', true);
+      } else if (rateResult == RateAppResult.later) {
+        // Reset count to ask again after 2 more kept results
+        debugPrint('⏰ User wants to be asked later');
+        await prefs.setInt('kept_results_count', 0);
+      }
     }
   }
 

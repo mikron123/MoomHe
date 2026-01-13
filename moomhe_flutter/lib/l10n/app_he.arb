@@ -29,6 +29,10 @@
   "processingStarting": "מתחיל...",
   "processingMagic": "הקסם קורה",
   "processing": "מעבד...",
+  "connectingToCloud": "מתחבר לענן... ☁️",
+  "sendingToAI": "שולח ל-AI... 🤖",
+  "analyzingItem": "מנתח פריט... 🔍",
+  "creatingDesign": "יוצר עיצוב... ✨",
 
   "funPhrase1": "שולח את התמונה למימד אחר... 🌀",
   "funPhrase2": "מלמד את הבינה המלאכותית להעריך עיצוב טוב... 🎨",
@@ -452,5 +456,11 @@
   "selectAreaToSearch": "סמן מלבן סביב הפריט שברצונך לחפש",
   "searchingWithGoogleLens": "מחפש ב-Google Lens...",
   "selectAreaWithinImage": "בחר אזור בתוך התמונה",
-  "googleLensSearchFailed": "החיפוש נכשל. נסה שוב."
+  "googleLensSearchFailed": "החיפוש נכשל. נסה שוב.",
+
+  "rateAppTitle": "נהנים מהאפליקציה?",
+  "rateAppMessage": "נשמח לשמוע מה דעתך! המשוב שלך עוזר לנו להשתפר.",
+  "rateAppYes": "כן, אני אוהב/ת! 😍",
+  "rateAppNo": "לא ממש",
+  "rateAppLater": "תשאל אותי אחר כך"
 }
