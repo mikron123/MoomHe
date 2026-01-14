@@ -18,11 +18,12 @@ void main() async {
   } else {
     await Firebase.initializeApp(
       options: const FirebaseOptions(
-        apiKey: 'AIzaSyDexERfe7htllA1aq7vlbnyQAmfgjx6HnI',
-        appId: '1:951714207506:ios:YOUR_IOS_APP_ID', // Replace with iOS app ID
+        apiKey: 'AIzaSyBqlgEJ2uBfazqfkv5itV4hVE5jLY8FpIo',
+        appId: '1:951714207506:ios:d277c0f4a3a00a4c4345cb',
         messagingSenderId: '951714207506',
         projectId: 'moomhe-6de30',
         storageBucket: 'moomhe-6de30.firebasestorage.app',
+        iosBundleId: 'com.kalromsystems.moomhe',
       ),
     );
   }
@@ -30,7 +31,7 @@ void main() async {
   // Set preferred orientations
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
-    DeviceOrientation.portraitDown,
+    DeviceOrientation.portraitDown, 
   ]);
 
   // Set system UI overlay style

@@ -18,6 +18,19 @@ enum ProcessingStatus {
   creatingDesign,
 }
 
+/// Result class for paginated history loading
+class HistoryResult {
+  final List<Map<String, dynamic>> items;
+  final bool hasMore;
+  final DocumentSnapshot? lastDocument;
+
+  HistoryResult({
+    required this.items,
+    required this.hasMore,
+    this.lastDocument,
+  });
+}
+
 /// Service for handling AI image generation requests through Firebase
 class AIService {
   static final AIService _instance = AIService._internal();
@@ -527,23 +540,32 @@ class AIService {
     return info.count < info.limit;
   }
 
-  /// Load user history from Firestore
-  Future<List<Map<String, dynamic>>> loadUserHistory({int limit = 20}) async {
+  /// Result class for paginated history loading
+  /// Load user history from Firestore with pagination support
+  Future<HistoryResult> loadUserHistory({
+    int limit = 20,
+    DocumentSnapshot? startAfterDoc,
+  }) async {
     try {
       final user = _auth.currentUser;
-      if (user == null) return [];
+      if (user == null) return HistoryResult(items: [], hasMore: false, lastDocument: null);
       
-      final query = _firestore
+      Query query = _firestore
           .collection('userHistory')
           .where('userId', isEqualTo: user.uid)
           .orderBy('createdAt', descending: true)
           .limit(limit);
       
+      // Apply cursor for pagination if provided
+      if (startAfterDoc != null) {
+        query = query.startAfterDocument(startAfterDoc);
+      }
+      
       final snapshot = await query.get();
       
       final history = <Map<String, dynamic>>[];
       for (final doc in snapshot.docs) {
-        final data = doc.data();
+        final data = doc.data() as Map<String, dynamic>;
         if (data['isError'] != true) {
           final entry = {
             'id': doc.id,
@@ -563,10 +585,18 @@ class AIService {
         }
       }
       
-      return history;
+      // Determine if there are more items
+      final hasMore = snapshot.docs.length == limit;
+      final lastDoc = snapshot.docs.isNotEmpty ? snapshot.docs.last : null;
+      
+      return HistoryResult(
+        items: history,
+        hasMore: hasMore,
+        lastDocument: lastDoc,
+      );
     } catch (e) {
       print('Error loading history: $e');
-      return [];
+      return HistoryResult(items: [], hasMore: false, lastDocument: null);
     }
   }
 

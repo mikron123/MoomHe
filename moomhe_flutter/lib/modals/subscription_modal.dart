@@ -248,8 +248,17 @@ class _SubscriptionModalState extends State<SubscriptionModal> with TickerProvid
         (widget.currentSubscription == 3 && plan.credits == 450);
   }
 
+  // Check if we're on a tablet/iPad (width > 600)
+  bool _isTablet(BuildContext context) {
+    final shortestSide = MediaQuery.of(context).size.shortestSide;
+    return shortestSide >= 600;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isTablet = _isTablet(context);
+    final screenWidth = MediaQuery.of(context).size.width;
+    
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Container(
@@ -268,7 +277,7 @@ class _SubscriptionModalState extends State<SubscriptionModal> with TickerProvid
             children: [
               // Top bar with close button
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: EdgeInsets.symmetric(horizontal: isTablet ? 24 : 8, vertical: isTablet ? 12 : 4),
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: IconButton(
@@ -287,20 +296,23 @@ class _SubscriptionModalState extends State<SubscriptionModal> with TickerProvid
                 child: FadeTransition(
                   opacity: _headerFadeAnimation,
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    padding: EdgeInsets.symmetric(horizontal: isTablet ? 48 : 24),
                     child: Column(
                       children: [
                         Text(
                           context.l10n.professionalSubscription,
-                          style: const TextStyle(
-                            fontSize: 28,
+                          style: TextStyle(
+                            fontSize: isTablet ? 36 : 28,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        SizedBox(height: isTablet ? 12 : 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isTablet ? 18 : 14,
+                            vertical: isTablet ? 7 : 5,
+                          ),
                           decoration: BoxDecoration(
                             gradient: const LinearGradient(
                               colors: [AppColors.secondary500, AppColors.secondary600],
@@ -309,8 +321,8 @@ class _SubscriptionModalState extends State<SubscriptionModal> with TickerProvid
                           ),
                           child: Text(
                             context.l10n.specialLaunchPrices,
-                            style: const TextStyle(
-                              fontSize: 12,
+                            style: TextStyle(
+                              fontSize: isTablet ? 14 : 12,
                               fontWeight: FontWeight.w500,
                               color: Colors.white,
                             ),
@@ -322,12 +334,16 @@ class _SubscriptionModalState extends State<SubscriptionModal> with TickerProvid
                 ),
               ),
 
-              const SizedBox(height: 12),
+              SizedBox(height: isTablet ? 24 : 12),
 
               // Error message
               if (_errorMessage != null)
                 Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  margin: EdgeInsets.symmetric(
+                    horizontal: isTablet ? 48 : 16,
+                    vertical: 4,
+                  ),
+                  constraints: BoxConstraints(maxWidth: isTablet ? 800 : double.infinity),
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
                     color: Colors.red.withValues(alpha: 0.1),
@@ -359,6 +375,76 @@ class _SubscriptionModalState extends State<SubscriptionModal> with TickerProvid
                     : Builder(
                         builder: (builderContext) {
                           final plans = _getPlans(builderContext);
+                          
+                          // Tablet layout: horizontal row of plan cards
+                          if (isTablet) {
+                            return Center(
+                              child: SingleChildScrollView(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: screenWidth > 1000 ? 80 : 32,
+                                  vertical: 16,
+                                ),
+                                child: ConstrainedBox(
+                                  constraints: const BoxConstraints(maxWidth: 1100),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: List.generate(plans.length, (index) {
+                                      return Expanded(
+                                        child: Padding(
+                                          padding: EdgeInsets.only(
+                                            left: index == 0 ? 0 : 12,
+                                            right: index == plans.length - 1 ? 0 : 12,
+                                          ),
+                                          child: AnimatedBuilder(
+                                            animation: _plansController,
+                                            builder: (animContext, child) {
+                                              final delay = index * 0.15;
+                                              final start = delay;
+                                              final end = (delay + 0.6).clamp(0.0, 1.0);
+                                              
+                                              final curvedAnimation = CurvedAnimation(
+                                                parent: _plansController,
+                                                curve: Interval(start, end, curve: Curves.easeOutCubic),
+                                              );
+                                              
+                                              final slideOffset = Tween<Offset>(
+                                                begin: const Offset(0, 0.3),
+                                                end: Offset.zero,
+                                              ).evaluate(curvedAnimation);
+                                              
+                                              final opacity = Tween<double>(
+                                                begin: 0.0,
+                                                end: 1.0,
+                                              ).evaluate(curvedAnimation);
+                                              
+                                              final scale = Tween<double>(
+                                                begin: 0.9,
+                                                end: 1.0,
+                                              ).evaluate(curvedAnimation);
+                                              
+                                              return Transform.translate(
+                                                offset: Offset(0, slideOffset.dy * 50),
+                                                child: Opacity(
+                                                  opacity: opacity,
+                                                  child: Transform.scale(
+                                                    scale: scale,
+                                                    child: _buildTabletPlanCard(plans[index]),
+                                                  ),
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                      );
+                                    }),
+                                  ),
+                                ),
+                              ),
+                            );
+                          }
+                          
+                          // Phone layout: vertical list of compact cards
                           return SingleChildScrollView(
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                             child: Column(
@@ -419,26 +505,26 @@ class _SubscriptionModalState extends State<SubscriptionModal> with TickerProvid
               FadeTransition(
                 opacity: _footerFadeAnimation,
                 child: Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
+                  padding: EdgeInsets.only(bottom: isTablet ? 16 : 8),
                   child: Column(
                     children: [
                       // All plans include
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                        padding: EdgeInsets.symmetric(horizontal: isTablet ? 48 : 24),
+                        child: Wrap(
+                          alignment: WrapAlignment.center,
+                          spacing: isTablet ? 16 : 8,
+                          runSpacing: 8,
                           children: [
-                            _buildFeatureChip(context.l10n.allDesignTools),
-                            const SizedBox(width: 8),
-                            _buildFeatureChip(context.l10n.fastSupport),
-                            const SizedBox(width: 8),
-                            _buildFeatureChip(context.l10n.noAds),
+                            _buildFeatureChip(context.l10n.allDesignTools, isTablet: isTablet),
+                            _buildFeatureChip(context.l10n.fastSupport, isTablet: isTablet),
+                            _buildFeatureChip(context.l10n.noAds, isTablet: isTablet),
                           ],
                         ),
                       ),
                       // Restore purchases - required by Apple, only shown on iOS
                       if (Platform.isIOS) ...[
-                        const SizedBox(height: 10),
+                        SizedBox(height: isTablet ? 16 : 10),
                         TextButton(
                           onPressed: _isPurchasing
                               ? null
@@ -447,12 +533,12 @@ class _SubscriptionModalState extends State<SubscriptionModal> with TickerProvid
                             context.l10n.restorePurchases,
                             style: TextStyle(
                               color: Colors.white.withValues(alpha: 0.5),
-                              fontSize: 13,
+                              fontSize: isTablet ? 15 : 13,
                             ),
                           ),
                         ),
                       ] else
-                        const SizedBox(height: 16),
+                        SizedBox(height: isTablet ? 24 : 16),
                     ],
                   ),
                 ),
@@ -464,9 +550,12 @@ class _SubscriptionModalState extends State<SubscriptionModal> with TickerProvid
     );
   }
 
-  Widget _buildFeatureChip(String text) {
+  Widget _buildFeatureChip(String text, {bool isTablet = false}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: EdgeInsets.symmetric(
+        horizontal: isTablet ? 14 : 10,
+        vertical: isTablet ? 6 : 4,
+      ),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(12),
@@ -475,12 +564,12 @@ class _SubscriptionModalState extends State<SubscriptionModal> with TickerProvid
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(LucideIcons.check, size: 12, color: AppColors.secondary400),
-          const SizedBox(width: 4),
+          Icon(LucideIcons.check, size: isTablet ? 14 : 12, color: AppColors.secondary400),
+          SizedBox(width: isTablet ? 6 : 4),
           Text(
             text,
             style: TextStyle(
-              fontSize: 10,
+              fontSize: isTablet ? 12 : 10,
               color: Colors.white.withValues(alpha: 0.7),
             ),
           ),
@@ -700,6 +789,248 @@ class _SubscriptionModalState extends State<SubscriptionModal> with TickerProvid
     return GestureDetector(
       onTap: (isCurrentPlan || _isPurchasing) ? null : () => _handlePurchase(plan),
       child: cardContent,
+    );
+  }
+
+  // Tablet-optimized plan card with vertical layout for side-by-side display
+  Widget _buildTabletPlanCard(SubscriptionPlan plan) {
+    final isCurrentPlan = _isPlanCurrent(plan);
+    final isPurchasingThis = _purchasingProductId == plan.productId;
+    final price = _getPrice(plan);
+
+    // Define colors based on plan type
+    final Color accentColor;
+    final Color priceColor;
+    final Color checkColor;
+    
+    if (plan.isProfessional) {
+      accentColor = const Color(0xFFFFB300);
+      priceColor = const Color(0xFFFFB300);
+      checkColor = const Color(0xFFFFB300);
+    } else if (plan.isPopular) {
+      accentColor = const Color(0xFFFFD54F);
+      priceColor = const Color(0xFFFFD54F);
+      checkColor = const Color(0xFF26A69A);
+    } else {
+      accentColor = Colors.white;
+      priceColor = Colors.white;
+      checkColor = const Color(0xFF26A69A);
+    }
+
+    Widget cardContent = Container(
+      constraints: const BoxConstraints(minHeight: 320),
+      decoration: BoxDecoration(
+        gradient: plan.isProfessional
+            ? const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF3D2E1F), Color(0xFF2A2015)],
+              )
+            : null,
+        color: plan.isProfessional
+            ? null
+            : plan.isPopular
+                ? AppColors.surfaceHighlight.withValues(alpha: 0.5)
+                : AppColors.surfaceHighlight.withValues(alpha: 0.25),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: plan.isProfessional
+              ? const Color(0xFFFFB300).withValues(alpha: 0.5)
+              : plan.isPopular
+                  ? const Color(0xFFFFD54F).withValues(alpha: 0.4)
+                  : Colors.white.withValues(alpha: 0.1),
+          width: (plan.isPopular || plan.isProfessional) ? 2 : 1,
+        ),
+        boxShadow: plan.isProfessional
+            ? [BoxShadow(color: const Color(0xFFFFB300).withValues(alpha: 0.25), blurRadius: 20)]
+            : plan.isPopular
+                ? [BoxShadow(color: const Color(0xFFFFD54F).withValues(alpha: 0.15), blurRadius: 16)]
+                : null,
+      ),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          // Badge - Popular
+          if (plan.isPopular && plan.badgeText != null)
+            Positioned(
+              top: -14,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(colors: [Color(0xFFFFD54F), Color(0xFFFFC107)]),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [BoxShadow(color: const Color(0xFFFFD54F).withValues(alpha: 0.4), blurRadius: 8)],
+                  ),
+                  child: Text(
+                    plan.badgeText!,
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87),
+                  ),
+                ),
+              ),
+            ),
+
+          // Badge - Professional
+          if (plan.isProfessional && plan.badgeText != null)
+            Positioned(
+              top: -14,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(colors: [Color(0xFFFFB300), Color(0xFFFF8F00)]),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [BoxShadow(color: const Color(0xFFFFB300).withValues(alpha: 0.4), blurRadius: 8)],
+                  ),
+                  child: Text(
+                    plan.badgeText!,
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87),
+                  ),
+                ),
+              ),
+            ),
+
+          Padding(
+            padding: EdgeInsets.fromLTRB(20, (plan.isPopular || plan.isProfessional) ? 24 : 20, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Plan name
+                Text(
+                  plan.name,
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: plan.isProfessional ? const Color(0xFFFFD54F) : accentColor,
+                  ),
+                ),
+                if (plan.discount != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    plan.discount!,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: plan.isProfessional 
+                          ? const Color(0xFFFFB300)
+                          : plan.isPopular
+                              ? const Color(0xFFFFD54F)
+                              : Colors.white.withValues(alpha: 0.5),
+                    ),
+                  ),
+                ],
+                
+                const SizedBox(height: 20),
+                
+                // Price
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Text(price, style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: priceColor)),
+                    Text(context.l10n.perMonth, style: TextStyle(fontSize: 14, color: Colors.white.withValues(alpha: 0.5))),
+                  ],
+                ),
+                
+                const SizedBox(height: 20),
+                
+                // Features
+                Column(
+                  children: [
+                    _buildTabletFeatureRow(plan.mainFeature, checkColor),
+                    ...plan.extraFeatures.map((feature) => _buildTabletFeatureRow(feature, checkColor)),
+                    // Add placeholder rows for consistent height
+                    if (plan.extraFeatures.isEmpty) ...[
+                      _buildTabletFeatureRow('', Colors.transparent, isEmpty: true),
+                      _buildTabletFeatureRow('', Colors.transparent, isEmpty: true),
+                    ] else if (plan.extraFeatures.length == 1)
+                      _buildTabletFeatureRow('', Colors.transparent, isEmpty: true),
+                  ],
+                ),
+                
+                const SizedBox(height: 24),
+                
+                // Button
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: isPurchasingThis
+                      ? Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: const Center(
+                            child: SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+                          ),
+                        )
+                      : isCurrentPlan
+                          ? Container(
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF26A69A).withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: const Color(0xFF26A69A).withValues(alpha: 0.5)),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(LucideIcons.checkCircle, size: 18, color: const Color(0xFF26A69A)),
+                                  const SizedBox(width: 8),
+                                  Text(context.l10n.yourCurrentPlan, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF26A69A))),
+                                ],
+                              ),
+                            )
+                          : Container(
+                              decoration: BoxDecoration(
+                                gradient: plan.isProfessional ? const LinearGradient(colors: [Color(0xFFFFB300), Color(0xFFFF8F00)]) : null,
+                                color: plan.isProfessional ? null : Colors.white.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(14),
+                                border: plan.isProfessional ? null : Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  context.l10n.selectPlan,
+                                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: plan.isProfessional ? Colors.black87 : Colors.white),
+                                ),
+                              ),
+                            ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+
+    return GestureDetector(
+      onTap: (isCurrentPlan || _isPurchasing) ? null : () => _handlePurchase(plan),
+      child: cardContent,
+    );
+  }
+
+  Widget _buildTabletFeatureRow(String feature, Color checkColor, {bool isEmpty = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          if (!isEmpty) Icon(LucideIcons.check, size: 16, color: checkColor),
+          if (!isEmpty) const SizedBox(width: 8),
+          Text(
+            feature,
+            style: TextStyle(
+              fontSize: 14,
+              color: isEmpty ? Colors.transparent : Colors.white.withValues(alpha: 0.85),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

@@ -1311,7 +1311,17 @@ exports.paymentWebhook = onRequest({ cors: true }, async (req, res) => {
             subscriptionPlatform: 'web', // Mark as web payment so sync won't reset it
             subscriptionUpdatedAt: admin.firestore.FieldValue.serverTimestamp()
           });
-          logger.info(`Updated user ${userId} subscription to ${newSubscription}, credits: ${newCredits}`);
+          
+          // Reset monthly usage counter (trial counts shouldn't count against new subscription)
+          const now = new Date();
+          const monthYear = `${String(now.getMonth() + 1).padStart(2, '0')}-${now.getFullYear()}`;
+          await db.collection('genCount').doc(monthYear).collection('users').doc(userId).set({
+            count: 0,
+            resetAt: admin.firestore.FieldValue.serverTimestamp(),
+            resetReason: 'new_subscription_web_payment',
+          }, { merge: true });
+          
+          logger.info(`Updated user ${userId} subscription to ${newSubscription}, credits: ${newCredits}, reset genCount`);
         } else {
           logger.warn(`Unknown subscription description: ${description}`);
         }
@@ -1433,8 +1443,17 @@ exports.onUserEmailUpdate = onDocumentUpdated('users/{userId}', async (event) =>
           subscriptionPlatform: 'web', // Mark as web payment so sync won't reset it
           subscriptionUpdatedAt: admin.firestore.FieldValue.serverTimestamp()
         });
+        
+        // Reset monthly usage counter (trial counts shouldn't count against new subscription)
+        const now = new Date();
+        const monthYear = `${String(now.getMonth() + 1).padStart(2, '0')}-${now.getFullYear()}`;
+        await db.collection('genCount').doc(monthYear).collection('users').doc(event.params.userId).set({
+          count: 0,
+          resetAt: admin.firestore.FieldValue.serverTimestamp(),
+          resetReason: 'new_subscription_email_link',
+        }, { merge: true });
 
-        logger.info(`[onUserEmailUpdate] SUCCESS: Granted subscription ${newSubscription} (${newCredits} credits) to user ${event.params.userId} from payment event ${paymentDoc.id}`);
+        logger.info(`[onUserEmailUpdate] SUCCESS: Granted subscription ${newSubscription} (${newCredits} credits) to user ${event.params.userId} from payment event ${paymentDoc.id}, reset genCount`);
       } else {
         logger.warn(`[onUserEmailUpdate] Unknown subscription description for email ${afterEmail}: "${description}"`);
       }

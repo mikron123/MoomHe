@@ -2,7 +2,7 @@ name: moomhe_flutter
 description: "MoomHe - AI Interior Design App"
 publish_to: 'none'
 
-version: 1.0.6+7
+version: 1.1.1+11
 
 environment:
   sdk: ^3.10.4
@@ -62,6 +62,7 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.14.3
+  flutter_native_splash: ^2.4.4
 
 flutter_launcher_icons:
   android: true
@@ -69,6 +70,15 @@ flutter_launcher_icons:
   image_path: "assets/images/app_icon.jpg"
   adaptive_icon_background: "#0D1421"
   adaptive_icon_foreground: "assets/images/app_icon.jpg"
+
+flutter_native_splash:
+  color: "#0D1421"
+  image: "assets/images/app_icon.jpg"
+  android: true
+  ios: true
+  android_12:
+    color: "#0D1421"
+    image: "assets/images/app_icon.jpg"
 
 flutter:
   uses-material-design: true

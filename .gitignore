@@ -9,3 +9,4 @@
 .DS_Store
 .env.development
 .env.production
+firebase-debug.log

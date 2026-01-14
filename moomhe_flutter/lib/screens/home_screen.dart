@@ -26,6 +26,7 @@ import '../models/history_entry.dart';
 import '../services/ai_service.dart';
 import '../l10n/localized_options.dart';
 import 'package:in_app_review/in_app_review.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -59,6 +60,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
   // History
   final List<HistoryEntry> _imageHistory = [];
   bool _historyLoading = false;
+  bool _hasMoreHistory = true;
+  DocumentSnapshot? _lastHistoryDoc;
   
   // User state
   String? _userEmail;
@@ -94,7 +97,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
   }
 
   // Default image constant
-  static const String _defaultAssetImage = 'assets/images/design_img.jpg';
+  static const String _defaultAssetImage = 'assets/images/design_mobile.jpg';
   
   // Shared preferences key for onboarding
   static const String _onboardingShownKey = 'onboarding_shown';
@@ -197,11 +200,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
     setState(() => _historyLoading = true);
     
     try {
-      final historyData = await _aiService.loadUserHistory();
+      final result = await _aiService.loadUserHistory();
       if (mounted) {
         setState(() {
           _imageHistory.clear();
-          _imageHistory.addAll(historyData.map((data) => HistoryEntry(
+          _imageHistory.addAll(result.items.map((data) => HistoryEntry(
             id: data['id'] ?? '',
             imageUrl: data['storageUrl'] ?? data['imageUrl'] ?? '',
             thumbnailUrl: data['thumbnailUrl'],
@@ -209,6 +212,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
             prompt: data['prompt'],
             createdAt: data['createdAt']?.toDate() ?? DateTime.now(),
           )));
+          _hasMoreHistory = result.hasMore;
+          _lastHistoryDoc = result.lastDocument;
           
           // Set the main image to the most recent history entry if available
           if (_imageHistory.isNotEmpty) {
@@ -967,7 +972,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
             _loadUserCredits();
             // Show success toast
             _showToast(
-              message: 'נוספו $credits קרדיטים לחשבונך! 🎉',
+              message: context.l10n.creditsAddedToAccount(credits),
               icon: LucideIcons.gift,
               backgroundColor: const Color(0xFF10B981),
             );
@@ -1411,7 +1416,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
     // Show success message if submission was successful
     if (result == true && mounted) {
       _showToast(
-        message: 'ההודעה נשלחה בהצלחה!',
+        message: context.l10n.messageSentSuccess,
         icon: LucideIcons.check,
         backgroundColor: Colors.green.shade600,
       );
@@ -1900,114 +1905,179 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
 
   void _showHistoryDrawer() {
     final l10n = context.l10n;
+    // Use ValueNotifier to properly track loading state across rebuilds
+    final isLoadingMore = ValueNotifier<bool>(false);
+    
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (modalContext) => Container(
-        height: MediaQuery.of(modalContext).size.height * 0.5,
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-        ),
-        child: Column(
-          children: [
-            // Handle bar
-            Container(
-              margin: const EdgeInsets.only(top: 12),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(2),
-              ),
+      builder: (modalContext) => StatefulBuilder(
+        builder: (modalContext, setModalState) {
+          Future<void> loadMoreInModal() async {
+            if (isLoadingMore.value || !_hasMoreHistory || _lastHistoryDoc == null) return;
+            
+            isLoadingMore.value = true;
+            setModalState(() {});
+            
+            try {
+              final result = await _aiService.loadUserHistory(
+                startAfterDoc: _lastHistoryDoc,
+              );
+              if (mounted) {
+                setState(() {
+                  _imageHistory.addAll(result.items.map((data) => HistoryEntry(
+                    id: data['id'] ?? '',
+                    imageUrl: data['storageUrl'] ?? data['imageUrl'] ?? '',
+                    thumbnailUrl: data['thumbnailUrl'],
+                    originalImageUrl: data['originalImageUrl'],
+                    prompt: data['prompt'],
+                    createdAt: data['createdAt']?.toDate() ?? DateTime.now(),
+                  )));
+                  _hasMoreHistory = result.hasMore;
+                  _lastHistoryDoc = result.lastDocument;
+                });
+                isLoadingMore.value = false;
+                setModalState(() {});
+              }
+            } catch (e) {
+              print('Error loading more history: $e');
+              isLoadingMore.value = false;
+              setModalState(() {});
+            }
+          }
+
+          return Container(
+            height: MediaQuery.of(modalContext).size.height * 0.5,
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
             ),
-            // Header
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
+            child: Column(
+              children: [
+                // Handle bar
+                Container(
+                  margin: const EdgeInsets.only(top: 12),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                // Header
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Icon(LucideIcons.history, color: AppColors.primary400, size: 20),
-                      const SizedBox(width: 8),
-                      Text(
-                        l10n.history,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.pop(modalContext),
-                    icon: const Icon(Icons.close, color: AppColors.textMuted),
-                  ),
-                ],
-              ),
-            ),
-            const Divider(height: 1, color: Colors.white10),
-            // History content
-            Expanded(
-              child: _imageHistory.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                      Row(
                         children: [
-                          Icon(
-                            LucideIcons.image,
-                            color: Colors.white.withValues(alpha: 0.3),
-                            size: 48,
-                          ),
-                          const SizedBox(height: 16),
+                          const Icon(LucideIcons.history, color: AppColors.primary400, size: 20),
+                          const SizedBox(width: 8),
                           Text(
-                            l10n.noHistoryYet,
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.5),
-                              fontSize: 14,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            l10n.uploadedImagesWillAppear,
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.3),
-                              fontSize: 12,
+                            l10n.history,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
                             ),
                           ),
                         ],
                       ),
-                    )
-                  : GridView.builder(
-                      padding: const EdgeInsets.all(16),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 3,
-                        crossAxisSpacing: 8,
-                        mainAxisSpacing: 8,
-                        childAspectRatio: 1.0,
+                      IconButton(
+                        onPressed: () => Navigator.pop(modalContext),
+                        icon: const Icon(Icons.close, color: AppColors.textMuted),
                       ),
-                      itemCount: _imageHistory.length,
-                      itemBuilder: (context, index) {
-                        final entry = _imageHistory[index];
-                        return GestureDetector(
-                          onTap: () {
-                            Navigator.pop(context);
-                            _handleHistoryTap(entry);
-                          },
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: _buildHistoryThumbnail(entry),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1, color: Colors.white10),
+                // History content
+                Expanded(
+                  child: _imageHistory.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                LucideIcons.image,
+                                color: Colors.white.withValues(alpha: 0.3),
+                                size: 48,
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                l10n.noHistoryYet,
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.5),
+                                  fontSize: 14,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                l10n.uploadedImagesWillAppear,
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.3),
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
                           ),
-                        );
-                      },
-                    ),
+                        )
+                      : NotificationListener<ScrollNotification>(
+                          onNotification: (scrollInfo) {
+                            // Load more when user scrolls near the bottom
+                            if (scrollInfo.metrics.pixels >= 
+                                scrollInfo.metrics.maxScrollExtent - 200) {
+                              if (_hasMoreHistory && !isLoadingMore.value) {
+                                loadMoreInModal();
+                              }
+                            }
+                            return false;
+                          },
+                          child: GridView.builder(
+                            padding: const EdgeInsets.all(16),
+                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 3,
+                              crossAxisSpacing: 8,
+                              mainAxisSpacing: 8,
+                              childAspectRatio: 1.0,
+                            ),
+                            // Add extra item for loading indicator when loading more
+                            itemCount: _imageHistory.length + (isLoadingMore.value ? 1 : 0),
+                            itemBuilder: (context, index) {
+                              // Show loading indicator at the end
+                              if (index == _imageHistory.length) {
+                                return Center(
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: AppColors.primary400,
+                                    ),
+                                  ),
+                                );
+                              }
+                              final entry = _imageHistory[index];
+                              return GestureDetector(
+                                onTap: () {
+                                  Navigator.pop(context);
+                                  _handleHistoryTap(entry);
+                                },
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: _buildHistoryThumbnail(entry),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                ),
+              ],
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }

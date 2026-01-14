@@ -266,7 +266,7 @@ class AppLocalizationsHe extends AppLocalizations {
   String get perMonth => '/חודש';
 
   @override
-  String get starterPlan => 'התחלתי';
+  String get starterPlan => 'מתחיל';
 
   @override
   String get valuePlan => 'משתלם';
