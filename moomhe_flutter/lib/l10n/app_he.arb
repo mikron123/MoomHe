@@ -472,5 +472,9 @@
   "deleteAccountConfirm": "כן, מחק את החשבון",
   "deletingAccount": "מוחק חשבון...",
   "accountDeleted": "החשבון נמחק בהצלחה",
-  "errorDeletingAccount": "שגיאה במחיקת החשבון"
+  "errorDeletingAccount": "שגיאה במחיקת החשבון",
+
+  "language": "שפה",
+  "selectLanguage": "בחר שפה",
+  "languageChanged": "השפה השתנתה"
 }

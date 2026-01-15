@@ -1203,4 +1203,13 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get errorDeletingAccount => 'Erreur lors de la suppression du compte';
+
+  @override
+  String get language => 'Langue';
+
+  @override
+  String get selectLanguage => 'Sélectionner la langue';
+
+  @override
+  String get languageChanged => 'Langue modifiée';
 }

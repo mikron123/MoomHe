@@ -417,5 +417,9 @@
   "deleteAccountConfirm": "Oui, Supprimer le Compte",
   "deletingAccount": "Suppression du compte...",
   "accountDeleted": "Compte supprimé avec succès",
-  "errorDeletingAccount": "Erreur lors de la suppression du compte"
+  "errorDeletingAccount": "Erreur lors de la suppression du compte",
+
+  "language": "Langue",
+  "selectLanguage": "Sélectionner la langue",
+  "languageChanged": "Langue modifiée"
 }

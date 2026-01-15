@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../theme/app_colors.dart';
 import '../l10n/localized_options.dart';
+import '../main.dart';
 
 class MobileMenuModal extends StatefulWidget {
   final bool isLoggedIn;
@@ -15,6 +16,7 @@ class MobileMenuModal extends StatefulWidget {
   final VoidCallback onSubscriptionClick;
   final VoidCallback onCouponClick;
   final VoidCallback? onDeleteAccount;
+  final VoidCallback? onLanguageChanged;
 
   const MobileMenuModal({
     super.key,
@@ -28,6 +30,7 @@ class MobileMenuModal extends StatefulWidget {
     required this.onSubscriptionClick,
     required this.onCouponClick,
     this.onDeleteAccount,
+    this.onLanguageChanged,
   });
 
   @override
@@ -38,6 +41,36 @@ class _MobileMenuModalState extends State<MobileMenuModal> {
   String get _initial => (widget.userEmail ?? 'U')[0].toUpperCase();
   String _displayName(BuildContext context) => widget.userEmail?.split('@')[0] ?? context.l10n.guest;
   bool get _hasEmail => widget.userEmail != null && widget.userEmail!.isNotEmpty;
+
+  String _getCurrentLanguageName(BuildContext context) {
+    final currentLocale = MoomheApp.of(context)?.currentLocale ?? 
+        Localizations.localeOf(context);
+    
+    for (final supportedLocale in supportedLocales) {
+      if (supportedLocale.locale.languageCode == currentLocale.languageCode &&
+          (supportedLocale.locale.countryCode == currentLocale.countryCode ||
+           (supportedLocale.locale.countryCode == null && currentLocale.countryCode == null))) {
+        return supportedLocale.nativeName;
+      }
+    }
+    return 'English';
+  }
+
+  void _showLanguageSelector(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (modalContext) => _LanguageSelectorModal(
+        onLanguageSelected: (locale) {
+          MoomheApp.of(context)?.setLocale(locale);
+          Navigator.pop(modalContext);
+          Navigator.pop(context);
+          widget.onLanguageChanged?.call();
+        },
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -195,6 +228,22 @@ class _MobileMenuModalState extends State<MobileMenuModal> {
                     },
                   ),
                 ],
+                
+                // Language Selector Button
+                const SizedBox(height: 16),
+                _buildMenuButton(
+                  icon: LucideIcons.globe,
+                  iconColor: Colors.cyan,
+                  gradientColors: [
+                    Colors.cyan.withValues(alpha: 0.1),
+                    Colors.blue.withValues(alpha: 0.1),
+                  ],
+                  borderColor: Colors.cyan.withValues(alpha: 0.2),
+                  title: context.l10n.language,
+                  subtitle: _getCurrentLanguageName(context),
+                  onTap: () => _showLanguageSelector(context),
+                ),
+                
                 // Delete Account Button - only show for logged in users with email
                 if (_hasEmail && widget.onDeleteAccount != null) ...[
                   const SizedBox(height: 24),
@@ -399,4 +448,156 @@ class _MobileMenuModalState extends State<MobileMenuModal> {
     );
   }
 
+}
+
+/// Modal for selecting app language
+class _LanguageSelectorModal extends StatelessWidget {
+  final void Function(Locale locale) onLanguageSelected;
+
+  const _LanguageSelectorModal({
+    required this.onLanguageSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final currentLocale = MoomheApp.of(context)?.currentLocale ?? 
+        Localizations.localeOf(context);
+
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.7,
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+      ),
+      child: Column(
+        children: [
+          // Handle bar
+          Container(
+            margin: const EdgeInsets.only(top: 12),
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          // Header
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    const Icon(LucideIcons.globe, color: Colors.cyan, size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      context.l10n.selectLanguage,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close, color: AppColors.textMuted),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, color: Colors.white10),
+          // Language list
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              itemCount: supportedLocales.length,
+              itemBuilder: (context, index) {
+                final supportedLocale = supportedLocales[index];
+                final isSelected = 
+                    supportedLocale.locale.languageCode == currentLocale.languageCode &&
+                    (supportedLocale.locale.countryCode == currentLocale.countryCode ||
+                     (supportedLocale.locale.countryCode == null && currentLocale.countryCode == null));
+
+                return ListTile(
+                  leading: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: isSelected 
+                          ? AppColors.primary500.withValues(alpha: 0.2)
+                          : Colors.white.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Center(
+                      child: Text(
+                        _getLanguageEmoji(supportedLocale.locale.languageCode),
+                        style: const TextStyle(fontSize: 20),
+                      ),
+                    ),
+                  ),
+                  title: Text(
+                    supportedLocale.nativeName,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                    ),
+                  ),
+                  subtitle: Text(
+                    supportedLocale.name,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.5),
+                      fontSize: 12,
+                    ),
+                  ),
+                  trailing: isSelected
+                      ? const Icon(LucideIcons.check, color: AppColors.primary500, size: 20)
+                      : null,
+                  onTap: () => onLanguageSelected(supportedLocale.locale),
+                );
+              },
+            ),
+          ),
+          SizedBox(height: MediaQuery.of(context).padding.bottom + 16),
+        ],
+      ),
+    );
+  }
+
+  String _getLanguageEmoji(String languageCode) {
+    switch (languageCode) {
+      case 'en': return '🇬🇧';
+      case 'ar': return '🇸🇦';
+      case 'cs': return '🇨🇿';
+      case 'da': return '🇩🇰';
+      case 'de': return '🇩🇪';
+      case 'el': return '🇬🇷';
+      case 'es': return '🇪🇸';
+      case 'et': return '🇪🇪';
+      case 'fi': return '🇫🇮';
+      case 'fr': return '🇫🇷';
+      case 'ga': return '🇮🇪';
+      case 'he': return '🇮🇱';
+      case 'hr': return '🇭🇷';
+      case 'hu': return '🇭🇺';
+      case 'is': return '🇮🇸';
+      case 'it': return '🇮🇹';
+      case 'ja': return '🇯🇵';
+      case 'ka': return '🇬🇪';
+      case 'ko': return '🇰🇷';
+      case 'lt': return '🇱🇹';
+      case 'nb': return '🇳🇴';
+      case 'nl': return '🇳🇱';
+      case 'pl': return '🇵🇱';
+      case 'pt': return '🇵🇹';
+      case 'ro': return '🇷🇴';
+      case 'sl': return '🇸🇮';
+      case 'sv': return '🇸🇪';
+      case 'zh': return '🇨🇳';
+      default: return '🌐';
+    }
+  }
 }

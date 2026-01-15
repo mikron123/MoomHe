@@ -1180,4 +1180,13 @@ class AppLocalizationsHe extends AppLocalizations {
 
   @override
   String get errorDeletingAccount => 'שגיאה במחיקת החשבון';
+
+  @override
+  String get language => 'שפה';
+
+  @override
+  String get selectLanguage => 'בחר שפה';
+
+  @override
+  String get languageChanged => 'השפה השתנתה';
 }

@@ -954,6 +954,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
           // Note: mobile menu already pops itself before calling this
           _handleDeleteAccount();
         },
+        onLanguageChanged: () {
+          // Language was changed, show toast
+          if (mounted) {
+            _showToast(
+              message: context.l10n.languageChanged,
+              icon: LucideIcons.globe,
+              backgroundColor: Colors.cyan,
+            );
+          }
+        },
       ),
     );
   }

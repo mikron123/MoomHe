@@ -1198,4 +1198,13 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get errorDeletingAccount => 'Error al eliminar la cuenta';
+
+  @override
+  String get language => 'Idioma';
+
+  @override
+  String get selectLanguage => 'Seleccionar idioma';
+
+  @override
+  String get languageChanged => 'Idioma cambiado';
 }

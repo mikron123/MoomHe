@@ -1187,4 +1187,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get errorDeletingAccount => 'Error deleting account';
+
+  @override
+  String get language => 'Language';
+
+  @override
+  String get selectLanguage => 'Select Language';
+
+  @override
+  String get languageChanged => 'Language changed';
 }

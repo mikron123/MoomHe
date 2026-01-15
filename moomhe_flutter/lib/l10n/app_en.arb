@@ -472,5 +472,9 @@
   "deleteAccountConfirm": "Yes, Delete Account",
   "deletingAccount": "Deleting account...",
   "accountDeleted": "Account deleted successfully",
-  "errorDeletingAccount": "Error deleting account"
+  "errorDeletingAccount": "Error deleting account",
+
+  "language": "Language",
+  "selectLanguage": "Select Language",
+  "languageChanged": "Language changed"
 }
