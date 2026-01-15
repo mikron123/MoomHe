@@ -1934,29 +1934,75 @@ exports.appStoreWebhook = onRequest({ cors: true }, async (req, res) => {
     }
     
     const originalTransactionId = transactionInfo.originalTransactionId;
+    const transactionId = transactionInfo.transactionId;
     const productId = transactionInfo.productId;
-    const appAccountToken = transactionInfo.appAccountToken; // This is the userId we passed
+    const appAccountToken = transactionInfo.appAccountToken; // This should be the UUID we passed
     
-    // Find user by appAccountToken (userId) or by searching purchases
-    let userId = appAccountToken;
+    logger.info(`[appStoreWebhook] Looking up user - appAccountToken: ${appAccountToken}, originalTransactionId: ${originalTransactionId}`);
     
+    // Find user by multiple methods
+    let userId = null;
+    
+    // Method 1: Look up appAccountToken (UUID) in users collection
+    // appAccountToken is a UUID v5 derived from Firebase UID, stored in user's appleUuid field
+    if (appAccountToken) {
+      const usersRef = db.collection('users');
+      const userQuery = await usersRef.where('appleUuid', '==', appAccountToken).limit(1).get();
+      if (!userQuery.empty) {
+        userId = userQuery.docs[0].id;
+        logger.info(`[appStoreWebhook] Found user via appleUuid: ${userId}`);
+      } else {
+        logger.info(`[appStoreWebhook] No user found with appleUuid: ${appAccountToken}`);
+      }
+    }
+    
+    // Method 2: Try to find by transaction ID in purchases collection
     if (!userId) {
-      // Try to find by original transaction ID
       const purchasesRef = db.collection('purchases');
-      const purchaseQuery = await purchasesRef
-        .where('purchaseId', '==', originalTransactionId)
-        .where('platform', '==', 'ios')
-        .limit(1)
-        .get();
       
-      if (!purchaseQuery.empty) {
-        userId = purchaseQuery.docs[0].data().userId;
+      // Try both transactionId and originalTransactionId
+      const purchaseQueries = await Promise.all([
+        purchasesRef.where('purchaseId', '==', originalTransactionId).where('platform', '==', 'ios').limit(1).get(),
+        purchasesRef.where('purchaseId', '==', transactionId).where('platform', '==', 'ios').limit(1).get(),
+        purchasesRef.where('originalTransactionId', '==', originalTransactionId).where('platform', '==', 'ios').limit(1).get(),
+      ]);
+      
+      for (const query of purchaseQueries) {
+        if (!query.empty) {
+          userId = query.docs[0].data().userId;
+          logger.info(`[appStoreWebhook] Found user via purchases collection: ${userId}`);
+          break;
+        }
+      }
+    }
+    
+    // Method 3: Check pending notifications that were stored earlier
+    if (!userId) {
+      const pendingRef = db.collection('pendingIapNotifications').doc(originalTransactionId);
+      const pendingDoc = await pendingRef.get();
+      if (pendingDoc.exists) {
+        userId = pendingDoc.data().userId;
+        logger.info(`[appStoreWebhook] Found user via pending notification: ${userId}`);
       }
     }
     
     if (!userId) {
       logger.warn(`[appStoreWebhook] Could not determine user for transaction: ${originalTransactionId}`);
-      res.status(200).json({ success: true, message: 'User not found' });
+      
+      // Store this notification for later processing when the purchase is verified by client
+      // The verifyPurchase endpoint will check this and process it
+      await db.collection('pendingIapNotifications').doc(originalTransactionId).set({
+        notificationType,
+        subtype,
+        transactionInfo,
+        renewalInfo,
+        notificationId,
+        receivedAt: admin.firestore.FieldValue.serverTimestamp(),
+        processed: false,
+      });
+      logger.info(`[appStoreWebhook] Stored pending notification for later processing: ${originalTransactionId}`);
+      
+      res.status(200).json({ success: true, message: 'User not found, stored for later' });
       return;
     }
     
@@ -2119,7 +2165,7 @@ exports.verifyPurchase = onRequest({ cors: true }, async (req, res) => {
   }
   
   try {
-    const { authToken, productId, purchaseId, platform, verificationData } = req.body;
+    const { authToken, productId, purchaseId, platform, verificationData, originalTransactionId } = req.body;
     
     if (!authToken || !productId || !purchaseId || !platform) {
       res.status(400).json({ 
@@ -2134,6 +2180,7 @@ exports.verifyPurchase = onRequest({ cors: true }, async (req, res) => {
     const userId = user.uid;
     
     logger.info(`[verifyPurchase] User ${userId} verifying ${productId} on ${platform}`);
+    logger.info(`[verifyPurchase] purchaseId: ${purchaseId}, originalTransactionId: ${originalTransactionId || 'not provided'}`);
     
     // Get product configuration
     const productConfig = PRODUCT_CREDITS[productId];
@@ -2142,17 +2189,34 @@ exports.verifyPurchase = onRequest({ cors: true }, async (req, res) => {
       return;
     }
     
-    // Store/update purchase record
-    await db.collection('purchases').doc(purchaseId).set({
+    // Store/update purchase record with originalTransactionId for webhook lookup
+    const purchaseData = {
       userId,
       productId,
       purchaseId,
       platform,
       verificationData,
-      verified: true, // For now, trust the client; webhooks will update later
+      verified: true,
       verifiedAt: admin.firestore.FieldValue.serverTimestamp(),
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    }, { merge: true });
+    };
+    
+    // For iOS, also store originalTransactionId for webhook lookup
+    if (platform === 'ios' && originalTransactionId) {
+      purchaseData.originalTransactionId = originalTransactionId;
+    }
+    
+    await db.collection('purchases').doc(purchaseId).set(purchaseData, { merge: true });
+    
+    // Also store by originalTransactionId if different from purchaseId (for webhook lookup)
+    if (platform === 'ios' && originalTransactionId && originalTransactionId !== purchaseId) {
+      await db.collection('purchases').doc(originalTransactionId).set({
+        ...purchaseData,
+        purchaseId: originalTransactionId, // Use originalTransactionId as the doc ID
+        linkedPurchaseId: purchaseId, // Reference to the main purchase doc
+      }, { merge: true });
+      logger.info(`[verifyPurchase] Also stored purchase by originalTransactionId: ${originalTransactionId}`);
+    }
     
     // Update user subscription
     await db.collection('users').doc(userId).update({
@@ -2172,6 +2236,28 @@ exports.verifyPurchase = onRequest({ cors: true }, async (req, res) => {
       count: 0,
       resetAt: admin.firestore.FieldValue.serverTimestamp(),
     }, { merge: true });
+    
+    // Check for pending notifications that arrived before this verification
+    // Process them now that we have the user mapping
+    if (platform === 'ios') {
+      const transactionIdToCheck = originalTransactionId || purchaseId;
+      const pendingRef = db.collection('pendingIapNotifications').doc(transactionIdToCheck);
+      const pendingDoc = await pendingRef.get();
+      
+      if (pendingDoc.exists && !pendingDoc.data().processed) {
+        logger.info(`[verifyPurchase] Found pending notification for ${transactionIdToCheck}, processing now...`);
+        
+        // Mark as processed and store userId for future webhook calls
+        await pendingRef.update({
+          userId: userId,
+          processed: true,
+          processedAt: admin.firestore.FieldValue.serverTimestamp(),
+          processedBy: 'verifyPurchase',
+        });
+        
+        logger.info(`[verifyPurchase] Updated pending notification with userId: ${userId}`);
+      }
+    }
     
     logger.info(`[verifyPurchase] Verified purchase for user ${userId}: ${productId}`);
     
@@ -2344,6 +2430,120 @@ exports.syncSubscription = onRequest({ cors: true }, async (req, res) => {
   } catch (error) {
     logger.error('[syncSubscription] Error:', error);
     res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ===========================================
+// Delete User Account
+// ===========================================
+// Deletes user data from userHistory and users collections
+// Does NOT delete: couponRedemptions, genCount, iapNotification, paymentEvents, purchases
+exports.deleteAccount = onRequest({ cors: true }, async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+  
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: 'Method not allowed' });
+    return;
+  }
+  
+  try {
+    const { authToken } = req.body;
+    
+    if (!authToken) {
+      res.status(400).json({ success: false, error: 'Missing auth token' });
+      return;
+    }
+    
+    // Validate user token
+    const user = await validateUserToken(authToken);
+    const userId = user.uid;
+    
+    logger.info(`[deleteAccount] Starting account deletion for user: ${userId}`);
+    
+    // 1. Delete all userHistory documents for this user
+    logger.info(`[deleteAccount] Deleting userHistory documents...`);
+    const userHistoryRef = db.collection('userHistory');
+    const historySnapshot = await userHistoryRef.where('userId', '==', userId).get();
+    
+    let historyDeleteCount = 0;
+    const batch = db.batch();
+    
+    historySnapshot.docs.forEach((doc) => {
+      batch.delete(doc.ref);
+      historyDeleteCount++;
+    });
+    
+    if (historyDeleteCount > 0) {
+      // If more than 500 docs, need multiple batches
+      if (historyDeleteCount <= 500) {
+        await batch.commit();
+      } else {
+        // Delete in batches of 500
+        const chunks = [];
+        for (let i = 0; i < historySnapshot.docs.length; i += 500) {
+          chunks.push(historySnapshot.docs.slice(i, i + 500));
+        }
+        
+        for (const chunk of chunks) {
+          const chunkBatch = db.batch();
+          chunk.forEach((doc) => chunkBatch.delete(doc.ref));
+          await chunkBatch.commit();
+        }
+      }
+      logger.info(`[deleteAccount] Deleted ${historyDeleteCount} userHistory documents`);
+    }
+    
+    // 2. Delete user's storage files
+    logger.info(`[deleteAccount] Deleting storage files...`);
+    try {
+      const bucket = storage.bucket();
+      const [files] = await bucket.getFiles({ prefix: `userHistory/${userId}/` });
+      
+      if (files.length > 0) {
+        await Promise.all(files.map(file => file.delete()));
+        logger.info(`[deleteAccount] Deleted ${files.length} storage files`);
+      }
+    } catch (storageError) {
+      // Log but don't fail if storage deletion has issues
+      logger.warn(`[deleteAccount] Storage deletion warning: ${storageError.message}`);
+    }
+    
+    // 3. Delete user document from users collection
+    logger.info(`[deleteAccount] Deleting user document...`);
+    await db.collection('users').doc(userId).delete();
+    logger.info(`[deleteAccount] Deleted user document`);
+    
+    // 4. Delete Firebase Auth user
+    logger.info(`[deleteAccount] Deleting Firebase Auth user...`);
+    try {
+      await admin.auth().deleteUser(userId);
+      logger.info(`[deleteAccount] Deleted Firebase Auth user`);
+    } catch (authError) {
+      // Log but continue - user document is already deleted
+      logger.warn(`[deleteAccount] Auth deletion warning: ${authError.message}`);
+    }
+    
+    logger.info(`[deleteAccount] Account deletion completed for user: ${userId}`);
+    
+    res.json({
+      success: true,
+      message: 'Account deleted successfully',
+      deletedHistoryCount: historyDeleteCount,
+    });
+    
+  } catch (error) {
+    logger.error('[deleteAccount] Error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message || 'Error deleting account' 
+    });
   }
 });
 

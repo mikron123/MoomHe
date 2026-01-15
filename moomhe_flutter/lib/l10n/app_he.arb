@@ -462,5 +462,15 @@
   "rateAppMessage": "נשמח לשמוע מה דעתך! המשוב שלך עוזר לנו להשתפר.",
   "rateAppYes": "כן, אני אוהב/ת! 😍",
   "rateAppNo": "לא ממש",
-  "rateAppLater": "תשאל אותי אחר כך"
+  "rateAppLater": "תשאל אותי אחר כך",
+
+  "deleteAccount": "מחיקת חשבון",
+  "deleteAccountWarning1Title": "מחיקת חשבון",
+  "deleteAccountWarning1Message": "האם אתה בטוח שברצונך למחוק את החשבון שלך? פעולה זו תמחק את כל המידע והתמונות שלך ולא ניתן יהיה לשחזר אותם.",
+  "deleteAccountWarning2Title": "אישור סופי",
+  "deleteAccountWarning2Message": "זו פעולה בלתי הפיכה! כל ההיסטוריה והתמונות שלך יימחקו לצמיתות. האם אתה בטוח ב-100%?",
+  "deleteAccountConfirm": "כן, מחק את החשבון",
+  "deletingAccount": "מוחק חשבון...",
+  "accountDeleted": "החשבון נמחק בהצלחה",
+  "errorDeletingAccount": "שגיאה במחיקת החשבון"
 }

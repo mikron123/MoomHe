@@ -600,6 +600,72 @@ class AIService {
     }
   }
 
+  /// Delete user account
+  /// This calls a Firebase function to delete user data from userHistory and users collections
+  /// Returns a map with success/error status
+  Future<Map<String, dynamic>> deleteAccount() async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        return {
+          'success': false,
+          'error': 'No user logged in',
+        };
+      }
+      
+      final authToken = await user.getIdToken();
+      
+      debugPrint('🗑️ Deleting account for user: ${user.uid}');
+      
+      // Make HTTP POST request to the cloud function
+      final client = HttpClient();
+      final request = await client.postUrl(
+        Uri.parse('https://us-central1-moomhe-6de30.cloudfunctions.net/deleteAccount'),
+      );
+      
+      request.headers.set('Content-Type', 'application/json');
+      
+      final body = jsonEncode({
+        'authToken': authToken,
+      });
+      
+      request.add(utf8.encode(body));
+      
+      final response = await request.close();
+      final responseBody = await response.transform(utf8.decoder).join();
+      
+      debugPrint('🗑️ Response status: ${response.statusCode}');
+      debugPrint('🗑️ Response body: $responseBody');
+      
+      final result = jsonDecode(responseBody) as Map<String, dynamic>;
+      
+      if (result['success'] == true) {
+        debugPrint('🗑️ Account deleted successfully');
+        
+        // Sign out and create new anonymous account
+        await _auth.signOut();
+        await _auth.signInAnonymously();
+        
+        return {
+          'success': true,
+          'message': result['message'] ?? 'Account deleted successfully',
+        };
+      } else {
+        debugPrint('🗑️ Account deletion failed: ${result['error']}');
+        return {
+          'success': false,
+          'error': result['error'] ?? 'Error deleting account',
+        };
+      }
+    } catch (e) {
+      debugPrint('🗑️ Account deletion error: $e');
+      return {
+        'success': false,
+        'error': 'Error deleting account. Please try again.',
+      };
+    }
+  }
+
   /// Redeem a coupon code
   /// Returns a map with success/error status and credits info
   Future<Map<String, dynamic>> redeemCoupon(String couponCode) async {

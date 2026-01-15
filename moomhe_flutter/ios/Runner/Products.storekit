@@ -1,0 +1,256 @@
+{
+  "identifier" : "F4A2A9E8-0C8B-4F5E-B1D3-8A9C0D1E2F3A",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+
+  ],
+  "settings" : {
+    "_applicationInternalID" : "6740406645",
+    "_developerTeamID" : "NGZXQZ26NR",
+    "_failTransactionsEnabled" : false,
+    "_lastSynchronizedDate" : 758571584.74785495,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+      {
+        "current" : {
+          "index" : 0,
+          "type" : "generic"
+        },
+        "enabled" : false,
+        "name" : "Load Products"
+      },
+      {
+        "current" : {
+          "index" : 0,
+          "type" : "generic"
+        },
+        "enabled" : false,
+        "name" : "Purchase"
+      },
+      {
+        "current" : {
+          "index" : 0,
+          "type" : "generic"
+        },
+        "enabled" : false,
+        "name" : "Verification"
+      },
+      {
+        "current" : {
+          "index" : 0,
+          "type" : "generic"
+        },
+        "enabled" : false,
+        "name" : "App Store Sync"
+      },
+      {
+        "current" : {
+          "index" : 0,
+          "type" : "generic"
+        },
+        "enabled" : false,
+        "name" : "Subscription Status"
+      },
+      {
+        "current" : {
+          "index" : 0,
+          "type" : "generic"
+        },
+        "enabled" : false,
+        "name" : "App Transaction"
+      },
+      {
+        "current" : {
+          "index" : 0,
+          "type" : "generic"
+        },
+        "enabled" : false,
+        "name" : "Manage Subscriptions Sheet"
+      },
+      {
+        "current" : {
+          "index" : 0,
+          "type" : "generic"
+        },
+        "enabled" : false,
+        "name" : "Refund Request Sheet"
+      },
+      {
+        "current" : {
+          "index" : 0,
+          "type" : "generic"
+        },
+        "enabled" : false,
+        "name" : "Offer Code Redeem Sheet"
+      }
+    ]
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "21687088",
+      "localizations" : [
+
+      ],
+      "name" : "MoomHe Subscriptions",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "4.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "6740407050",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "50 AI designs per month",
+              "displayName" : "MoomHe Starter",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "moomhe_starter_monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "MoomHe Starter Monthly",
+          "subscriptionGroupID" : "21687088",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "12.99",
+          "familyShareable" : false,
+          "groupNumber" : 2,
+          "internalID" : "6740407051",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "200 AI designs per month",
+              "displayName" : "MoomHe Value",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "moomhe_pro_monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "MoomHe Pro Monthly",
+          "subscriptionGroupID" : "21687088",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "26.99",
+          "familyShareable" : false,
+          "groupNumber" : 3,
+          "internalID" : "6740407052",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "450 AI designs per month",
+              "displayName" : "MoomHe Pro",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "moomhe_business_monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "MoomHe Business Monthly",
+          "subscriptionGroupID" : "21687088",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "49.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "6740407053",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "50 AI designs per month, billed yearly",
+              "displayName" : "MoomHe Starter Yearly",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "moomhe_starter_yearly",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "MoomHe Starter Yearly",
+          "subscriptionGroupID" : "21687088",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "129.99",
+          "familyShareable" : false,
+          "groupNumber" : 2,
+          "internalID" : "6740407054",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "200 AI designs per month, billed yearly",
+              "displayName" : "MoomHe Value Yearly",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "moomhe_pro_yearly",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "MoomHe Pro Yearly",
+          "subscriptionGroupID" : "21687088",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "269.99",
+          "familyShareable" : false,
+          "groupNumber" : 3,
+          "internalID" : "6740407055",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "450 AI designs per month, billed yearly",
+              "displayName" : "MoomHe Pro Yearly",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "moomhe_business_yearly",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "MoomHe Business Yearly",
+          "subscriptionGroupID" : "21687088",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}

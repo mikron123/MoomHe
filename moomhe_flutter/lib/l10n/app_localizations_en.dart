@@ -1158,4 +1158,33 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get rateAppLater => 'Ask me later';
+
+  @override
+  String get deleteAccount => 'Delete Account';
+
+  @override
+  String get deleteAccountWarning1Title => 'Delete Account';
+
+  @override
+  String get deleteAccountWarning1Message =>
+      'Are you sure you want to delete your account? This will delete all your information and images and cannot be undone.';
+
+  @override
+  String get deleteAccountWarning2Title => 'Final Confirmation';
+
+  @override
+  String get deleteAccountWarning2Message =>
+      'This action is irreversible! All your history and images will be permanently deleted. Are you 100% sure?';
+
+  @override
+  String get deleteAccountConfirm => 'Yes, Delete Account';
+
+  @override
+  String get deletingAccount => 'Deleting account...';
+
+  @override
+  String get accountDeleted => 'Account deleted successfully';
+
+  @override
+  String get errorDeletingAccount => 'Error deleting account';
 }

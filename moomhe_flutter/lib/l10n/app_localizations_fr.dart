@@ -1174,4 +1174,33 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get rateAppLater => 'Plus tard';
+
+  @override
+  String get deleteAccount => 'Supprimer le Compte';
+
+  @override
+  String get deleteAccountWarning1Title => 'Supprimer le Compte';
+
+  @override
+  String get deleteAccountWarning1Message =>
+      'Êtes-vous sûr de vouloir supprimer votre compte ? Cela supprimera toutes vos informations et images et ne pourra pas être annulé.';
+
+  @override
+  String get deleteAccountWarning2Title => 'Confirmation Finale';
+
+  @override
+  String get deleteAccountWarning2Message =>
+      'Cette action est irréversible ! Tout votre historique et vos images seront définitivement supprimés. Êtes-vous sûr à 100% ?';
+
+  @override
+  String get deleteAccountConfirm => 'Oui, Supprimer le Compte';
+
+  @override
+  String get deletingAccount => 'Suppression du compte...';
+
+  @override
+  String get accountDeleted => 'Compte supprimé avec succès';
+
+  @override
+  String get errorDeletingAccount => 'Erreur lors de la suppression du compte';
 }

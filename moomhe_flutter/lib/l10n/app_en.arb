@@ -462,5 +462,15 @@
   "rateAppMessage": "We'd love to hear what you think! Your feedback helps us improve.",
   "rateAppYes": "Yes, I love it! 😍",
   "rateAppNo": "Not really",
-  "rateAppLater": "Ask me later"
+  "rateAppLater": "Ask me later",
+
+  "deleteAccount": "Delete Account",
+  "deleteAccountWarning1Title": "Delete Account",
+  "deleteAccountWarning1Message": "Are you sure you want to delete your account? This will delete all your information and images and cannot be undone.",
+  "deleteAccountWarning2Title": "Final Confirmation",
+  "deleteAccountWarning2Message": "This action is irreversible! All your history and images will be permanently deleted. Are you 100% sure?",
+  "deleteAccountConfirm": "Yes, Delete Account",
+  "deletingAccount": "Deleting account...",
+  "accountDeleted": "Account deleted successfully",
+  "errorDeletingAccount": "Error deleting account"
 }

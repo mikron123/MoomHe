@@ -2321,6 +2321,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Ask me later'**
   String get rateAppLater;
+
+  /// No description provided for @deleteAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Account'**
+  String get deleteAccount;
+
+  /// No description provided for @deleteAccountWarning1Title.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Account'**
+  String get deleteAccountWarning1Title;
+
+  /// No description provided for @deleteAccountWarning1Message.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to delete your account? This will delete all your information and images and cannot be undone.'**
+  String get deleteAccountWarning1Message;
+
+  /// No description provided for @deleteAccountWarning2Title.
+  ///
+  /// In en, this message translates to:
+  /// **'Final Confirmation'**
+  String get deleteAccountWarning2Title;
+
+  /// No description provided for @deleteAccountWarning2Message.
+  ///
+  /// In en, this message translates to:
+  /// **'This action is irreversible! All your history and images will be permanently deleted. Are you 100% sure?'**
+  String get deleteAccountWarning2Message;
+
+  /// No description provided for @deleteAccountConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Yes, Delete Account'**
+  String get deleteAccountConfirm;
+
+  /// No description provided for @deletingAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleting account...'**
+  String get deletingAccount;
+
+  /// No description provided for @accountDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Account deleted successfully'**
+  String get accountDeleted;
+
+  /// No description provided for @errorDeletingAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Error deleting account'**
+  String get errorDeletingAccount;
 }
 
 class _AppLocalizationsDelegate

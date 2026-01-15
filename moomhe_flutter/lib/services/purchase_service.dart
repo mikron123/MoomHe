@@ -9,6 +9,7 @@ import 'package:in_app_purchase_storekit/in_app_purchase_storekit.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
+import 'package:crypto/crypto.dart';
 
 /// Subscription tier enum
 enum SubscriptionTier {
@@ -121,6 +122,10 @@ class PurchaseService {
   final InAppPurchase _inAppPurchase = InAppPurchase.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  
+  // UUID namespace for converting Firebase UID to UUID (must match server)
+  // Using a custom namespace based on "moomhe.app" domain
+  static const String _uuidNamespace = '6ba7b810-9dad-11d1-80b4-00c04fd430c8'; // DNS namespace
 
   StreamSubscription<List<PurchaseDetails>>? _subscription;
   List<ProductDetails> _products = [];
@@ -296,14 +301,34 @@ class PurchaseService {
       } else {
         // iOS uses standard purchase param
         // Apple handles upgrades automatically within subscription groups
+        // IMPORTANT: applicationUserName must be a valid UUID for appAccountToken to work
+        final uuidForApple = _firebaseUidToUuid(userId);
+        debugPrint('🍎 iOS purchase - Firebase UID: $userId');
+        debugPrint('🍎 iOS purchase - UUID for appAccountToken: $uuidForApple');
+        
+        // Store the UUID in the user's own document (for webhook lookup)
+        // This should work with existing Firestore rules
+        try {
+          await _firestore.collection('users').doc(userId).set({
+            'appleUuid': uuidForApple,
+            'appleUuidUpdatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+          debugPrint('✅ Stored appleUuid in user document');
+        } catch (e) {
+          // Non-blocking - webhook has fallback methods
+          debugPrint('⚠️ Could not store appleUuid in user document: $e');
+        }
+        
         purchaseParam = PurchaseParam(
           productDetails: product,
-          applicationUserName: userId,
+          applicationUserName: uuidForApple,
         );
       }
 
       debugPrint('🛒 Calling buyNonConsumable for product: ${product.id}');
       debugPrint('🛒 Product details - title: ${product.title}, price: ${product.price}');
+      debugPrint('🛒 Platform: ${Platform.isIOS ? "iOS" : "Android"}');
+      debugPrint('🛒 User ID for purchase: $userId');
       
       final bool success =
           await _inAppPurchase.buyNonConsumable(purchaseParam: purchaseParam);
@@ -311,20 +336,30 @@ class PurchaseService {
       debugPrint('🛒 buyNonConsumable returned: $success');
       
       if (!success) {
-        debugPrint('❌ Purchase initiation failed - this usually means:');
-        debugPrint('   1. Not running release build (flutter run --release)');
-        debugPrint('   2. Account not added as License Tester in Play Console');
-        debugPrint('   3. App not uploaded to Internal Testing track');
-        onPurchaseStatusChanged?.call(
-            PurchaseUiStatus.error, 'Failed to initiate purchase');
+        debugPrint('🚫 Purchase not initiated (user likely cancelled or dialog dismissed)');
+        // Treat as cancellation, not error - user probably dismissed the dialog
+        onPurchaseStatusChanged?.call(PurchaseUiStatus.cancelled, null);
         return false;
       }
 
       debugPrint('✅ Purchase initiated');
       return true;
-    } catch (e) {
+    } catch (e, stackTrace) {
       debugPrint('❌ Purchase error: $e');
-      onPurchaseStatusChanged?.call(PurchaseUiStatus.error, e.toString());
+      debugPrint('❌ Stack trace: $stackTrace');
+      
+      // Check if it's a user cancellation
+      final errorString = e.toString().toLowerCase();
+      if (errorString.contains('usercancelled') || 
+          errorString.contains('user cancelled') ||
+          errorString.contains('cancelled') ||
+          errorString.contains('canceled') ||
+          errorString.contains('storekit') && errorString.contains('2')) {
+        debugPrint('🚫 User cancelled the purchase');
+        onPurchaseStatusChanged?.call(PurchaseUiStatus.cancelled, null);
+      } else {
+        onPurchaseStatusChanged?.call(PurchaseUiStatus.error, e.toString());
+      }
       return false;
     }
   }
@@ -421,12 +456,18 @@ class PurchaseService {
   void _onPurchaseUpdate(List<PurchaseDetails> purchaseDetailsList) async {
     debugPrint('📬 Received ${purchaseDetailsList.length} purchase updates');
 
+    // Track if any verification succeeded (for restored purchases that come in batches)
+    bool anyVerificationSucceeded = false;
+    bool anyVerificationFailed = false;
+    bool hasPendingOrCancelled = false;
+
     for (final purchaseDetails in purchaseDetailsList) {
       debugPrint(
           '  - ${purchaseDetails.productID}: ${purchaseDetails.status}');
 
       switch (purchaseDetails.status) {
         case PurchaseStatus.pending:
+          hasPendingOrCancelled = true;
           onPurchaseStatusChanged?.call(
               PurchaseUiStatus.purchasing, 'Processing...');
           break;
@@ -448,10 +489,9 @@ class PurchaseService {
           // Verify and deliver the purchase
           final success = await _verifyAndDeliverPurchase(purchaseDetails);
           if (success) {
-            onPurchaseStatusChanged?.call(PurchaseUiStatus.success, null);
+            anyVerificationSucceeded = true;
           } else {
-            onPurchaseStatusChanged?.call(
-                PurchaseUiStatus.error, 'Verification failed');
+            anyVerificationFailed = true;
           }
           break;
 
@@ -460,15 +500,15 @@ class PurchaseService {
           debugPrint('❌ Error code: ${purchaseDetails.error?.code}');
           debugPrint('❌ Error details: ${purchaseDetails.error?.details}');
           debugPrint('❌ Product ID: ${purchaseDetails.productID}');
-          // Common error codes:
-          // - BillingResponse.itemUnavailable: Product not available for purchase
-          // - BillingResponse.itemAlreadyOwned: User already owns this subscription
+          hasPendingOrCancelled = true;
           onPurchaseStatusChanged?.call(
               PurchaseUiStatus.error, purchaseDetails.error?.message ?? 'Purchase failed');
           break;
 
         case PurchaseStatus.canceled:
           debugPrint('🚫 Purchase cancelled');
+          debugPrint('🚫 Product: ${purchaseDetails.productID}');
+          hasPendingOrCancelled = true;
           onPurchaseStatusChanged?.call(PurchaseUiStatus.cancelled, null);
           break;
       }
@@ -478,6 +518,16 @@ class PurchaseService {
         await _inAppPurchase.completePurchase(purchaseDetails);
         debugPrint('✅ Purchase completed: ${purchaseDetails.productID}');
       }
+    }
+    
+    // After processing all purchases, update UI status
+    // Only show error if ALL verifications failed (not just some)
+    if (anyVerificationSucceeded) {
+      debugPrint('🎉 At least one verification succeeded');
+      onPurchaseStatusChanged?.call(PurchaseUiStatus.success, null);
+    } else if (anyVerificationFailed && !hasPendingOrCancelled) {
+      debugPrint('❌ All verifications failed');
+      onPurchaseStatusChanged?.call(PurchaseUiStatus.error, 'Verification failed');
     }
   }
 
@@ -495,6 +545,7 @@ class PurchaseService {
       // Get verification data based on platform
       String? verificationData;
       String platform;
+      String? originalTransactionId;
 
       if (Platform.isAndroid) {
         platform = 'android';
@@ -503,8 +554,19 @@ class PurchaseService {
         verificationData = androidDetails.billingClientPurchase.purchaseToken;
       } else if (Platform.isIOS) {
         platform = 'ios';
-        final iosDetails = purchaseDetails as AppStorePurchaseDetails;
-        verificationData = iosDetails.verificationData.serverVerificationData;
+        verificationData = purchaseDetails.verificationData.serverVerificationData;
+        
+        // Handle both StoreKit 1 (AppStorePurchaseDetails) and StoreKit 2 (SK2PurchaseDetails)
+        if (purchaseDetails is AppStorePurchaseDetails) {
+          // StoreKit 1
+          originalTransactionId = purchaseDetails.skPaymentTransaction.originalTransaction?.transactionIdentifier 
+              ?? purchaseDetails.skPaymentTransaction.transactionIdentifier;
+          debugPrint('🍎 iOS (SK1) originalTransactionId: $originalTransactionId');
+        } else {
+          // StoreKit 2 (SK2PurchaseDetails) or any other type - use purchaseID
+          originalTransactionId = purchaseDetails.purchaseID;
+          debugPrint('🍎 iOS (${purchaseDetails.runtimeType}) originalTransactionId: $originalTransactionId');
+        }
       } else {
         debugPrint('❌ Unsupported platform');
         return false;
@@ -512,41 +574,76 @@ class PurchaseService {
 
       // Save purchase to Firestore for server-side verification (webhook backup)
       final purchaseId = purchaseDetails.purchaseID ?? DateTime.now().toIso8601String();
-      final purchaseRecord = {
-        'userId': user.uid,
-        'productId': purchaseDetails.productID,
-        'purchaseId': purchaseId,
-        'transactionDate': purchaseDetails.transactionDate,
-        'verificationData': verificationData,
-        'platform': platform,
-        'status': purchaseDetails.status.toString(),
-        'createdAt': FieldValue.serverTimestamp(),
-        'verified': false, // Will be set to true by verifyPurchase endpoint
-      };
+      
+      // Check if purchase already exists (for restores) - don't try to update if it does
+      // Firestore rules block updates to purchases collection
+      bool purchaseExists = false;
+      try {
+        final existingPurchase = await _firestore.collection('purchases').doc(purchaseId).get();
+        purchaseExists = existingPurchase.exists;
+      } catch (e) {
+        // Permission denied means document exists but we can't read it (different user)
+        // or some other issue - just skip the write to be safe
+        debugPrint('⚠️ Could not check purchase existence: $e');
+        purchaseExists = true; // Assume it exists to skip write
+      }
+      
+      if (!purchaseExists) {
+        try {
+          final purchaseRecord = {
+            'userId': user.uid,
+            'productId': purchaseDetails.productID,
+            'purchaseId': purchaseId,
+            'transactionDate': purchaseDetails.transactionDate,
+            'verificationData': verificationData,
+            'platform': platform,
+            'status': purchaseDetails.status.toString(),
+            'createdAt': FieldValue.serverTimestamp(),
+            'verified': false, // Will be set to true by verifyPurchase endpoint
+          };
+          
+          // For iOS, also store originalTransactionId
+          if (platform == 'ios' && originalTransactionId != null) {
+            purchaseRecord['originalTransactionId'] = originalTransactionId;
+          }
 
-      await _firestore
-          .collection('purchases')
-          .doc(purchaseId)
-          .set(purchaseRecord);
+          await _firestore
+              .collection('purchases')
+              .doc(purchaseId)
+              .set(purchaseRecord);
 
-      debugPrint('✅ Purchase record saved to Firestore');
+          debugPrint('✅ Purchase record saved to Firestore');
+        } catch (e) {
+          // Non-fatal - server verification will still work
+          debugPrint('⚠️ Could not save purchase record: $e');
+        }
+      } else {
+        debugPrint('ℹ️ Purchase record already exists, skipping Firestore write');
+      }
 
       // Call verifyPurchase Cloud Function to update subscription
       // (Firestore rules prevent client from updating credits/subscription directly)
       final authToken = await user.getIdToken();
+      
+      final requestBody = {
+        'authToken': authToken,
+        'productId': purchaseDetails.productID,
+        'purchaseId': purchaseId,
+        'platform': platform,
+        'verificationData': verificationData,
+      };
+      
+      // Include originalTransactionId for iOS
+      if (platform == 'ios' && originalTransactionId != null) {
+        requestBody['originalTransactionId'] = originalTransactionId;
+      }
       
       final response = await http.post(
         Uri.parse('https://us-central1-moomhe-6de30.cloudfunctions.net/verifyPurchase'),
         headers: {
           'Content-Type': 'application/json',
         },
-        body: jsonEncode({
-          'authToken': authToken,
-          'productId': purchaseDetails.productID,
-          'purchaseId': purchaseId,
-          'platform': platform,
-          'verificationData': verificationData,
-        }),
+        body: jsonEncode(requestBody),
       );
 
       if (response.statusCode == 200) {
@@ -628,6 +725,53 @@ class PurchaseService {
       default:
         return SubscriptionTier.none;
     }
+  }
+  
+  /// Convert Firebase UID to a valid UUID v5 format for iOS appAccountToken
+  /// Apple requires appAccountToken to be a valid lowercase UUID with hyphens
+  /// This creates a deterministic UUID from the Firebase UID
+  String _firebaseUidToUuid(String uid) {
+    // Create a UUID v5 by hashing namespace + name with SHA-1
+    // Format: xxxxxxxx-xxxx-5xxx-yxxx-xxxxxxxxxxxx
+    // where y is 8, 9, a, or b
+    
+    // Parse namespace UUID to bytes
+    final namespaceBytes = _parseUuid(_uuidNamespace);
+    
+    // Combine namespace bytes + uid bytes
+    final nameBytes = utf8.encode(uid);
+    final combined = [...namespaceBytes, ...nameBytes];
+    
+    // SHA-1 hash
+    final hash = sha1.convert(combined).bytes;
+    
+    // Build UUID v5 from hash
+    // Set version (4 bits) to 5 (0101)
+    final version = (hash[6] & 0x0f) | 0x50;
+    // Set variant (2 bits) to 10xx
+    final variant = (hash[8] & 0x3f) | 0x80;
+    
+    // Format as UUID string
+    final uuid = '${_byteToHex(hash[0])}${_byteToHex(hash[1])}${_byteToHex(hash[2])}${_byteToHex(hash[3])}-'
+        '${_byteToHex(hash[4])}${_byteToHex(hash[5])}-'
+        '${_byteToHex(version)}${_byteToHex(hash[7])}-'
+        '${_byteToHex(variant)}${_byteToHex(hash[9])}-'
+        '${_byteToHex(hash[10])}${_byteToHex(hash[11])}${_byteToHex(hash[12])}${_byteToHex(hash[13])}${_byteToHex(hash[14])}${_byteToHex(hash[15])}';
+    
+    return uuid.toLowerCase();
+  }
+  
+  List<int> _parseUuid(String uuid) {
+    final hex = uuid.replaceAll('-', '');
+    final bytes = <int>[];
+    for (var i = 0; i < hex.length; i += 2) {
+      bytes.add(int.parse(hex.substring(i, i + 2), radix: 16));
+    }
+    return bytes;
+  }
+  
+  String _byteToHex(int byte) {
+    return byte.toRadixString(16).padLeft(2, '0');
   }
 }
 

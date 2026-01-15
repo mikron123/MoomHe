@@ -1,3 +1,4 @@
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../theme/app_colors.dart';
@@ -13,6 +14,7 @@ class MobileMenuModal extends StatefulWidget {
   final VoidCallback onLogout;
   final VoidCallback onSubscriptionClick;
   final VoidCallback onCouponClick;
+  final VoidCallback? onDeleteAccount;
 
   const MobileMenuModal({
     super.key,
@@ -25,6 +27,7 @@ class MobileMenuModal extends StatefulWidget {
     required this.onLogout,
     required this.onSubscriptionClick,
     required this.onCouponClick,
+    this.onDeleteAccount,
   });
 
   @override
@@ -173,28 +176,161 @@ class _MobileMenuModalState extends State<MobileMenuModal> {
                     widget.onSubscriptionClick();
                   },
                 ),
-                const SizedBox(height: 16),
-
-                // Coupon Button
-                _buildMenuButton(
-                  icon: LucideIcons.gift,
-                  iconColor: const Color(0xFF10B981),
-                  gradientColors: [
-                    const Color(0xFF10B981).withValues(alpha: 0.1),
-                    Colors.teal.withValues(alpha: 0.1),
-                  ],
-                  borderColor: const Color(0xFF10B981).withValues(alpha: 0.2),
-                  title: context.l10n.iHaveCoupon,
-                  subtitle: context.l10n.enterCouponCode,
-                  onTap: () {
-                    Navigator.pop(context);
-                    widget.onCouponClick();
-                  },
-                ),
+                // Coupon Button - hidden on iOS
+                if (!Platform.isIOS) ...[
+                  const SizedBox(height: 16),
+                  _buildMenuButton(
+                    icon: LucideIcons.gift,
+                    iconColor: const Color(0xFF10B981),
+                    gradientColors: [
+                      const Color(0xFF10B981).withValues(alpha: 0.1),
+                      Colors.teal.withValues(alpha: 0.1),
+                    ],
+                    borderColor: const Color(0xFF10B981).withValues(alpha: 0.2),
+                    title: context.l10n.iHaveCoupon,
+                    subtitle: context.l10n.enterCouponCode,
+                    onTap: () {
+                      Navigator.pop(context);
+                      widget.onCouponClick();
+                    },
+                  ),
+                ],
+                // Delete Account Button - only show for logged in users with email
+                if (_hasEmail && widget.onDeleteAccount != null) ...[
+                  const SizedBox(height: 24),
+                  _buildDeleteAccountButton(context),
+                ],
               ],
             ),
           ),
           SizedBox(height: MediaQuery.of(context).padding.bottom + 16),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDeleteAccountButton(BuildContext context) {
+    final l10n = context.l10n;
+    return GestureDetector(
+      onTap: () => _showDeleteConfirmation(context),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              LucideIcons.trash2,
+              size: 14,
+              color: Colors.white.withValues(alpha: 0.4),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              l10n.deleteAccount,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.white.withValues(alpha: 0.4),
+                decoration: TextDecoration.underline,
+                decorationColor: Colors.white.withValues(alpha: 0.3),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showDeleteConfirmation(BuildContext context) {
+    final l10n = context.l10n;
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(LucideIcons.alertTriangle, color: Colors.orange, size: 24),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                l10n.deleteAccountWarning1Title,
+                style: const TextStyle(color: Colors.white, fontSize: 18),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          l10n.deleteAccountWarning1Message,
+          style: const TextStyle(color: Colors.white70, fontSize: 14, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(
+              l10n.cancel,
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              _showFinalDeleteConfirmation(context);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: Text(l10n.deleteAccountConfirm),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showFinalDeleteConfirmation(BuildContext context) {
+    final l10n = context.l10n;
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(LucideIcons.alertOctagon, color: Colors.red, size: 24),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                l10n.deleteAccountWarning2Title,
+                style: const TextStyle(color: Colors.white, fontSize: 18),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          l10n.deleteAccountWarning2Message,
+          style: const TextStyle(color: Colors.white70, fontSize: 14, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(
+              l10n.cancel,
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              Navigator.pop(context); // Close the menu modal
+              widget.onDeleteAccount?.call();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: Text(l10n.deleteAccountConfirm),
+          ),
         ],
       ),
     );

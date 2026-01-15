@@ -950,8 +950,64 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
           // Note: mobile menu already pops itself before calling this
           _showCouponModal();
         },
+        onDeleteAccount: () {
+          // Note: mobile menu already pops itself before calling this
+          _handleDeleteAccount();
+        },
       ),
     );
+  }
+
+  Future<void> _handleDeleteAccount() async {
+    final l10n = context.l10n;
+    
+    // Show loading toast
+    _showToast(
+      message: l10n.deletingAccount,
+      icon: LucideIcons.loader,
+      backgroundColor: AppColors.primary600,
+      duration: const Duration(seconds: 10),
+    );
+    
+    try {
+      final result = await _aiService.deleteAccount();
+      
+      if (!mounted) return;
+      
+      if (result['success'] == true) {
+        // Clear local history
+        setState(() {
+          _imageHistory.clear();
+          _mainImage = _defaultAssetImage;
+          _originalImage = _defaultAssetImage;
+          _beforeImage = null;
+          _objectImage = null;
+        });
+        
+        // Refresh user state (now anonymous)
+        await _loadUserCredits();
+        
+        _showToast(
+          message: l10n.accountDeleted,
+          icon: LucideIcons.checkCircle,
+          backgroundColor: Colors.green.shade600,
+        );
+      } else {
+        _showToast(
+          message: result['error'] ?? l10n.errorDeletingAccount,
+          icon: LucideIcons.alertCircle,
+          backgroundColor: Colors.red.shade600,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        _showToast(
+          message: l10n.errorDeletingAccount,
+          icon: LucideIcons.alertCircle,
+          backgroundColor: Colors.red.shade600,
+        );
+      }
+    }
   }
 
   void _showCouponModal() {

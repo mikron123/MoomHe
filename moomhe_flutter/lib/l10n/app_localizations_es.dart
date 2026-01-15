@@ -1169,4 +1169,33 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get rateAppLater => 'Pregúntame luego';
+
+  @override
+  String get deleteAccount => 'Eliminar Cuenta';
+
+  @override
+  String get deleteAccountWarning1Title => 'Eliminar Cuenta';
+
+  @override
+  String get deleteAccountWarning1Message =>
+      '¿Estás seguro de que deseas eliminar tu cuenta? Esto eliminará toda tu información e imágenes y no se podrá deshacer.';
+
+  @override
+  String get deleteAccountWarning2Title => 'Confirmación Final';
+
+  @override
+  String get deleteAccountWarning2Message =>
+      '¡Esta acción es irreversible! Todo tu historial e imágenes se eliminarán permanentemente. ¿Estás 100% seguro?';
+
+  @override
+  String get deleteAccountConfirm => 'Sí, Eliminar Cuenta';
+
+  @override
+  String get deletingAccount => 'Eliminando cuenta...';
+
+  @override
+  String get accountDeleted => 'Cuenta eliminada exitosamente';
+
+  @override
+  String get errorDeletingAccount => 'Error al eliminar la cuenta';
 }

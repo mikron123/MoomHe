@@ -1,7 +1,9 @@
 import 'dart:io';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_colors.dart';
 import '../services/purchase_service.dart' show PurchaseService, PurchaseUiStatus, ProductIds;
 import '../l10n/localized_options.dart';
@@ -46,12 +48,14 @@ class SubscriptionModal extends StatefulWidget {
   State<SubscriptionModal> createState() => _SubscriptionModalState();
 }
 
-class _SubscriptionModalState extends State<SubscriptionModal> with TickerProviderStateMixin {
+class _SubscriptionModalState extends State<SubscriptionModal> with TickerProviderStateMixin, WidgetsBindingObserver {
   final PurchaseService _purchaseService = PurchaseService();
   bool _isLoading = true;
   bool _isPurchasing = false;
   String? _errorMessage;
   String? _purchasingProductId;
+  bool _userInitiatedPurchase = false; // Track if user actually started a purchase
+  DateTime? _purchaseStartTime; // Track when purchase was initiated
 
   // Animation controllers
   late AnimationController _headerController;
@@ -104,6 +108,7 @@ class _SubscriptionModalState extends State<SubscriptionModal> with TickerProvid
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initAnimations();
     _initializePurchases();
   }
@@ -152,10 +157,37 @@ class _SubscriptionModalState extends State<SubscriptionModal> with TickerProvid
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _headerController.dispose();
     _plansController.dispose();
     _footerController.dispose();
     super.dispose();
+  }
+  
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // When app resumes from background (after purchase dialog dismissed)
+    if (state == AppLifecycleState.resumed && _purchasingProductId != null) {
+      // Give a longer delay for purchase callbacks to fire first
+      // The purchase verification can take a few seconds
+      Future.delayed(const Duration(seconds: 5), () {
+        // If still showing loader after resuming, user likely cancelled
+        if (mounted && _purchasingProductId != null && _purchaseStartTime != null) {
+          final elapsed = DateTime.now().difference(_purchaseStartTime!);
+          // Only reset loader if purchase was started more than 5 seconds ago
+          if (elapsed.inSeconds >= 5) {
+            debugPrint('📱 App resumed - resetting loader (purchase likely cancelled or completed)');
+            setState(() {
+              _isPurchasing = false;
+              _purchasingProductId = null;
+              _purchaseStartTime = null;
+              // DON'T reset _userInitiatedPurchase here!
+              // The success callback might still come through
+            });
+          }
+        }
+      });
+    }
   }
 
   Future<void> _initializePurchases() async {
@@ -193,17 +225,31 @@ class _SubscriptionModalState extends State<SubscriptionModal> with TickerProvid
         case PurchaseUiStatus.success:
           _isPurchasing = false;
           _purchasingProductId = null;
-          Navigator.pop(context);
+          _purchaseStartTime = null;
+          // Always call onPurchaseComplete to refresh user data
           widget.onPurchaseComplete?.call();
+          // Only close modal if user actually initiated a purchase
+          // (not for automatic restore on init)
+          if (_userInitiatedPurchase) {
+            _userInitiatedPurchase = false;
+            Navigator.pop(context);
+          }
           break;
         case PurchaseUiStatus.error:
           _isPurchasing = false;
           _purchasingProductId = null;
-          _errorMessage = message ?? context.l10n.purchaseFailed;
+          _purchaseStartTime = null;
+          // Only show error if user initiated purchase
+          if (_userInitiatedPurchase) {
+            _errorMessage = message ?? context.l10n.purchaseFailed;
+          }
+          _userInitiatedPurchase = false;
           break;
         case PurchaseUiStatus.cancelled:
           _isPurchasing = false;
           _purchasingProductId = null;
+          _purchaseStartTime = null;
+          _userInitiatedPurchase = false;
           break;
         case PurchaseUiStatus.idle:
           _isPurchasing = false;
@@ -234,18 +280,40 @@ class _SubscriptionModalState extends State<SubscriptionModal> with TickerProvid
   }
 
   Future<void> _handlePurchase(SubscriptionPlan plan) async {
+    final productId = plan.productId;
+    
     setState(() {
-      _purchasingProductId = plan.productId;
+      _purchasingProductId = productId;
       _errorMessage = null;
+      _userInitiatedPurchase = true;
+      _purchaseStartTime = DateTime.now();
     });
 
-    await _purchaseService.purchaseSubscription(plan.productId);
+    final success = await _purchaseService.purchaseSubscription(productId);
+    
+    // If purchase initiation returned false, reset immediately
+    if (!success && mounted && _purchasingProductId == productId) {
+      setState(() {
+        _isPurchasing = false;
+        _purchasingProductId = null;
+        _userInitiatedPurchase = false;
+        _purchaseStartTime = null;
+      });
+    }
+    // If success, the lifecycle observer will handle resetting if user cancels
   }
 
   bool _isPlanCurrent(SubscriptionPlan plan) {
     return (widget.currentSubscription == 1 && plan.credits == 50) ||
         (widget.currentSubscription == 2 && plan.credits == 200) ||
         (widget.currentSubscription == 3 && plan.credits == 450);
+  }
+
+  Future<void> _launchUrlInApp(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.inAppWebView);
+    }
   }
 
   // Check if we're on a tablet/iPad (width > 600)
@@ -528,7 +596,12 @@ class _SubscriptionModalState extends State<SubscriptionModal> with TickerProvid
                         TextButton(
                           onPressed: _isPurchasing
                               ? null
-                              : () => _purchaseService.restorePurchases(),
+                              : () {
+                                  setState(() {
+                                    _userInitiatedPurchase = true; // User explicitly requested restore
+                                  });
+                                  _purchaseService.restorePurchases();
+                                },
                           child: Text(
                             context.l10n.restorePurchases,
                             style: TextStyle(
@@ -539,6 +612,41 @@ class _SubscriptionModalState extends State<SubscriptionModal> with TickerProvid
                         ),
                       ] else
                         SizedBox(height: isTablet ? 24 : 16),
+                      // Privacy Policy and Terms of Use links
+                      Padding(
+                        padding: EdgeInsets.only(
+                          top: Platform.isIOS ? 0 : 0,
+                          bottom: isTablet ? 8 : 4,
+                        ),
+                        child: RichText(
+                          textAlign: TextAlign.center,
+                          text: TextSpan(
+                            style: TextStyle(
+                              fontSize: isTablet ? 12 : 11,
+                              color: Colors.white.withValues(alpha: 0.4),
+                            ),
+                            children: [
+                              TextSpan(
+                                text: context.l10n.privacyPolicy,
+                                style: const TextStyle(
+                                  decoration: TextDecoration.underline,
+                                ),
+                                recognizer: TapGestureRecognizer()
+                                  ..onTap = () => _launchUrlInApp(context.l10n.privacyPolicyUrl),
+                              ),
+                              const TextSpan(text: '  |  '),
+                              TextSpan(
+                                text: context.l10n.termsOfService,
+                                style: const TextStyle(
+                                  decoration: TextDecoration.underline,
+                                ),
+                                recognizer: TapGestureRecognizer()
+                                  ..onTap = () => _launchUrlInApp(context.l10n.termsOfServiceUrl),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),

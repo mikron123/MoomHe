@@ -1151,4 +1151,33 @@ class AppLocalizationsHe extends AppLocalizations {
 
   @override
   String get rateAppLater => 'תשאל אותי אחר כך';
+
+  @override
+  String get deleteAccount => 'מחיקת חשבון';
+
+  @override
+  String get deleteAccountWarning1Title => 'מחיקת חשבון';
+
+  @override
+  String get deleteAccountWarning1Message =>
+      'האם אתה בטוח שברצונך למחוק את החשבון שלך? פעולה זו תמחק את כל המידע והתמונות שלך ולא ניתן יהיה לשחזר אותם.';
+
+  @override
+  String get deleteAccountWarning2Title => 'אישור סופי';
+
+  @override
+  String get deleteAccountWarning2Message =>
+      'זו פעולה בלתי הפיכה! כל ההיסטוריה והתמונות שלך יימחקו לצמיתות. האם אתה בטוח ב-100%?';
+
+  @override
+  String get deleteAccountConfirm => 'כן, מחק את החשבון';
+
+  @override
+  String get deletingAccount => 'מוחק חשבון...';
+
+  @override
+  String get accountDeleted => 'החשבון נמחק בהצלחה';
+
+  @override
+  String get errorDeletingAccount => 'שגיאה במחיקת החשבון';
 }

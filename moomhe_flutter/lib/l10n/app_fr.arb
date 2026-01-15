@@ -407,5 +407,15 @@
   "rateAppMessage": "Nous aimerions savoir ce que vous en pensez ! Vos commentaires nous aident à nous améliorer.",
   "rateAppYes": "Oui, j'adore ! 😍",
   "rateAppNo": "Pas vraiment",
-  "rateAppLater": "Plus tard"
+  "rateAppLater": "Plus tard",
+
+  "deleteAccount": "Supprimer le Compte",
+  "deleteAccountWarning1Title": "Supprimer le Compte",
+  "deleteAccountWarning1Message": "Êtes-vous sûr de vouloir supprimer votre compte ? Cela supprimera toutes vos informations et images et ne pourra pas être annulé.",
+  "deleteAccountWarning2Title": "Confirmation Finale",
+  "deleteAccountWarning2Message": "Cette action est irréversible ! Tout votre historique et vos images seront définitivement supprimés. Êtes-vous sûr à 100% ?",
+  "deleteAccountConfirm": "Oui, Supprimer le Compte",
+  "deletingAccount": "Suppression du compte...",
+  "accountDeleted": "Compte supprimé avec succès",
+  "errorDeletingAccount": "Erreur lors de la suppression du compte"
 }
