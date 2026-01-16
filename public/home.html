@@ -2,6 +2,38 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://www.moomhe.com/">
+    <meta property="og:title" content="MoomHe AI - עיצוב פנים ושיפוץ בעזרת בינה מלאכותית">
+    <meta property="og:description" content="פלטפורמת עיצוב פנים מבוססת AI למקצוענים. הפכו כל חלל לעיצוב מושלם בלחיצת כפתור.">
+    <meta property="og:image" content="https://www.moomhe.com/favicon-512x512.jpg">
+    <meta property="og:image:width" content="512">
+    <meta property="og:image:height" content="512">
+    
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:url" content="https://www.moomhe.com/">
+    <meta name="twitter:title" content="MoomHe AI - עיצוב פנים ושיפוץ בעזרת בינה מלאכותית">
+    <meta name="twitter:description" content="פלטפורמת עיצוב פנים מבוססת AI למקצוענים. הפכו כל חלל לעיצוב מושלם בלחיצת כפתור.">
+    <meta name="twitter:image" content="https://www.moomhe.com/favicon-512x512.jpg">
+
+    <script>
+      // Auto-redirect to app stores based on device
+      (function() {
+        var userAgent = navigator.userAgent || navigator.vendor || window.opera;
+        
+        // iOS detection (iPhone, iPad, iPod)
+        if (/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream) {
+          window.location.href = 'https://apps.apple.com/il/app/expert-ai-interior-design/id6757788133';
+        }
+        // Android detection
+        else if (/android/i.test(userAgent)) {
+          window.location.href = 'https://play.google.com/store/apps/details?id=com.kalromsystems.moomhe';
+        }
+      })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MoomHe AI - עיצוב פנים ושיפוץ בעזרת בינה מלאכותית</title>
     <script src="https://cdn.tailwindcss.com"></script>

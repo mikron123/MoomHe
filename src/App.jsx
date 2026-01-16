@@ -484,7 +484,7 @@ function App() {
         // Compress the image (HEIC already converted above)
         let compressedImageDataUrl = originalImageDataUrl
         try {
-          const compressedBlob = await compressImage(originalImageDataUrl, 1920, 1080, 0.8)
+          const compressedBlob = await compressImage(originalImageDataUrl, 1536, 0.8)
           // Convert compressed blob back to data URL for display
           const compressedReader = new FileReader()
           compressedImageDataUrl = await new Promise((resolve) => {

@@ -194,8 +194,8 @@ function getDeviceBrand() {
 }
 
 // Storage functions
-// Helper function to compress and resize image to max 1080p
-async function compressImage(imageDataUrl, maxWidth = 1920, maxHeight = 1080, quality = 0.8, isHeicFile = false) {
+// Helper function to compress and resize image - max 1536 on largest dimension, maintaining aspect ratio
+async function compressImage(imageDataUrl, maxDimension = 1536, quality = 0.8, isHeicFile = false) {
   // Check if the image is HEIC format (via flag or data URL detection)
   const needsHeicConversion = isHeicFile || imageDataUrl.includes('image/heic') || imageDataUrl.includes('image/heif');
   if (needsHeicConversion) {
@@ -214,7 +214,7 @@ async function compressImage(imageDataUrl, maxWidth = 1920, maxHeight = 1080, qu
           reader.onload = () => resolve(reader.result);
           reader.readAsDataURL(heicBlob);
         });
-        return await compressImage(convertedDataUrl, maxWidth, maxHeight, quality);
+        return await compressImage(convertedDataUrl, maxDimension, quality);
       }
       
       // Convert HEIC to JPEG using heic-to library
@@ -235,7 +235,7 @@ async function compressImage(imageDataUrl, maxWidth = 1920, maxHeight = 1080, qu
       console.log('HEIC converted to JPEG successfully');
       
       // Now process the converted JPEG with the regular compression logic
-      return await compressImage(convertedDataUrl, maxWidth, maxHeight, quality);
+      return await compressImage(convertedDataUrl, maxDimension, quality);
       
     } catch (heicError) {
       console.error('Error converting HEIC image:', heicError);
@@ -255,21 +255,28 @@ async function compressImage(imageDataUrl, maxWidth = 1920, maxHeight = 1080, qu
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         
-        // Calculate new dimensions while maintaining aspect ratio
+        // Calculate new dimensions - cap largest dimension at maxDimension while maintaining aspect ratio
         let { width, height } = img;
+        const originalWidth = width;
+        const originalHeight = height;
         
-        // If image is smaller than max dimensions, keep original size
-        if (width <= maxWidth && height <= maxHeight) {
+        // If image is already smaller than max on both sides, keep original size
+        if (width <= maxDimension && height <= maxDimension) {
           canvas.width = width;
           canvas.height = height;
         } else {
-          // Calculate scaling factor to fit within max dimensions
-          const scaleX = maxWidth / width;
-          const scaleY = maxHeight / height;
-          const scale = Math.min(scaleX, scaleY);
+          // Scale based on the largest dimension
+          const aspectRatio = width / height;
           
-          width = Math.floor(width * scale);
-          height = Math.floor(height * scale);
+          if (width > height) {
+            // Landscape: cap width at maxDimension
+            width = maxDimension;
+            height = Math.round(maxDimension / aspectRatio);
+          } else {
+            // Portrait: cap height at maxDimension
+            height = maxDimension;
+            width = Math.round(maxDimension * aspectRatio);
+          }
           
           canvas.width = width;
           canvas.height = height;
@@ -281,7 +288,7 @@ async function compressImage(imageDataUrl, maxWidth = 1920, maxHeight = 1080, qu
         // Convert to blob with specified quality
         canvas.toBlob((blob) => {
           if (blob) {
-            console.log(`Image compressed: Original ${img.width}x${img.height} -> ${width}x${height}, Size: ${(blob.size / 1024 / 1024).toFixed(2)}MB`);
+            console.log(`Image compressed: Original ${originalWidth}x${originalHeight} -> ${width}x${height} (max ${maxDimension}), Size: ${(blob.size / 1024 / 1024).toFixed(2)}MB`);
             resolve(blob);
           } else {
             reject(new Error('Failed to create compressed image blob'));
@@ -302,11 +309,11 @@ async function compressImage(imageDataUrl, maxWidth = 1920, maxHeight = 1080, qu
 }
 
 // Helper function to compress file directly
-function compressFile(file, maxWidth = 1920, maxHeight = 1080, quality = 0.8) {
+function compressFile(file, maxDimension = 1536, quality = 0.8) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
-      compressImage(e.target.result, maxWidth, maxHeight, quality)
+      compressImage(e.target.result, maxDimension, quality)
         .then(resolve)
         .catch(reject);
     };
@@ -372,10 +379,10 @@ function createThumbnail(imageDataUrl, maxWidth = 200, maxHeight = 200) {
 
 async function uploadImageToStorage(userId, imageDataUrl, prompt) {
   try {
-    // Compress image to max 1080p before uploading
+    // Compress image to max 1536 on largest dimension before uploading
     let compressedBlob;
     try {
-      compressedBlob = await compressImage(imageDataUrl, 1920, 1080, 0.8);
+      compressedBlob = await compressImage(imageDataUrl, 1536, 0.8);
     } catch (compressionError) {
       console.warn('Failed to compress image, using original:', compressionError);
       // Fallback: convert data URL to blob without compression
@@ -427,7 +434,7 @@ async function uploadImageToUserUploads(userId, file) {
     // Compress image to max 1080p before uploading
     let compressedBlob;
     try {
-      compressedBlob = await compressImage(dataUrl, 1920, 1080, 0.8);
+      compressedBlob = await compressImage(dataUrl, 1536, 0.8);
     } catch (compressionError) {
       console.warn('Failed to compress image, using original file:', compressionError);
       // Fallback: use the original file
@@ -692,7 +699,7 @@ async function uploadImageForSharing(userId, imageDataUrl) {
     // Compress image to max 1080p before uploading for sharing
     let compressedBlob;
     try {
-      compressedBlob = await compressImage(imageDataUrl, 1920, 1080, 0.8);
+      compressedBlob = await compressImage(imageDataUrl, 1536, 0.8);
     } catch (compressionError) {
       console.warn('Failed to compress image for sharing, using original:', compressionError);
       // Fallback: convert data URL to blob without compression

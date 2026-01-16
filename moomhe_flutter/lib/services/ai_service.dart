@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -8,6 +9,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 
 /// Enum for processing status updates (to be localized by the caller)
 enum ProcessingStatus {
@@ -44,6 +46,142 @@ class AIService {
 
   final Map<String, StreamSubscription> _activeRequests = {};
   String? _cachedDeviceId;
+
+  // Image compression settings
+  // Maximum dimension (width OR height) is 1536, maintaining aspect ratio
+  static const int _maxDimension = 1536;
+  static const int _jpegQuality = 80; // 0.8 quality like web app
+
+  /// Calculate target dimensions to fit within maxDimension while maintaining aspect ratio
+  /// The largest dimension will be capped at maxDimension
+  Map<String, int> _calculateTargetDimensions(int originalWidth, int originalHeight) {
+    // If image is already smaller than max, keep original size
+    if (originalWidth <= _maxDimension && originalHeight <= _maxDimension) {
+      return {'width': originalWidth, 'height': originalHeight};
+    }
+    
+    final aspectRatio = originalWidth / originalHeight;
+    
+    int targetWidth;
+    int targetHeight;
+    
+    if (originalWidth > originalHeight) {
+      // Landscape: cap width at maxDimension
+      targetWidth = _maxDimension;
+      targetHeight = (_maxDimension / aspectRatio).round();
+    } else {
+      // Portrait: cap height at maxDimension
+      targetHeight = _maxDimension;
+      targetWidth = (_maxDimension * aspectRatio).round();
+    }
+    
+    return {'width': targetWidth, 'height': targetHeight};
+  }
+
+  /// Compress image to max 1536 on the largest dimension while maintaining aspect ratio
+  /// Returns the path to the compressed temporary file
+  Future<String> compressImage(String imagePath) async {
+    try {
+      final file = File(imagePath);
+      if (!await file.exists()) {
+        debugPrint('⚠️ Image file not found, returning original path');
+        return imagePath;
+      }
+
+      final fileSize = await file.length();
+      debugPrint('📷 Original image size: ${(fileSize / 1024 / 1024).toStringAsFixed(2)}MB');
+
+      // Read image to determine dimensions
+      final bytes = await file.readAsBytes();
+      final codec = await ui.instantiateImageCodec(bytes);
+      final frame = await codec.getNextFrame();
+      final decodedImage = frame.image;
+      
+      final originalWidth = decodedImage.width;
+      final originalHeight = decodedImage.height;
+      
+      // Calculate target dimensions maintaining aspect ratio
+      final targetDims = _calculateTargetDimensions(originalWidth, originalHeight);
+      final targetWidth = targetDims['width']!;
+      final targetHeight = targetDims['height']!;
+      
+      debugPrint('📷 Original dimensions: ${originalWidth}x$originalHeight');
+      debugPrint('📷 Target dimensions: ${targetWidth}x$targetHeight (max $_maxDimension, keeping ratio)');
+
+      // Get temp directory for compressed file
+      final tempDir = await getTemporaryDirectory();
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final targetPath = '${tempDir.path}/compressed_$timestamp.jpg';
+
+      // Compress the image with calculated dimensions
+      final compressedFile = await FlutterImageCompress.compressAndGetFile(
+        imagePath,
+        targetPath,
+        quality: _jpegQuality,
+        minWidth: targetWidth,
+        minHeight: targetHeight,
+        format: CompressFormat.jpeg,
+      );
+
+      if (compressedFile == null) {
+        debugPrint('⚠️ Compression returned null, using original');
+        return imagePath;
+      }
+
+      final compressedSize = await compressedFile.length();
+      debugPrint('📷 Compressed image size: ${(compressedSize / 1024 / 1024).toStringAsFixed(2)}MB');
+      debugPrint('📷 Compression ratio: ${((1 - compressedSize / fileSize) * 100).toStringAsFixed(1)}% reduction');
+
+      return compressedFile.path;
+    } catch (e) {
+      debugPrint('❌ Error compressing image: $e');
+      // Return original path if compression fails
+      return imagePath;
+    }
+  }
+
+  /// Compress image bytes directly (for when we have bytes, not a file path)
+  /// Max 1536 on the largest dimension while maintaining aspect ratio
+  /// Returns compressed bytes
+  Future<Uint8List> compressImageBytes(Uint8List bytes) async {
+    try {
+      final originalSize = bytes.length;
+      debugPrint('📷 Original image bytes: ${(originalSize / 1024 / 1024).toStringAsFixed(2)}MB');
+
+      // Decode to determine dimensions
+      final codec = await ui.instantiateImageCodec(bytes);
+      final frame = await codec.getNextFrame();
+      final decodedImage = frame.image;
+      
+      final originalWidth = decodedImage.width;
+      final originalHeight = decodedImage.height;
+      
+      // Calculate target dimensions maintaining aspect ratio
+      final targetDims = _calculateTargetDimensions(originalWidth, originalHeight);
+      final targetWidth = targetDims['width']!;
+      final targetHeight = targetDims['height']!;
+      
+      debugPrint('📷 Original dimensions: ${originalWidth}x$originalHeight');
+      debugPrint('📷 Target dimensions: ${targetWidth}x$targetHeight (max $_maxDimension, keeping ratio)');
+
+      final compressedBytes = await FlutterImageCompress.compressWithList(
+        bytes,
+        quality: _jpegQuality,
+        minWidth: targetWidth,
+        minHeight: targetHeight,
+        format: CompressFormat.jpeg,
+      );
+
+      debugPrint('📷 Compressed image bytes: ${(compressedBytes.length / 1024 / 1024).toStringAsFixed(2)}MB');
+      debugPrint('📷 Compression ratio: ${((1 - compressedBytes.length / originalSize) * 100).toStringAsFixed(1)}% reduction');
+
+      return compressedBytes;
+    } catch (e) {
+      debugPrint('❌ Error compressing image bytes: $e');
+      // Return original bytes if compression fails
+      return bytes;
+    }
+  }
 
   /// Get current user, sign in anonymously if needed
   Future<User> ensureSignedIn() async {
@@ -198,13 +336,19 @@ class AIService {
   }
 
   /// Upload image to Firebase Storage and return download URL
+  /// Images are compressed to max 1920x1080 at 80% quality before upload (matching web app)
   Future<String> uploadImage(String localPath, String userId) async {
-    final file = File(localPath);
+    // Compress image before upload (matching web app behavior)
+    final compressedPath = await compressImage(localPath);
+    
+    final file = File(compressedPath);
     final bytes = await file.readAsBytes();
     
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final filename = 'upload_$timestamp.jpg';
     final ref = _storage.ref().child('userHistory/$userId/$filename');
+    
+    debugPrint('📤 Uploading compressed image: ${(bytes.length / 1024 / 1024).toStringAsFixed(2)}MB');
     
     final uploadTask = await ref.putData(
       bytes,
@@ -215,16 +359,22 @@ class AIService {
   }
 
   /// Upload image and save to user history with type: 'uploaded'
+  /// Images are compressed to max 1920x1080 at 80% quality before upload (matching web app)
   /// Returns the history entry with id, storageUrl, etc.
   Future<Map<String, dynamic>> uploadImageToHistory(String localPath) async {
     final user = await ensureSignedIn();
     
-    final file = File(localPath);
+    // Compress image before upload (matching web app behavior)
+    final compressedPath = await compressImage(localPath);
+    
+    final file = File(compressedPath);
     final bytes = await file.readAsBytes();
     
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final filename = 'upload_$timestamp.jpg';
     final thumbnailFilename = 'upload_${timestamp}_thumb.jpg';
+    
+    debugPrint('📤 Uploading compressed image to history: ${(bytes.length / 1024 / 1024).toStringAsFixed(2)}MB');
     
     // Upload main image
     final ref = _storage.ref().child('userHistory/${user.uid}/$filename');
@@ -263,35 +413,38 @@ class AIService {
   }
 
   /// Convert local image file to base64 data URL
+  /// Images are compressed to max 1920x1080 at 80% quality before encoding (matching web app)
   Future<String> imageToBase64(String localPath) async {
-    final file = File(localPath);
+    // Compress image before converting to base64 (matching web app behavior)
+    final compressedPath = await compressImage(localPath);
+    
+    final file = File(compressedPath);
     final bytes = await file.readAsBytes();
     final base64Data = base64Encode(bytes);
+    
+    debugPrint('📤 Converted compressed image to base64 data URL: ${(bytes.length / 1024 / 1024).toStringAsFixed(2)}MB');
+    
     return 'data:image/jpeg;base64,$base64Data';
   }
 
   /// Convert local image file to generative part format (like web's fileToGenerativePart)
+  /// Images are compressed to max 1920x1080 at 80% quality before encoding (matching web app)
   /// Returns { inlineData: { data: base64, mimeType: 'image/jpeg' } }
   Future<Map<String, dynamic>> fileToGenerativePart(String localPath) async {
-    final file = File(localPath);
+    // Compress image before converting to base64 (matching web app behavior)
+    final compressedPath = await compressImage(localPath);
+    
+    final file = File(compressedPath);
     final bytes = await file.readAsBytes();
     final base64Data = base64Encode(bytes);
     
-    // Determine MIME type
-    String mimeType = 'image/jpeg';
-    final extension = localPath.toLowerCase().split('.').last;
-    if (extension == 'png') {
-      mimeType = 'image/png';
-    } else if (extension == 'gif') {
-      mimeType = 'image/gif';
-    } else if (extension == 'webp') {
-      mimeType = 'image/webp';
-    }
+    debugPrint('📤 Converted compressed image to base64: ${(bytes.length / 1024 / 1024).toStringAsFixed(2)}MB');
     
+    // Always JPEG after compression
     return {
       'inlineData': {
         'data': base64Data,
-        'mimeType': mimeType,
+        'mimeType': 'image/jpeg',
       }
     };
   }
