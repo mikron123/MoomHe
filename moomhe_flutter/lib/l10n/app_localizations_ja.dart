@@ -362,6 +362,13 @@ class AppLocalizationsJa extends AppLocalizations {
   String get enterEmailFirst => 'まずメールアドレスを入力してください';
 
   @override
+  String get passwordResetEmailSent =>
+      'Password reset email sent! Check your inbox and spam folder.';
+
+  @override
+  String get passwordResetError => 'Error sending password reset email';
+
+  @override
   String get termsAgreement => 'ログインすると同意したことになります';
 
   @override

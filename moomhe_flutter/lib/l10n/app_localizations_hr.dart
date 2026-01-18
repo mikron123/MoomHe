@@ -367,6 +367,13 @@ class AppLocalizationsHr extends AppLocalizations {
   String get enterEmailFirst => 'Prvo unesite adresu e-pošte';
 
   @override
+  String get passwordResetEmailSent =>
+      'Password reset email sent! Check your inbox and spam folder.';
+
+  @override
+  String get passwordResetError => 'Error sending password reset email';
+
+  @override
   String get termsAgreement => 'Prijavom prihvaćate';
 
   @override

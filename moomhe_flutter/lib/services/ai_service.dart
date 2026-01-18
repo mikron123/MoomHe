@@ -8,6 +8,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:android_id/android_id.dart';
+import 'package:platform_device_id_plus/platform_device_id.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 
@@ -208,16 +210,22 @@ class AIService {
     // Get device ID
     final deviceId = await getDeviceId();
     
+    // Get detailed device info
+    final deviceDetails = await _getDeviceDetails();
+    
     final userData = {
       'uid': user.uid,
       'email': user.email,
       'lastActive': FieldValue.serverTimestamp(),
       'os': Platform.isAndroid ? 'Android' : 'iOS',
-      'deviceBrand': _getDeviceBrand(),
-      'appVersion': '1.0.0',
       'deviceId': deviceId,
       'createdAt': user.metadata.creationTime?.toIso8601String(),
       'isAnonymous': user.isAnonymous,
+      // Detailed device info
+      'deviceBrand': deviceDetails['brand'],
+      'deviceModel': deviceDetails['model'],
+      'osVersion': deviceDetails['osVersion'],
+      'appVersion': '1.0.0',
     };
 
     try {
@@ -226,17 +234,50 @@ class AIService {
         SetOptions(merge: true), // Don't overwrite credits/subscription
       );
       debugPrint('👤 User record created/updated in Firestore (deviceId: $deviceId)');
+      debugPrint('📱 Device: ${deviceDetails['brand']} ${deviceDetails['model']} (${deviceDetails['osVersion']})');
     } catch (e) {
       debugPrint('❌ Error creating user record: $e');
     }
   }
 
-  String _getDeviceBrand() {
-    if (Platform.isIOS) return 'Apple';
-    return 'Android Device';
+  /// Get detailed device information
+  Future<Map<String, String>> _getDeviceDetails() async {
+    try {
+      if (Platform.isAndroid) {
+        final androidInfo = await _deviceInfo.androidInfo;
+        return {
+          'brand': androidInfo.brand,           // e.g., "Samsung", "Google", "Xiaomi"
+          'model': androidInfo.model,           // e.g., "Pixel 7", "Galaxy S23"
+          'osVersion': 'Android ${androidInfo.version.release}', // e.g., "Android 14"
+        };
+      } else if (Platform.isIOS) {
+        final iosInfo = await _deviceInfo.iosInfo;
+        return {
+          'brand': 'Apple',
+          'model': iosInfo.utsname.machine,     // e.g., "iPhone14,2"
+          'osVersion': '${iosInfo.systemName} ${iosInfo.systemVersion}', // e.g., "iOS 17.2"
+        };
+      }
+    } catch (e) {
+      debugPrint('❌ Error getting device details: $e');
+    }
+    return {
+      'brand': 'Unknown',
+      'model': 'Unknown',
+      'osVersion': 'Unknown',
+    };
   }
 
+  /// AndroidId plugin instance for getting unique Android device ID
+  static const AndroidId _androidIdPlugin = AndroidId();
+
   /// Get unique device ID
+  /// On Android: Uses Settings.Secure.ANDROID_ID via android_id plugin (unique per app per device)
+  /// On iOS: Uses PlatformDeviceId which provides a consistent device identifier
+  /// 
+  /// NOTE: The previous implementation used androidInfo.id which is Build.ID - 
+  /// the firmware/build version ID that is IDENTICAL across all devices with the same ROM.
+  /// This caused multiple users to share the same deviceId, blocking them incorrectly.
   Future<String> getDeviceId() async {
     if (_cachedDeviceId != null) {
       return _cachedDeviceId!;
@@ -244,14 +285,14 @@ class AIService {
 
     try {
       if (Platform.isAndroid) {
-        final androidInfo = await _deviceInfo.androidInfo;
-        // Use Android ID which is unique per app per device
-        _cachedDeviceId = androidInfo.id;
+        // Use Settings.Secure.ANDROID_ID - unique per app per device
+        final String? androidId = await _androidIdPlugin.getId();
+        _cachedDeviceId = androidId ?? 'android-unknown';
         debugPrint('📱 Android Device ID: $_cachedDeviceId');
       } else if (Platform.isIOS) {
-        final iosInfo = await _deviceInfo.iosInfo;
-        // Use identifierForVendor which is unique per vendor per device
-        _cachedDeviceId = iosInfo.identifierForVendor ?? 'ios-unknown';
+        // Use PlatformDeviceId for iOS - consistent device identifier
+        final String? deviceId = await PlatformDeviceId.getDeviceId;
+        _cachedDeviceId = deviceId ?? 'ios-unknown';
         debugPrint('📱 iOS Device ID: $_cachedDeviceId');
       } else {
         _cachedDeviceId = 'unknown-platform';
@@ -333,6 +374,17 @@ class AIService {
   Future<void> signOut() async {
     await _auth.signOut();
     debugPrint('🔐 User signed out');
+  }
+
+  /// Send password reset email
+  Future<void> sendPasswordResetEmail(String email) async {
+    try {
+      await _auth.sendPasswordResetEmail(email: email);
+      debugPrint('📧 Password reset email sent to: $email');
+    } catch (e) {
+      debugPrint('❌ Error sending password reset email: $e');
+      rethrow;
+    }
   }
 
   /// Upload image to Firebase Storage and return download URL

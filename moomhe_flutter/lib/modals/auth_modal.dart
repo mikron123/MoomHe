@@ -53,7 +53,12 @@ class _AuthModalState extends State<AuthModal> {
     super.dispose();
   }
 
+  void _dismissKeyboard() {
+    FocusScope.of(context).unfocus();
+  }
+
   void _handleSubmit() {
+    _dismissKeyboard();
     final email = _emailController.text.trim();
     final password = _passwordController.text;
     final l10n = context.l10n;
@@ -89,9 +94,11 @@ class _AuthModalState extends State<AuthModal> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: Container(
+    return GestureDetector(
+      onTap: _dismissKeyboard,
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: Container(
         decoration: BoxDecoration(
           gradient: RadialGradient(
             center: Alignment.topRight,
@@ -172,7 +179,10 @@ class _AuthModalState extends State<AuthModal> {
                           children: [
                             Expanded(
                               child: GestureDetector(
-                                onTap: () => setState(() => _isLogin = false),
+                                onTap: () {
+                                  _dismissKeyboard();
+                                  setState(() => _isLogin = false);
+                                },
                                 child: AnimatedContainer(
                                   duration: const Duration(milliseconds: 200),
                                   padding: const EdgeInsets.symmetric(vertical: 14),
@@ -194,7 +204,10 @@ class _AuthModalState extends State<AuthModal> {
                             ),
                             Expanded(
                               child: GestureDetector(
-                                onTap: () => setState(() => _isLogin = true),
+                                onTap: () {
+                                  _dismissKeyboard();
+                                  setState(() => _isLogin = true);
+                                },
                                 child: AnimatedContainer(
                                   duration: const Duration(milliseconds: 200),
                                   padding: const EdgeInsets.symmetric(vertical: 14),
@@ -315,6 +328,7 @@ class _AuthModalState extends State<AuthModal> {
                         const SizedBox(height: 20),
                         TextButton(
                           onPressed: () {
+                            _dismissKeyboard();
                             final email = _emailController.text.trim();
                             if (email.isEmpty) {
                               setState(() => _error = context.l10n.enterEmailFirst);
@@ -375,6 +389,7 @@ class _AuthModalState extends State<AuthModal> {
           ),
         ),
       ),
+    ),
     );
   }
 }

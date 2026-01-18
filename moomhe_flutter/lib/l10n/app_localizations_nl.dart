@@ -370,6 +370,13 @@ class AppLocalizationsNl extends AppLocalizations {
   String get enterEmailFirst => 'Voer eerst een e-mailadres in';
 
   @override
+  String get passwordResetEmailSent =>
+      'Password reset email sent! Check your inbox and spam folder.';
+
+  @override
+  String get passwordResetError => 'Error sending password reset email';
+
+  @override
   String get termsAgreement => 'Door in te loggen ga je akkoord met de';
 
   @override

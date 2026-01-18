@@ -369,6 +369,13 @@ class AppLocalizationsIt extends AppLocalizations {
   String get enterEmailFirst => 'Per favore inserisci prima un indirizzo email';
 
   @override
+  String get passwordResetEmailSent =>
+      'Password reset email sent! Check your inbox and spam folder.';
+
+  @override
+  String get passwordResetError => 'Error sending password reset email';
+
+  @override
   String get termsAgreement => 'Accedendo accetti i';
 
   @override

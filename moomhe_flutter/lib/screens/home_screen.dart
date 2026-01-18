@@ -1054,8 +1054,35 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
         fullscreenDialog: true,
         builder: (context) => AuthModal(
           initialIsLogin: isLogin,
-          onPasswordReset: (email) {
-            // Handle password reset
+          onPasswordReset: (email) async {
+            final l10n = context.l10n;
+            try {
+              await _aiService.sendPasswordResetEmail(email);
+              if (mounted) {
+                _showToast(
+                  message: l10n.passwordResetEmailSent,
+                  icon: LucideIcons.mail,
+                  backgroundColor: Colors.green.shade600,
+                );
+              }
+            } catch (e) {
+              if (mounted) {
+                final errorString = e.toString().toLowerCase();
+                String errorMessage = l10n.passwordResetError;
+                
+                if (errorString.contains('user-not-found')) {
+                  errorMessage = l10n.userNotFound;
+                } else if (errorString.contains('invalid-email')) {
+                  errorMessage = l10n.invalidEmail;
+                }
+                
+                _showToast(
+                  message: errorMessage,
+                  icon: LucideIcons.alertCircle,
+                  backgroundColor: Colors.red.shade600,
+                );
+              }
+            }
           },
         ),
       ),

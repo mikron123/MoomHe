@@ -362,6 +362,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get enterEmailFirst => '请先输入电子邮箱地址';
 
   @override
+  String get passwordResetEmailSent =>
+      'Password reset email sent! Check your inbox and spam folder.';
+
+  @override
+  String get passwordResetError => 'Error sending password reset email';
+
+  @override
   String get termsAgreement => '登录即表示您同意';
 
   @override

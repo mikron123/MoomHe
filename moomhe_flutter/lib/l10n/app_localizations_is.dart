@@ -370,6 +370,13 @@ class AppLocalizationsIs extends AppLocalizations {
   String get enterEmailFirst => 'Vinsamlegast sláðu inn netfang fyrst';
 
   @override
+  String get passwordResetEmailSent =>
+      'Password reset email sent! Check your inbox and spam folder.';
+
+  @override
+  String get passwordResetError => 'Error sending password reset email';
+
+  @override
   String get termsAgreement => 'Með innskráningu samþykkir þú';
 
   @override

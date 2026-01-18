@@ -368,6 +368,13 @@ class AppLocalizationsHu extends AppLocalizations {
   String get enterEmailFirst => 'Kérlek, először add meg az e-mail címet';
 
   @override
+  String get passwordResetEmailSent =>
+      'Password reset email sent! Check your inbox and spam folder.';
+
+  @override
+  String get passwordResetError => 'Error sending password reset email';
+
+  @override
   String get termsAgreement => 'A bejelentkezéssel elfogadod a';
 
   @override

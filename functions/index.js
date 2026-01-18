@@ -2566,3 +2566,103 @@ async function _resetToFreeTier(userId, reason) {
   });
   logger.info(`[_resetToFreeTier] Reset user ${userId} to free tier, reason: ${reason}`);
 }
+
+// Helper function to generate a random device ID
+function _generateRandomDeviceId() {
+  const chars = 'abcdef0123456789';
+  let result = '';
+  for (let i = 0; i < 16; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
+// ===========================================
+// Fix Buggy Device IDs
+// ===========================================
+// One-time fix for users who got the same buggy device ID (Build.ID instead of ANDROID_ID)
+// This updates all users with the buggy deviceId to a unique random string
+exports.fixBuggyDeviceIds = onRequest({ cors: true }, async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+  
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: 'Method not allowed' });
+    return;
+  }
+  
+  try {
+    const { buggyDeviceId } = req.body;
+    
+    // Default to the known buggy device ID if not provided
+    const targetDeviceId = buggyDeviceId || 'BP2A.250605.031.A3';
+    
+    logger.info(`[fixBuggyDeviceIds] Looking for users with deviceId: ${targetDeviceId}`);
+    
+    // Find all users with the buggy device ID
+    const usersRef = db.collection('users');
+    const affectedUsers = await usersRef.where('deviceId', '==', targetDeviceId).get();
+    
+    if (affectedUsers.empty) {
+      logger.info(`[fixBuggyDeviceIds] No users found with deviceId: ${targetDeviceId}`);
+      res.json({
+        success: true,
+        message: 'No affected users found',
+        usersUpdated: 0,
+      });
+      return;
+    }
+    
+    logger.info(`[fixBuggyDeviceIds] Found ${affectedUsers.size} affected users`);
+    
+    // Update each user with a unique random device ID
+    const updates = [];
+    const updatedUsers = [];
+    
+    for (const userDoc of affectedUsers.docs) {
+      const userId = userDoc.id;
+      const newDeviceId = `fixed_${_generateRandomDeviceId()}`;
+      
+      updates.push(
+        usersRef.doc(userId).update({
+          deviceId: newDeviceId,
+          previousDeviceId: targetDeviceId,
+          deviceIdFixedAt: admin.firestore.FieldValue.serverTimestamp(),
+          deviceIdFixReason: 'buggy_build_id_fix',
+        })
+      );
+      
+      updatedUsers.push({
+        userId,
+        newDeviceId,
+      });
+      
+      logger.info(`[fixBuggyDeviceIds] Queued update for user ${userId}: ${targetDeviceId} -> ${newDeviceId}`);
+    }
+    
+    // Execute all updates
+    await Promise.all(updates);
+    
+    logger.info(`[fixBuggyDeviceIds] Successfully updated ${updatedUsers.length} users`);
+    
+    res.json({
+      success: true,
+      message: `Fixed device IDs for ${updatedUsers.length} users`,
+      usersUpdated: updatedUsers.length,
+      updatedUsers: updatedUsers,
+    });
+    
+  } catch (error) {
+    logger.error('[fixBuggyDeviceIds] Error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message || 'Error fixing device IDs' 
+    });
+  }
+});

@@ -370,6 +370,13 @@ class AppLocalizationsGa extends AppLocalizations {
       'Cuir isteach seoladh ríomhphoist ar dtús le do thoil';
 
   @override
+  String get passwordResetEmailSent =>
+      'Password reset email sent! Check your inbox and spam folder.';
+
+  @override
+  String get passwordResetError => 'Error sending password reset email';
+
+  @override
   String get termsAgreement => 'Trí logáil isteach aontaíonn tú leis na';
 
   @override

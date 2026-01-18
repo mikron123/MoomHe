@@ -368,6 +368,13 @@ class AppLocalizationsSl extends AppLocalizations {
   String get enterEmailFirst => 'Prosimo, najprej vnesite e-poštni naslov';
 
   @override
+  String get passwordResetEmailSent =>
+      'Password reset email sent! Check your inbox and spam folder.';
+
+  @override
+  String get passwordResetError => 'Error sending password reset email';
+
+  @override
   String get termsAgreement => 'S prijavo se strinjate s';
 
   @override

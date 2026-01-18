@@ -841,6 +841,18 @@ abstract class AppLocalizations {
   /// **'Please enter an email address first'**
   String get enterEmailFirst;
 
+  /// No description provided for @passwordResetEmailSent.
+  ///
+  /// In en, this message translates to:
+  /// **'Password reset email sent! Check your inbox and spam folder.'**
+  String get passwordResetEmailSent;
+
+  /// No description provided for @passwordResetError.
+  ///
+  /// In en, this message translates to:
+  /// **'Error sending password reset email'**
+  String get passwordResetError;
+
   /// No description provided for @termsAgreement.
   ///
   /// In en, this message translates to:

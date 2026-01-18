@@ -368,6 +368,13 @@ class AppLocalizationsKa extends AppLocalizations {
   String get enterEmailFirst => 'გთხოვთ, ჯერ შეიყვანოთ ელ-ფოსტის მისამართი';
 
   @override
+  String get passwordResetEmailSent =>
+      'Password reset email sent! Check your inbox and spam folder.';
+
+  @override
+  String get passwordResetError => 'Error sending password reset email';
+
+  @override
   String get termsAgreement => 'შესვლით თქვენ ეთანხმებით';
 
   @override

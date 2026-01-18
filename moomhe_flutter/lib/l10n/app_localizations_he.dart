@@ -363,6 +363,13 @@ class AppLocalizationsHe extends AppLocalizations {
   String get enterEmailFirst => 'אנא הזן כתובת אימייל קודם';
 
   @override
+  String get passwordResetEmailSent =>
+      'נשלח מייל לאיפוס סיסמה! בדוק את תיבת הדואר ותיקיית הספאם.';
+
+  @override
+  String get passwordResetError => 'שגיאה בשליחת מייל לאיפוס סיסמה';
+
+  @override
   String get termsAgreement => 'בהתחברות אתה מסכים ל';
 
   @override

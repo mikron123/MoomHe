@@ -370,6 +370,13 @@ class AppLocalizationsRo extends AppLocalizations {
       'Vă rugăm să introduceți mai întâi o adresă de e-mail';
 
   @override
+  String get passwordResetEmailSent =>
+      'Password reset email sent! Check your inbox and spam folder.';
+
+  @override
+  String get passwordResetError => 'Error sending password reset email';
+
+  @override
   String get termsAgreement => 'Prin conectare, sunteți de acord cu';
 
   @override

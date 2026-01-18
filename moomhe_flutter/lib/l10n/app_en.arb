@@ -148,6 +148,8 @@
   "createAccountButton": "Create Account",
   "forgotPassword": "Forgot password?",
   "enterEmailFirst": "Please enter an email address first",
+  "passwordResetEmailSent": "Password reset email sent! Check your inbox and spam folder.",
+  "passwordResetError": "Error sending password reset email",
   "termsAgreement": "By logging in you agree to the",
   "termsOfService": "Terms of Service",
   "and": "and",

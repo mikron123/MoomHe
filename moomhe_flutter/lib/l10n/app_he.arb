@@ -148,6 +148,8 @@
   "createAccountButton": "צור חשבון",
   "forgotPassword": "שכחת סיסמה?",
   "enterEmailFirst": "אנא הזן כתובת אימייל קודם",
+  "passwordResetEmailSent": "נשלח מייל לאיפוס סיסמה! בדוק את תיבת הדואר ותיקיית הספאם.",
+  "passwordResetError": "שגיאה בשליחת מייל לאיפוס סיסמה",
   "termsAgreement": "בהתחברות אתה מסכים ל",
   "termsOfService": "תנאי השירות",
   "and": "ו",

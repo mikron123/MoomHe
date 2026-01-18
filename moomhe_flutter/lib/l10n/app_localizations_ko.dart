@@ -362,6 +362,13 @@ class AppLocalizationsKo extends AppLocalizations {
   String get enterEmailFirst => '먼저 이메일 주소를 입력해주세요';
 
   @override
+  String get passwordResetEmailSent =>
+      'Password reset email sent! Check your inbox and spam folder.';
+
+  @override
+  String get passwordResetError => 'Error sending password reset email';
+
+  @override
   String get termsAgreement => '로그인하면 다음에 동의하게 됩니다';
 
   @override

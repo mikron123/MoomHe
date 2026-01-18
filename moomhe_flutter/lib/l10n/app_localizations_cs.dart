@@ -366,6 +366,13 @@ class AppLocalizationsCs extends AppLocalizations {
   String get enterEmailFirst => 'Nejprve zadejte e-mailovou adresu';
 
   @override
+  String get passwordResetEmailSent =>
+      'Password reset email sent! Check your inbox and spam folder.';
+
+  @override
+  String get passwordResetError => 'Error sending password reset email';
+
+  @override
   String get termsAgreement => 'Přihlášením souhlasíte s';
 
   @override
