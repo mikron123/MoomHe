@@ -1211,4 +1211,17 @@ class AppLocalizationsFi extends AppLocalizations {
 
   @override
   String get languageChanged => 'Kieli vaihdettu';
+
+  @override
+  String get createAccountPromptTitle => 'Luo tilisi';
+
+  @override
+  String get createAccountPromptMessage =>
+      'Upeita päivityksiä on tulossa lähiviikkoina! 🚀\n\nLuo tili nyt, ettet menetä luomuksiasi ja ole ensimmäinen, joka nauttii uusista ominaisuuksista.';
+
+  @override
+  String get createAccountPromptButton => 'Luo tili';
+
+  @override
+  String get maybeLater => 'Ehkä myöhemmin';
 }

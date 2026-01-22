@@ -476,5 +476,10 @@
 
   "language": "Sprache",
   "selectLanguage": "Sprache auswählen",
-  "languageChanged": "Sprache geändert"
+  "languageChanged": "Sprache geändert",
+
+  "createAccountPromptTitle": "Erstelle dein Konto",
+  "createAccountPromptMessage": "Tolle Updates kommen in den nächsten Wochen! 🚀\n\nErstelle jetzt ein Konto, um deine Kreationen nicht zu verlieren und als Erster die neuen Funktionen zu genießen.",
+  "createAccountPromptButton": "Konto erstellen",
+  "maybeLater": "Vielleicht später"
 }

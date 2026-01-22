@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Crown, Check, X } from 'lucide-react';
+import { useLocalization } from './localization.jsx';
 
 const LimitReachedModal = ({ isOpen, onClose, onShowPricing, userSubscription, currentUsage, limit }) => {
   const [mounted, setMounted] = useState(false);
+  const { t, isRTL } = useLocalization();
 
   useEffect(() => {
     setMounted(true);
@@ -12,12 +14,12 @@ const LimitReachedModal = ({ isOpen, onClose, onShowPricing, userSubscription, c
   if (!isOpen || !mounted) return null;
 
   return createPortal(
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in" dir={isRTL ? 'rtl' : 'ltr'}>
       <div className="glass-card w-full max-w-md bg-surface relative overflow-hidden">
         {/* Close button */}
         <button 
           onClick={onClose}
-          className="absolute top-4 left-4 text-textMuted hover:text-white p-1 rounded-full hover:bg-white/10 transition-colors"
+          className={`absolute top-4 ${isRTL ? 'left-4' : 'right-4'} text-textMuted hover:text-white p-1 rounded-full hover:bg-white/10 transition-colors`}
         >
           <X className="w-5 h-5" />
         </button>
@@ -34,27 +36,27 @@ const LimitReachedModal = ({ isOpen, onClose, onShowPricing, userSubscription, c
 
           {/* Title */}
           <h3 className="text-2xl font-bold text-white mb-2">
-            {userSubscription > 0 ? 'נגמרו הקרדיטים לחודש זה' : 'הגעת למגבלת השימוש החינמי'}
+            {userSubscription > 0 ? t('creditsDepletedThisMonth') : t('reachedFreeLimit')}
           </h3>
 
           {/* Description */}
           <p className="text-gray-300 mb-8 leading-relaxed">
             {userSubscription > 0 
-              ? `הגעת למגבלת הקרדיטים שלך (${limit} קרדיטים). ניתן לשדרג לחבילה גדולה יותר או לחכות לחודש הבא.`
-              : `ניצלת את כל ${limit} הקרדיטים החינמיים שלך. כדי להמשיך לעצב ללא הגבלה ולקבל תכונות מתקדמות, שדרג למנוי מקצועי.`
+              ? t('creditsDepletedDesc', { limit })
+              : t('reachedFreeLimitDesc', { limit })
             }
           </p>
 
           {/* Stats Box */}
           <div className="w-full bg-white/5 rounded-xl p-4 mb-8 border border-white/10 flex justify-between items-center">
-            <div className="text-right">
-              <div className="text-xs text-gray-400 mb-1">שימוש נוכחי</div>
-              <div className="text-lg font-bold text-white">{currentUsage} עיצובים</div>
+            <div className={isRTL ? 'text-right' : 'text-left'}>
+              <div className="text-xs text-gray-400 mb-1">{t('currentUsage')}</div>
+              <div className="text-lg font-bold text-white">{currentUsage} {t('designs')}</div>
             </div>
             <div className="h-8 w-px bg-white/10 mx-4" />
-            <div className="text-right">
-              <div className="text-xs text-gray-400 mb-1">מגבלה</div>
-              <div className="text-lg font-bold text-white">{limit} עיצובים</div>
+            <div className={isRTL ? 'text-right' : 'text-left'}>
+              <div className="text-xs text-gray-400 mb-1">{t('limitLabel')}</div>
+              <div className="text-lg font-bold text-white">{limit} {t('designs')}</div>
             </div>
           </div>
 
@@ -67,14 +69,14 @@ const LimitReachedModal = ({ isOpen, onClose, onShowPricing, userSubscription, c
             className="w-full py-3.5 rounded-xl bg-gradient-to-r from-primary-500 to-secondary-600 text-white font-semibold shadow-lg shadow-primary-900/20 flex items-center justify-center gap-2 mb-3"
           >
             <Crown className="w-5 h-5" />
-            {userSubscription > 0 ? 'שדרג חבילה' : 'עבור למנוי מקצועי'}
+            {userSubscription > 0 ? t('upgradePlan') : t('goToProfessional')}
           </button>
 
           <button
             onClick={onClose}
             className="text-sm text-gray-400 hover:text-white transition-colors"
           >
-            לא עכשיו, תודה
+            {t('notNowThanks')}
           </button>
         </div>
       </div>

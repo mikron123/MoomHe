@@ -7,6 +7,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'l10n/app_localizations.dart';
 import 'theme/app_theme.dart';
 import 'screens/home_screen.dart';
+import 'services/ai_service.dart';
+import 'services/analytics_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,6 +30,9 @@ void main() async {
       ),
     );
   }
+  
+  // Log app open for analytics
+  AnalyticsService().logAppOpen();
   
   // Set preferred orientations
   SystemChrome.setPreferredOrientations([
@@ -121,12 +126,23 @@ class _MoomheAppState extends State<MoomheApp> {
     final savedLocale = prefs.getString(_localeKey);
     if (savedLocale != null && mounted) {
       final parts = savedLocale.split('_');
+      final locale = parts.length > 1 
+          ? Locale(parts[0], parts[1])
+          : Locale(parts[0]);
       setState(() {
-        _selectedLocale = parts.length > 1 
-            ? Locale(parts[0], parts[1])
-            : Locale(parts[0]);
+        _selectedLocale = locale;
       });
+      // Update AIService with the current locale
+      _updateAIServiceLocale(locale);
     }
+  }
+
+  /// Update AIService with the current locale string
+  void _updateAIServiceLocale(Locale locale) {
+    final localeString = locale.countryCode != null 
+        ? '${locale.languageCode}_${locale.countryCode}'
+        : locale.languageCode;
+    AIService().setCurrentLocale(localeString);
   }
 
   /// Change the app locale and save preference
@@ -141,6 +157,11 @@ class _MoomheAppState extends State<MoomheApp> {
       setState(() {
         _selectedLocale = locale;
       });
+      // Update AIService with the new locale
+      _updateAIServiceLocale(locale);
+      // Track locale change in analytics
+      AnalyticsService().setUserLocale(localeString);
+      AnalyticsService().logLanguageChanged(localeString);
     }
   }
 
@@ -155,6 +176,8 @@ class _MoomheAppState extends State<MoomheApp> {
       theme: AppTheme.darkTheme,
       // Use selected locale if set
       locale: _selectedLocale,
+      // Analytics navigation observer
+      navigatorObservers: [AnalyticsService().observer],
       // Localization configuration
       localizationsDelegates: const [
         AppLocalizations.delegate,

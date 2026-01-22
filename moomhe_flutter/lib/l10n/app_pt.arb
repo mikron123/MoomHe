@@ -476,5 +476,10 @@
 
   "language": "Idioma",
   "selectLanguage": "Selecionar Idioma",
-  "languageChanged": "Idioma alterado"
+  "languageChanged": "Idioma alterado",
+
+  "createAccountPromptTitle": "Crie sua conta",
+  "createAccountPromptMessage": "Atualizações incríveis estão chegando nas próximas semanas! 🚀\n\nCrie uma conta agora para não perder suas criações e ser o primeiro a aproveitar os novos recursos.",
+  "createAccountPromptButton": "Criar conta",
+  "maybeLater": "Talvez mais tarde"
 }

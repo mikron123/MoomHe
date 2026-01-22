@@ -478,5 +478,10 @@
 
   "language": "Language",
   "selectLanguage": "Select Language",
-  "languageChanged": "Language changed"
+  "languageChanged": "Language changed",
+
+  "createAccountPromptTitle": "Create Your Account",
+  "createAccountPromptMessage": "Amazing updates are coming in the next few weeks! 🚀\n\nCreate an account now to not lose your creations and be the first to enjoy new features.",
+  "createAccountPromptButton": "Create Account",
+  "maybeLater": "Maybe Later"
 }

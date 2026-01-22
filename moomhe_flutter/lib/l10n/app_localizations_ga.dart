@@ -1218,4 +1218,17 @@ class AppLocalizationsGa extends AppLocalizations {
 
   @override
   String get languageChanged => 'Teanga athraithe';
+
+  @override
+  String get createAccountPromptTitle => 'Cruthaigh do chuntas';
+
+  @override
+  String get createAccountPromptMessage =>
+      'Tá nuashonruithe iontacha ag teacht sna seachtainí amach romhainn! 🚀\n\nCruthaigh cuntas anois ionas nach gcaillfidh tú do chruthaíochtaí agus bí ar an gcéad duine a bhainfidh taitneamh as gnéithe nua.';
+
+  @override
+  String get createAccountPromptButton => 'Cruthaigh cuntas';
+
+  @override
+  String get maybeLater => 'B\'fhéidir níos déanaí';
 }

@@ -476,5 +476,10 @@
 
   "language": "Jazyk",
   "selectLanguage": "Vybrat jazyk",
-  "languageChanged": "Jazyk změněn"
+  "languageChanged": "Jazyk změněn",
+
+  "createAccountPromptTitle": "Vytvořte si účet",
+  "createAccountPromptMessage": "V příštích týdnech přijdou úžasné aktualizace! 🚀\n\nVytvořte si účet nyní, abyste nepřišli o své výtvory a byli první, kdo si vychutná nové funkce.",
+  "createAccountPromptButton": "Vytvořit účet",
+  "maybeLater": "Možná později"
 }

@@ -22,8 +22,10 @@ import '../modals/coupon_modal.dart';
 import '../modals/contact_modal.dart';
 import '../modals/ai_error_modal.dart';
 import '../modals/rate_app_modal.dart';
+import '../modals/create_account_prompt_modal.dart';
 import '../models/history_entry.dart';
 import '../services/ai_service.dart';
+import '../services/analytics_service.dart';
 import '../l10n/localized_options.dart';
 import 'package:in_app_review/in_app_review.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -36,8 +38,9 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, WidgetsBindingObserver {
-  // AI Service
+  // Services
   final AIService _aiService = AIService();
+  final AnalyticsService _analytics = AnalyticsService();
   
   // Image state
   String? _mainImage;
@@ -159,6 +162,24 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
     _previousBottomInset = bottomInset;
   }
 
+  String? _lastSyncedLocale;
+  
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Sync the current locale with AIService when dependencies change
+    final locale = Localizations.localeOf(context);
+    final localeString = locale.countryCode != null 
+        ? '${locale.languageCode}_${locale.countryCode}'
+        : locale.languageCode;
+    
+    // Only update if locale changed
+    if (_lastSyncedLocale != localeString) {
+      _lastSyncedLocale = localeString;
+      _aiService.setCurrentLocale(localeString);
+    }
+  }
+
   Future<void> _initializeApp() async {
     try {
       // Sign in anonymously
@@ -188,6 +209,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
         
         // Mark onboarding as shown
         await prefs.setBool(_onboardingShownKey, true);
+        
+        // Track first open with onboarding
+        _analytics.logFirstOpen();
       }
     } catch (e) {
       print('Error checking first launch onboarding: $e');
@@ -311,6 +335,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
     );
 
     if (image != null && mounted) {
+      // Track gallery upload
+      _analytics.logImageUploadGallery();
       // Upload to history with type: 'uploaded'
       _uploadImageToHistory(image.path);
     }
@@ -325,6 +351,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
     );
 
     if (image != null && mounted) {
+      // Track camera upload
+      _analytics.logImageUploadCamera();
       // Upload to history with type: 'uploaded'
       _uploadImageToHistory(image.path);
     }
@@ -342,6 +370,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
       setState(() {
         _objectImage = image.path;
       });
+
+      // Track object image attached
+      _analytics.logObjectImageAttached();
 
       // Add default prompt if prompt is empty, or append it
       final l10n = context.l10n;
@@ -456,6 +487,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
   }
 
   void _showStyleSelector() {
+    // Track style modal opened
+    _analytics.logStyleModalOpened();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -463,11 +496,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
       builder: (modalContext) => StyleSelectorModal(
         onStyleSelect: (style) {
           Navigator.pop(modalContext);
+          // Track style selected
+          _analytics.logStyleSelected(style.name);
           // Use Future.delayed to ensure modal is closed before processing
           Future.delayed(const Duration(milliseconds: 100), () {
             if (mounted) {
               // Process immediately for style selection
-              _processWithPrompt(style.prompt);
+              _processWithPrompt(style.prompt, promptType: 'style', styleName: style.name);
             }
           });
         },
@@ -476,6 +511,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
   }
 
   void _showColorPalette() {
+    // Track color modal opened
+    _analytics.logColorModalOpened();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -483,10 +520,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
       builder: (modalContext) => ColorPaletteModal(
         onColorSelect: (color, prompt) {
           debugPrint('🎨 Color selected: ${color.name}, prompt: $prompt');
+          // Track color selected
+          _analytics.logColorSelected(color.name);
           Future.delayed(const Duration(milliseconds: 100), () {
             if (mounted) {
               // Process immediately for color selection
-              _processWithPrompt(prompt);
+              _processWithPrompt(prompt, promptType: 'color', colorName: color.name);
             }
           });
         },
@@ -495,6 +534,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
   }
 
   void _showLightingOptions() {
+    // Track options modal opened
+    _analytics.logOptionsModalOpened('lighting');
     final l10n = context.l10n;
     final options = context.localizedOptions.lightingOptions;
     showModalBottomSheet(
@@ -506,6 +547,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
         options: options,
         onSelect: (option) {
           debugPrint('💡 Lighting selected: ${option.name}, prompt: ${option.prompt}');
+          // Track option selected
+          _analytics.logOptionSelected('lighting', option.name);
           Future.delayed(const Duration(milliseconds: 100), () {
             if (mounted) {
               _setPromptText(option.prompt);
@@ -517,6 +560,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
   }
 
   void _showFurnitureOptions() {
+    // Track options modal opened
+    _analytics.logOptionsModalOpened('furniture');
     final l10n = context.l10n;
     final options = context.localizedOptions.furnitureOptions;
     showModalBottomSheet(
@@ -528,6 +573,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
         options: options,
         onSelect: (option) {
           debugPrint('🪑 Furniture selected: ${option.name}, prompt: ${option.prompt}');
+          // Track option selected
+          _analytics.logOptionSelected('furniture', option.name);
           Future.delayed(const Duration(milliseconds: 100), () {
             if (mounted) {
               _setPromptText(option.prompt);
@@ -539,6 +586,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
   }
 
   void _showDoorsWindowsOptions() {
+    // Track options modal opened
+    _analytics.logOptionsModalOpened('doors_windows');
     final l10n = context.l10n;
     final groups = context.localizedOptions.doorsWindowsGroups;
     showModalBottomSheet(
@@ -550,6 +599,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
         groups: groups,
         onSelect: (option) {
           debugPrint('🚪 Door/Window selected: ${option.name}, prompt: ${option.prompt}');
+          // Track option selected
+          _analytics.logOptionSelected('doors_windows', option.name);
           Future.delayed(const Duration(milliseconds: 100), () {
             if (mounted) {
               _setPromptText(option.prompt);
@@ -561,6 +612,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
   }
 
   void _showBathroomOptions() {
+    // Track options modal opened
+    _analytics.logOptionsModalOpened('bathroom');
     final l10n = context.l10n;
     final groups = context.localizedOptions.bathroomGroups;
     showModalBottomSheet(
@@ -572,6 +625,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
         groups: groups,
         onSelect: (option) {
           debugPrint('🚿 Bathroom selected: ${option.name}, prompt: ${option.prompt}');
+          // Track option selected
+          _analytics.logOptionSelected('bathroom', option.name);
           Future.delayed(const Duration(milliseconds: 100), () {
             if (mounted) {
               _setPromptText(option.prompt);
@@ -583,6 +638,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
   }
 
   void _showRepairsOptions() {
+    // Track options modal opened
+    _analytics.logOptionsModalOpened('repairs');
     final l10n = context.l10n;
     final options = context.localizedOptions.repairsOptions;
     showModalBottomSheet(
@@ -594,6 +651,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
         options: options,
         onSelect: (option) {
           debugPrint('🔧 Repairs selected: ${option.name}, prompt: ${option.prompt}');
+          // Track option selected
+          _analytics.logOptionSelected('repairs', option.name);
           Future.delayed(const Duration(milliseconds: 100), () {
             if (mounted) {
               _setPromptText(option.prompt);
@@ -690,7 +749,26 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
     );
   }
 
-  Future<void> _processWithPrompt(String prompt) async {
+  Future<void> _processWithPrompt(
+    String prompt, {
+    String promptType = 'custom',
+    String? styleName,
+    String? colorName,
+  }) async {
+    // Check if anonymous user is trying their 3rd generation - prompt them to create account
+    if (_aiService.isAnonymous) {
+      final creditsInfo = await _aiService.getUserCreditsInfo();
+      if (creditsInfo.count >= 2) {
+        // Show create account prompt dialog
+        final wantsToCreateAccount = await _showCreateAccountPrompt();
+        if (wantsToCreateAccount) {
+          // User wants to create account - show auth modal will be triggered in the dialog
+          return; // Don't proceed with generation, let user create account first
+        }
+        // User chose "Maybe Later" - continue with generation
+      }
+    }
+
     // Check credits first
     final canProcess = await _aiService.canMakeRequest();
     if (!canProcess) {
@@ -705,6 +783,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
     
     // Save current image as "before" for comparison
     _beforeImage = _mainImage;
+    
+    // Track AI processing started
+    final startTime = DateTime.now();
+    _analytics.logAIProcessingStarted(
+      promptType: promptType,
+      styleName: styleName,
+      colorName: colorName,
+      hasObjectImage: _objectImage != null,
+    );
     
     final funPhrases = _getFunPhrases(context);
     setState(() {
@@ -752,6 +839,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
       if (result.success && result.imageUrl != null) {
         debugPrint('🎉 AI Success! imageUrl: ${result.imageUrl}');
         
+        // Track AI processing success
+        final processingTime = DateTime.now().difference(startTime).inMilliseconds;
+        _analytics.logAIProcessingSuccess(
+          promptType: promptType,
+          processingTimeMs: processingTime,
+        );
+        
         // Create history entry with result
         // Store _beforeImage (the image that was processed) for comparison
         final entry = HistoryEntry(
@@ -791,6 +885,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
         
         final errorMessage = e.toString();
         
+        // Track AI processing error
+        _analytics.logAIProcessingError(
+          promptType: promptType,
+          errorMessage: errorMessage,
+        );
+        
         // Check if this is a "limit reached" error from the server
         if (errorMessage.contains('limit reached') || errorMessage.contains('Generation limit')) {
           // Parse usage and limit from error message if available (format: "Generation limit reached (19/3)")
@@ -827,6 +927,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
         _userEmail = _aiService.currentUserEmail;
         _isLoggedIn = !_aiService.isAnonymous;
       });
+      
+      // Update analytics user properties
+      _analytics.setUserId(_aiService.currentUserId);
+      _analytics.setSubscriptionTier(_userSubscription);
+      _analytics.setLoginStatus(_isLoggedIn);
     }
   }
 
@@ -834,6 +939,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
     // Use parsed values from error or fall back to local state
     final usage = customUsage ?? (3 - _userCredits);
     final limit = customLimit ?? 3;
+    
+    // Track limit reached shown
+    _analytics.logLimitReachedShown(currentUsage: usage, limit: limit);
     
     showDialog(
       context: context,
@@ -846,7 +954,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
     );
   }
 
+  /// Shows a prompt dialog for anonymous users to create an account
+  /// Returns true if user wants to create account, false if they want to continue without
+  Future<bool> _showCreateAccountPrompt() async {
+    return await CreateAccountPromptModal.show(
+      context,
+      onCreateAccount: () {
+        // Show the auth modal in sign up mode (initialIsLogin = false)
+        _showAuthModal(false);
+      },
+    );
+  }
+
   void _showSubscriptionModal() {
+    // Track subscription modal opened
+    _analytics.logSubscriptionModalOpened(source: 'menu');
     Navigator.of(context).push(
       MaterialPageRoute(
         fullscreenDialog: true,
@@ -916,6 +1038,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
   }
 
   void _showMobileMenu() {
+    // Track mobile menu opened
+    _analytics.logMobileMenuOpened();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -932,6 +1056,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
         },
         onSubscriptionClick: _showSubscriptionModal,
         onLogout: () async {
+          // Track logout
+          _analytics.logLogout();
           // Note: mobile menu already pops itself before calling this
           await _aiService.signOut();
           // Sign back in anonymously and refresh state
@@ -985,6 +1111,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
       if (!mounted) return;
       
       if (result['success'] == true) {
+        // Track account deleted
+        _analytics.logAccountDeleted();
+        
         // Clear local history
         setState(() {
           _imageHistory.clear();
@@ -1021,6 +1150,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
   }
 
   void _showCouponModal() {
+    // Track coupon modal opened
+    _analytics.logCouponModalOpened();
     Navigator.of(context).push(
       MaterialPageRoute(
         fullscreenDialog: true,
@@ -1030,6 +1161,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
             return await _aiService.redeemCoupon(code);
           },
           onCouponSuccess: (credits) {
+            // Track coupon redeemed
+            _analytics.logCouponRedeemed(creditsAdded: credits);
             // Update local credits state
             setState(() {
               _userCredits += credits;
@@ -1049,12 +1182,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
   }
 
   Future<void> _showAuthModal(bool isLogin) async {
+    // Track auth modal opened
+    if (isLogin) {
+      _analytics.logLoginStarted();
+    } else {
+      _analytics.logSignupStarted();
+    }
+    
     final result = await Navigator.of(context).push<AuthResult>(
       MaterialPageRoute(
         fullscreenDialog: true,
         builder: (context) => AuthModal(
           initialIsLogin: isLogin,
           onPasswordReset: (email) async {
+            // Track password reset requested
+            _analytics.logPasswordResetRequested();
             final l10n = context.l10n;
             try {
               await _aiService.sendPasswordResetEmail(email);
@@ -1102,9 +1244,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
         // Actually perform Firebase authentication
         if (result.isLogin) {
           await _aiService.signInWithEmail(result.email, result.password);
+          // Track login success
+          _analytics.logLoginSuccess();
         } else {
           await _aiService.createAccountWithEmail(result.email, result.password);
+          // Track signup success
+          _analytics.logSignupSuccess();
         }
+        
+        // Set user properties in analytics
+        _analytics.setUserId(_aiService.currentUserId);
+        _analytics.setLoginStatus(true);
 
         // Refresh user data (credits, subscription, email)
         await _loadUserCredits();
@@ -1124,17 +1274,30 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
         if (mounted) {
           String errorMessage = l10n.loginError;
           final errorString = e.toString().toLowerCase();
+          String? errorCode;
           
           if (errorString.contains('user-not-found')) {
             errorMessage = l10n.userNotFound;
+            errorCode = 'user-not-found';
           } else if (errorString.contains('wrong-password') || errorString.contains('invalid-credential')) {
             errorMessage = l10n.wrongPassword;
+            errorCode = 'wrong-password';
           } else if (errorString.contains('email-already-in-use')) {
             errorMessage = l10n.emailInUse;
+            errorCode = 'email-already-in-use';
           } else if (errorString.contains('weak-password')) {
             errorMessage = l10n.weakPassword;
+            errorCode = 'weak-password';
           } else if (errorString.contains('invalid-email')) {
             errorMessage = l10n.invalidEmail;
+            errorCode = 'invalid-email';
+          }
+          
+          // Track auth failure
+          if (result.isLogin) {
+            _analytics.logLoginFailed(errorCode: errorCode);
+          } else {
+            _analytics.logSignupFailed(errorCode: errorCode);
           }
 
           _showToast(
@@ -1149,6 +1312,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
 
   Future<void> _openImageModal({bool showComparison = false, bool isNewResult = false}) async {
     if (_mainImage == null) return;
+
+    // Track image modal opened
+    _analytics.logImageModalOpened(showComparison: showComparison);
 
     // Use _beforeImage for comparison (the image before last processing)
     // Fall back to _originalImage if _beforeImage is not set
@@ -1171,6 +1337,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
     // Handle result after modal closes
     if (result == 'revert' && comparisonImage != null && mounted) {
       debugPrint('↩️ User reverted to before image');
+      // Track AI result reverted
+      _analytics.logAIResultReverted();
       setState(() {
         _mainImage = comparisonImage;
       });
@@ -1182,6 +1350,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
   /// Called when user clicks "Love it! Save" on a new AI result
   Future<void> _onUserKeptResult() async {
     debugPrint('✅ User kept the AI result');
+    
+    // Track AI result kept
+    _analytics.logAIResultKept();
     
     // Get the current count of kept results
     final prefs = await SharedPreferences.getInstance();
@@ -1200,9 +1371,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
       await Future.delayed(const Duration(milliseconds: 500));
       if (!mounted) return;
       
+      // Track rate app shown
+      _analytics.logRateAppShown();
+      
       final rateResult = await RateAppModal.show(context);
       
       if (rateResult == RateAppResult.yes) {
+        // Track rate app response
+        _analytics.logRateAppResponse(response: 'yes');
         // User likes the app, show in-app review
         debugPrint('💖 User likes the app, showing in-app review');
         await prefs.setBool('has_rated_app', true);
@@ -1212,10 +1388,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
           await inAppReview.requestReview();
         }
       } else if (rateResult == RateAppResult.no) {
+        // Track rate app response
+        _analytics.logRateAppResponse(response: 'no');
         // User doesn't like it, mark as rated so we don't ask again
         debugPrint('😢 User doesn\'t like the app');
         await prefs.setBool('has_rated_app', true);
       } else if (rateResult == RateAppResult.later) {
+        // Track rate app response
+        _analytics.logRateAppResponse(response: 'later');
         // Reset count to ask again after 2 more kept results
         debugPrint('⏰ User wants to be asked later');
         await prefs.setInt('kept_results_count', 0);
@@ -1228,6 +1408,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
   }
 
   void _handleHistoryTap(HistoryEntry entry) {
+    // Track history item selected
+    _analytics.logHistoryItemSelected();
     setState(() {
       _mainImage = entry.imageUrl;
       _beforeImage = entry.originalImageUrl; // For comparison
@@ -1313,8 +1495,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
           if (_showOnboarding)
             OnboardingOverlay(
               steps: _getOnboardingSteps(context),
-              onComplete: () => setState(() => _showOnboarding = false),
-              onSkip: () => setState(() => _showOnboarding = false),
+              onComplete: () {
+                _analytics.logOnboardingComplete();
+                setState(() => _showOnboarding = false);
+              },
+              onSkip: () {
+                _analytics.logOnboardingSkipped();
+                setState(() => _showOnboarding = false);
+              },
             ),
         ],
       ),
@@ -1499,6 +1687,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
   }
 
   Future<void> _showFeedbackDialog() async {
+    // Track contact modal opened
+    _analytics.logContactModalOpened();
+    
     final result = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         fullscreenDialog: true,
@@ -1508,6 +1699,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
 
     // Show success message if submission was successful
     if (result == true && mounted) {
+      // Track feedback submitted
+      _analytics.logFeedbackSubmitted();
       _showToast(
         message: context.l10n.messageSentSuccess,
         icon: LucideIcons.check,
@@ -1718,6 +1911,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
     setState(() {
       _objectImage = null;
     });
+    // Track object image removed
+    _analytics.logObjectImageRemoved();
     // Optionally clear the prompt if it contains the default object prompt
     const defaultPrompt = 'הוסף את הפריט המצורף לתמונה';
     if (_promptController.text.contains(defaultPrompt)) {
@@ -1997,6 +2192,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
   }
 
   void _showHistoryDrawer() {
+    // Track history opened
+    _analytics.logHistoryOpened();
     final l10n = context.l10n;
     // Use ValueNotifier to properly track loading state across rebuilds
     final isLoadingMore = ValueNotifier<bool>(false);
@@ -2203,6 +2400,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
   }
 
   void _showMoreOptionsDrawer() {
+    // Track more options opened
+    _analytics.logMoreOptionsOpened();
     final l10n = context.l10n;
     final designActions = _getDesignActions(context);
     showModalBottomSheet(

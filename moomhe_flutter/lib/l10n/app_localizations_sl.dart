@@ -1208,4 +1208,17 @@ class AppLocalizationsSl extends AppLocalizations {
 
   @override
   String get languageChanged => 'Jezik spremenjen';
+
+  @override
+  String get createAccountPromptTitle => 'Ustvari svoj račun';
+
+  @override
+  String get createAccountPromptMessage =>
+      'Neverjetne posodobitve prihajajo v naslednjih tednih! 🚀\n\nUstvari račun zdaj, da ne izgubiš svojih stvaritev in bodi prvi, ki bo užival v novih funkcijah.';
+
+  @override
+  String get createAccountPromptButton => 'Ustvari račun';
+
+  @override
+  String get maybeLater => 'Morda pozneje';
 }

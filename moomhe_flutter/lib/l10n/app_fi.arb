@@ -476,5 +476,10 @@
 
   "language": "Kieli",
   "selectLanguage": "Valitse kieli",
-  "languageChanged": "Kieli vaihdettu"
+  "languageChanged": "Kieli vaihdettu",
+
+  "createAccountPromptTitle": "Luo tilisi",
+  "createAccountPromptMessage": "Upeita päivityksiä on tulossa lähiviikkoina! 🚀\n\nLuo tili nyt, ettet menetä luomuksiasi ja ole ensimmäinen, joka nauttii uusista ominaisuuksista.",
+  "createAccountPromptButton": "Luo tili",
+  "maybeLater": "Ehkä myöhemmin"
 }

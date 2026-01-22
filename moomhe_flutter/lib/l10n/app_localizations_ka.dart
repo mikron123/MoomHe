@@ -1210,4 +1210,17 @@ class AppLocalizationsKa extends AppLocalizations {
 
   @override
   String get languageChanged => 'ენა შეიცვალა';
+
+  @override
+  String get createAccountPromptTitle => 'შექმენით თქვენი ანგარიში';
+
+  @override
+  String get createAccountPromptMessage =>
+      'საოცარი განახლებები მოდის მომდევნო კვირებში! 🚀\n\nშექმენით ანგარიში ახლავე, რომ არ დაკარგოთ თქვენი შექმნილები და იყავით პირველი, ვინც ისარგებლებს ახალი ფუნქციებით.';
+
+  @override
+  String get createAccountPromptButton => 'ანგარიშის შექმნა';
+
+  @override
+  String get maybeLater => 'იქნებ მოგვიანებით';
 }

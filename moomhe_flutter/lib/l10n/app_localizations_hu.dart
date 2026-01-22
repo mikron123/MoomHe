@@ -1211,4 +1211,17 @@ class AppLocalizationsHu extends AppLocalizations {
 
   @override
   String get languageChanged => 'Nyelv megváltoztatva';
+
+  @override
+  String get createAccountPromptTitle => 'Hozd létre a fiókodat';
+
+  @override
+  String get createAccountPromptMessage =>
+      'Fantasztikus frissítések érkeznek a következő hetekben! 🚀\n\nHozz létre fiókot most, hogy ne veszítsd el alkotásaidat, és elsőként élvezhesd az új funkciókat.';
+
+  @override
+  String get createAccountPromptButton => 'Fiók létrehozása';
+
+  @override
+  String get maybeLater => 'Talán később';
 }

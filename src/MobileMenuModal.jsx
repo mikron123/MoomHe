@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { X, User, Crown, LogOut, LogIn, Gift, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { X, User, Crown, LogOut, LogIn, Gift, Loader2, CheckCircle, AlertCircle, Globe } from 'lucide-react';
+import { useLocalization, SUPPORTED_LANGUAGES } from './localization.jsx';
 
 const MobileMenuModal = ({ 
   isOpen, 
@@ -14,7 +15,9 @@ const MobileMenuModal = ({
   onRedeemCoupon,
   onCouponSuccess
 }) => {
+  const { t, language, setLanguage, isRTL } = useLocalization();
   const [showCouponInput, setShowCouponInput] = useState(false);
+  const [showLanguageSelector, setShowLanguageSelector] = useState(false);
   const [couponCode, setCouponCode] = useState('');
   const [couponStatus, setCouponStatus] = useState(null); // 'loading' | 'success' | 'error'
   const [couponMessage, setCouponMessage] = useState('');
@@ -32,7 +35,7 @@ const MobileMenuModal = ({
     
     if (userSubscription > 0) {
       setCouponStatus('error');
-      setCouponMessage('הקופון מיועד למשתמשים חדשים בלבד');
+      setCouponMessage(t('errorRedeemingCoupon'));
       setShowCouponInput(false);
       return;
     }
@@ -43,7 +46,7 @@ const MobileMenuModal = ({
   const handleRedeemCoupon = async () => {
     if (!couponCode.trim()) {
       setCouponStatus('error');
-      setCouponMessage('יש להזין קוד קופון');
+      setCouponMessage(t('mustEnterCoupon'));
       return;
     }
     
@@ -65,16 +68,18 @@ const MobileMenuModal = ({
         }
       } else {
         setCouponStatus('error');
-        setCouponMessage(result.error || 'שגיאה במימוש הקופון');
+        setCouponMessage(result.error || t('errorRedeemingCoupon'));
       }
     } catch (error) {
       setCouponStatus('error');
-      setCouponMessage(error.message || 'שגיאה במימוש הקופון');
+      setCouponMessage(error.message || t('errorRedeemingCoupon'));
     }
   };
 
+  const currentLanguage = SUPPORTED_LANGUAGES.find(l => l.code === language);
+
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in"
@@ -82,7 +87,7 @@ const MobileMenuModal = ({
       />
       
       {/* Modal Content */}
-      <div className="relative w-full max-w-sm bg-[#1a1a2e] rounded-3xl overflow-hidden shadow-2xl animate-scale-up border border-white/10">
+      <div className="relative w-full max-w-sm bg-[#1a1a2e] rounded-3xl overflow-hidden shadow-2xl animate-scale-up border border-white/10 max-h-[90vh] flex flex-col">
         
         {/* Header */}
         <div className="bg-gradient-to-r from-purple-900/50 to-indigo-900/50 p-6 text-center border-b border-white/5">
@@ -92,15 +97,15 @@ const MobileMenuModal = ({
             </div>
           </div>
           <h2 className="text-xl font-bold text-white mb-1">
-            {isLoggedIn ? (user.displayName || user.email.split('@')[0]) : 'אורח'}
+            {isLoggedIn ? (user.displayName || user.email.split('@')[0]) : t('guest')}
           </h2>
           <p className="text-sm text-gray-400">
-            {isLoggedIn ? user.email : 'התחבר כדי לשמור את העיצובים שלך'}
+            {isLoggedIn ? user.email : t('loginToSaveDesigns')}
           </p>
         </div>
 
-        {/* Actions */}
-        <div className="p-6 space-y-4">
+        {/* Actions - Scrollable */}
+        <div className="p-6 space-y-4 overflow-y-auto flex-1">
           
           {/* Subscription Button */}
           <button
@@ -114,14 +119,14 @@ const MobileMenuModal = ({
               <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <Crown className="w-5 h-5 text-amber-400" />
               </div>
-              <div className="text-right">
-                <div className="text-white font-medium">המנוי שלי</div>
+              <div className={isRTL ? 'text-right' : 'text-left'}>
+                <div className="text-white font-medium">{t('mySubscription')}</div>
                 <div className="text-xs text-amber-400/80">
-                  {userCredits - userUsage > 0 ? `${userCredits - userUsage} קרדיטים נותרו` : 'שדרג לפרימיום'}
+                  {userCredits - userUsage > 0 ? t('creditsRemaining', { count: userCredits - userUsage }) : t('upgradeToPremium')}
                 </div>
               </div>
             </div>
-            <div className="text-amber-400 text-lg">›</div>
+            <div className="text-amber-400 text-lg">{isRTL ? '‹' : '›'}</div>
           </button>
 
           {/* Coupon Code Section */}
@@ -135,24 +140,24 @@ const MobileMenuModal = ({
                   <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
                     <Gift className="w-5 h-5 text-emerald-400" />
                   </div>
-                  <div className="text-right">
-                    <div className="text-white font-medium">יש לי קופון</div>
-                    <div className="text-xs text-emerald-400/80">הזן קוד קופון לקבלת קרדיטים</div>
+                  <div className={isRTL ? 'text-right' : 'text-left'}>
+                    <div className="text-white font-medium">{t('iHaveCoupon')}</div>
+                    <div className="text-xs text-emerald-400/80">{t('enterCouponCode')}</div>
                   </div>
                 </div>
-                <div className="text-emerald-400 text-lg">›</div>
+                <div className="text-emerald-400 text-lg">{isRTL ? '‹' : '›'}</div>
               </button>
             ) : (
               <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 space-y-3">
                 <div className="flex items-center gap-2 text-emerald-400">
                   <Gift className="w-5 h-5" />
-                  <span className="font-medium">הזן קוד קופון</span>
+                  <span className="font-medium">{t('enterCouponCodeTitle')}</span>
                 </div>
                 <input
                   type="text"
                   value={couponCode}
                   onChange={(e) => setCouponCode(e.target.value.replace(/\s/g, '').toUpperCase())}
-                  placeholder="קוד הקופון..."
+                  placeholder={t('couponCode')}
                   className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500/50 text-center tracking-wider uppercase"
                   disabled={couponStatus === 'loading'}
                   autoFocus
@@ -168,7 +173,7 @@ const MobileMenuModal = ({
                     className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 font-medium transition-colors"
                     disabled={couponStatus === 'loading'}
                   >
-                    ביטול
+                    {t('cancel')}
                   </button>
                   <button
                     onClick={handleRedeemCoupon}
@@ -178,10 +183,10 @@ const MobileMenuModal = ({
                     {couponStatus === 'loading' ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        בודק...
+                        {t('processing')}
                       </>
                     ) : (
-                      'מימוש'
+                      t('redeemCoupon')
                     )}
                   </button>
                 </div>
@@ -207,6 +212,61 @@ const MobileMenuModal = ({
             )}
           </div>
 
+          {/* Language Selector */}
+          {!showLanguageSelector ? (
+            <button
+              onClick={() => setShowLanguageSelector(true)}
+              className="w-full flex items-center justify-between p-4 rounded-2xl bg-gradient-to-r from-violet-500/10 to-purple-500/10 hover:from-violet-500/20 hover:to-purple-500/20 border border-violet-500/20 transition-all group"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-full bg-violet-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Globe className="w-5 h-5 text-violet-400" />
+                </div>
+                <div className={isRTL ? 'text-right' : 'text-left'}>
+                  <div className="text-white font-medium">{t('language')}</div>
+                  <div className="text-xs text-violet-400/80">{currentLanguage?.nativeName || 'English'}</div>
+                </div>
+              </div>
+              <div className="text-violet-400 text-lg">{isRTL ? '‹' : '›'}</div>
+            </button>
+          ) : (
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-violet-500/10 to-purple-500/10 border border-violet-500/20 space-y-3">
+              <div className="flex items-center justify-between text-violet-400 mb-2">
+                <div className="flex items-center gap-2">
+                  <Globe className="w-5 h-5" />
+                  <span className="font-medium">{t('selectLanguage')}</span>
+                </div>
+                <button 
+                  onClick={() => setShowLanguageSelector(false)}
+                  className="p-1 hover:bg-white/10 rounded"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="max-h-48 overflow-y-auto space-y-1">
+                {SUPPORTED_LANGUAGES.map((lang) => (
+                  <button
+                    key={lang.code}
+                    onClick={() => {
+                      setLanguage(lang.code);
+                      setShowLanguageSelector(false);
+                    }}
+                    className={`w-full px-3 py-2.5 rounded-xl text-sm flex items-center justify-between transition-all ${
+                      language === lang.code
+                        ? 'bg-violet-500/30 border border-violet-500/50'
+                        : 'bg-white/5 border border-transparent hover:bg-white/10'
+                    }`}
+                  >
+                    <span className="text-white">{lang.nativeName}</span>
+                    {language === lang.code && (
+                      <CheckCircle className="w-4 h-4 text-violet-400" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Auth Button */}
           <button
             onClick={() => {
@@ -229,23 +289,23 @@ const MobileMenuModal = ({
               }`}>
                 {isLoggedIn ? <LogOut className="w-5 h-5" /> : <LogIn className="w-5 h-5" />}
               </div>
-              <div className="text-right">
+              <div className={isRTL ? 'text-right' : 'text-left'}>
                 <div className="text-white font-medium">
-                  {isLoggedIn ? 'התנתק' : 'התחברות'}
+                  {isLoggedIn ? t('logout') : t('login')}
                 </div>
                 <div className={`text-xs ${isLoggedIn ? 'text-red-400/80' : 'text-blue-400/80'}`}>
-                  {isLoggedIn ? 'יציאה מהחשבון' : 'כניסה לחשבון קיים'}
+                  {isLoggedIn ? t('exitAccount') : t('loginWithEmail')}
                 </div>
               </div>
             </div>
-            <div className={isLoggedIn ? 'text-red-400 text-lg' : 'text-blue-400 text-lg'}>›</div>
+            <div className={isLoggedIn ? 'text-red-400 text-lg' : 'text-blue-400 text-lg'}>{isRTL ? '‹' : '›'}</div>
           </button>
         </div>
 
         {/* Close Button */}
         <button 
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 text-gray-400 hover:text-white transition-colors"
+          className={`absolute top-4 ${isRTL ? 'left-4' : 'right-4'} p-2 text-gray-400 hover:text-white transition-colors`}
         >
           <X className="w-5 h-5" />
         </button>
@@ -255,10 +315,3 @@ const MobileMenuModal = ({
 };
 
 export default MobileMenuModal;
-
-
-
-
-
-
-

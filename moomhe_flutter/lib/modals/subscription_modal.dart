@@ -6,6 +6,7 @@ import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_colors.dart';
 import '../services/purchase_service.dart' show PurchaseService, PurchaseUiStatus, ProductIds;
+import '../services/analytics_service.dart';
 import '../l10n/localized_options.dart';
 
 class SubscriptionPlan {
@@ -50,6 +51,7 @@ class SubscriptionModal extends StatefulWidget {
 
 class _SubscriptionModalState extends State<SubscriptionModal> with TickerProviderStateMixin, WidgetsBindingObserver {
   final PurchaseService _purchaseService = PurchaseService();
+  final AnalyticsService _analytics = AnalyticsService();
   bool _isLoading = true;
   bool _isPurchasing = false;
   String? _errorMessage;
@@ -281,6 +283,15 @@ class _SubscriptionModalState extends State<SubscriptionModal> with TickerProvid
 
   Future<void> _handlePurchase(SubscriptionPlan plan) async {
     final productId = plan.productId;
+    final price = _getPrice(plan);
+    
+    // Track subscription plan selected
+    _analytics.logSubscriptionPlanSelected(
+      productId: productId,
+      tierName: plan.name,
+      credits: plan.credits,
+      price: price,
+    );
     
     setState(() {
       _purchasingProductId = productId;
@@ -293,6 +304,8 @@ class _SubscriptionModalState extends State<SubscriptionModal> with TickerProvid
     
     // If purchase initiation returned false, reset immediately
     if (!success && mounted && _purchasingProductId == productId) {
+      // Track purchase cancelled
+      _analytics.logSubscriptionPurchaseCancelled(productId: productId);
       setState(() {
         _isPurchasing = false;
         _purchasingProductId = null;
@@ -597,6 +610,8 @@ class _SubscriptionModalState extends State<SubscriptionModal> with TickerProvid
                           onPressed: _isPurchasing
                               ? null
                               : () {
+                                  // Track restore purchases
+                                  _analytics.logRestorePurchases();
                                   setState(() {
                                     _userInitiatedPurchase = true; // User explicitly requested restore
                                   });

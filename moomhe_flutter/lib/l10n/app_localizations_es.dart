@@ -1214,4 +1214,17 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get languageChanged => 'Idioma cambiado';
+
+  @override
+  String get createAccountPromptTitle => 'Crea tu cuenta';
+
+  @override
+  String get createAccountPromptMessage =>
+      '¡Actualizaciones increíbles llegarán en las próximas semanas! 🚀\n\nCrea una cuenta ahora para no perder tus creaciones y ser el primero en disfrutar de las nuevas funciones.';
+
+  @override
+  String get createAccountPromptButton => 'Crear cuenta';
+
+  @override
+  String get maybeLater => 'Quizás más tarde';
 }

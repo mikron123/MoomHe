@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../theme/app_colors.dart';
+import '../services/analytics_service.dart';
 import '../l10n/localized_options.dart';
 
 class CouponModal extends StatefulWidget {
@@ -19,6 +20,7 @@ class CouponModal extends StatefulWidget {
 
 class _CouponModalState extends State<CouponModal> {
   final _couponController = TextEditingController();
+  final _analytics = AnalyticsService();
   String? _status; // 'loading' | 'success' | 'error'
   String _message = '';
 
@@ -60,12 +62,16 @@ class _CouponModalState extends State<CouponModal> {
           widget.onCouponSuccess(result['creditsAdded'] ?? 0);
         }
       } else {
+        // Track coupon failed
+        _analytics.logCouponFailed(errorCode: result['errorCode']?.toString());
         setState(() {
           _status = 'error';
           _message = result['error'] ?? l10n.errorRedeemingCoupon;
         });
       }
     } catch (e) {
+      // Track coupon failed
+      _analytics.logCouponFailed(errorCode: 'exception');
       setState(() {
         _status = 'error';
         _message = l10n.errorRedeemingCoupon;

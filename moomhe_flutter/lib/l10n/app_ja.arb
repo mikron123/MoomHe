@@ -476,5 +476,10 @@
 
   "language": "言語",
   "selectLanguage": "言語を選択",
-  "languageChanged": "言語が変更されました"
+  "languageChanged": "言語が変更されました",
+
+  "createAccountPromptTitle": "アカウントを作成",
+  "createAccountPromptMessage": "数週間以内に素晴らしいアップデートが届きます！🚀\n\n今すぐアカウントを作成して、作品を失わないようにし、新機能をいち早くお楽しみください。",
+  "createAccountPromptButton": "アカウント作成",
+  "maybeLater": "後で"
 }

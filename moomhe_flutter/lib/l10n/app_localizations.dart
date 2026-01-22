@@ -2454,6 +2454,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Language changed'**
   String get languageChanged;
+
+  /// No description provided for @createAccountPromptTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Create Your Account'**
+  String get createAccountPromptTitle;
+
+  /// No description provided for @createAccountPromptMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Amazing updates are coming in the next few weeks! 🚀\n\nCreate an account now to not lose your creations and be the first to enjoy new features.'**
+  String get createAccountPromptMessage;
+
+  /// No description provided for @createAccountPromptButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Create Account'**
+  String get createAccountPromptButton;
+
+  /// No description provided for @maybeLater.
+  ///
+  /// In en, this message translates to:
+  /// **'Maybe Later'**
+  String get maybeLater;
 }
 
 class _AppLocalizationsDelegate

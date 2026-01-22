@@ -1207,4 +1207,17 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String get languageChanged => 'Jazyk změněn';
+
+  @override
+  String get createAccountPromptTitle => 'Vytvořte si účet';
+
+  @override
+  String get createAccountPromptMessage =>
+      'V příštích týdnech přijdou úžasné aktualizace! 🚀\n\nVytvořte si účet nyní, abyste nepřišli o své výtvory a byli první, kdo si vychutná nové funkce.';
+
+  @override
+  String get createAccountPromptButton => 'Vytvořit účet';
+
+  @override
+  String get maybeLater => 'Možná později';
 }

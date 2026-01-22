@@ -1205,4 +1205,17 @@ class AppLocalizationsSv extends AppLocalizations {
 
   @override
   String get languageChanged => 'Språk ändrat';
+
+  @override
+  String get createAccountPromptTitle => 'Skapa ditt konto';
+
+  @override
+  String get createAccountPromptMessage =>
+      'Fantastiska uppdateringar kommer de närmaste veckorna! 🚀\n\nSkapa ett konto nu för att inte förlora dina skapelser och var först med att njuta av nya funktioner.';
+
+  @override
+  String get createAccountPromptButton => 'Skapa konto';
+
+  @override
+  String get maybeLater => 'Kanske senare';
 }

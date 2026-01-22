@@ -1186,6 +1186,19 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get languageChanged => '语言已更改';
+
+  @override
+  String get createAccountPromptTitle => '创建您的账户';
+
+  @override
+  String get createAccountPromptMessage =>
+      '未来几周将有令人惊叹的更新！🚀\n\n立即创建账户，以免丢失您的创作，并成为第一个享受新功能的人。';
+
+  @override
+  String get createAccountPromptButton => '创建账户';
+
+  @override
+  String get maybeLater => '以后再说';
 }
 
 /// The translations for Chinese, as used in Hong Kong (`zh_HK`).
@@ -2363,4 +2376,17 @@ class AppLocalizationsZhHk extends AppLocalizationsZh {
 
   @override
   String get languageChanged => '語言已更改';
+
+  @override
+  String get createAccountPromptTitle => '建立您的帳戶';
+
+  @override
+  String get createAccountPromptMessage =>
+      '未來幾週將有令人驚嘆的更新！🚀\n\n立即建立帳戶，以免遺失您的創作，並成為第一個享受新功能的人。';
+
+  @override
+  String get createAccountPromptButton => '建立帳戶';
+
+  @override
+  String get maybeLater => '稍後再說';
 }

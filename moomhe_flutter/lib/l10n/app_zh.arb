@@ -476,5 +476,10 @@
 
   "language": "语言",
   "selectLanguage": "选择语言",
-  "languageChanged": "语言已更改"
+  "languageChanged": "语言已更改",
+
+  "createAccountPromptTitle": "创建您的账户",
+  "createAccountPromptMessage": "未来几周将有令人惊叹的更新！🚀\n\n立即创建账户，以免丢失您的创作，并成为第一个享受新功能的人。",
+  "createAccountPromptButton": "创建账户",
+  "maybeLater": "以后再说"
 }

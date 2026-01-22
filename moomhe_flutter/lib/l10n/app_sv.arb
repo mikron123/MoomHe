@@ -476,5 +476,10 @@
 
   "language": "Språk",
   "selectLanguage": "Välj språk",
-  "languageChanged": "Språk ändrat"
+  "languageChanged": "Språk ändrat",
+
+  "createAccountPromptTitle": "Skapa ditt konto",
+  "createAccountPromptMessage": "Fantastiska uppdateringar kommer de närmaste veckorna! 🚀\n\nSkapa ett konto nu för att inte förlora dina skapelser och var först med att njuta av nya funktioner.",
+  "createAccountPromptButton": "Skapa konto",
+  "maybeLater": "Kanske senare"
 }

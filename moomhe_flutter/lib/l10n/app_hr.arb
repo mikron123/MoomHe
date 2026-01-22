@@ -476,5 +476,10 @@
 
   "language": "Jezik",
   "selectLanguage": "Odaberi jezik",
-  "languageChanged": "Jezik promijenjen"
+  "languageChanged": "Jezik promijenjen",
+
+  "createAccountPromptTitle": "Kreirajte svoj račun",
+  "createAccountPromptMessage": "Nevjerojatna ažuriranja stižu u sljedećim tjednima! 🚀\n\nKreirajte račun sada kako ne biste izgubili svoje kreacije i budite prvi koji će uživati u novim značajkama.",
+  "createAccountPromptButton": "Kreiraj račun",
+  "maybeLater": "Možda kasnije"
 }

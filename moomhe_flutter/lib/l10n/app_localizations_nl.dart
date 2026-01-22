@@ -1210,4 +1210,17 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get languageChanged => 'Taal gewijzigd';
+
+  @override
+  String get createAccountPromptTitle => 'Maak je account aan';
+
+  @override
+  String get createAccountPromptMessage =>
+      'Geweldige updates komen de komende weken! 🚀\n\nMaak nu een account aan om je creaties niet te verliezen en als eerste te genieten van nieuwe functies.';
+
+  @override
+  String get createAccountPromptButton => 'Account aanmaken';
+
+  @override
+  String get maybeLater => 'Misschien later';
 }

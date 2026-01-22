@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react'
-import { X, ChevronLeft } from 'lucide-react'
+import { X, ChevronLeft, ChevronRight } from 'lucide-react'
+import { useLocalization } from './localization.jsx'
 
 const OnboardingOverlay = ({ step, steps, onNext, onSkip, onComplete }) => {
+  const { t, isRTL } = useLocalization()
   const [targetRect, setTargetRect] = useState(null)
   const [windowSize, setWindowSize] = useState({ width: window.innerWidth, height: window.innerHeight })
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024)
@@ -54,18 +56,18 @@ const OnboardingOverlay = ({ step, steps, onNext, onSkip, onComplete }) => {
           <div 
             className="bg-white text-gray-900 p-6 rounded-2xl shadow-2xl w-full max-w-[340px] animate-bounce-in"
           >
-            <div className="flex justify-between items-start mb-3" dir="rtl">
+            <div className="flex justify-between items-start mb-3" dir={isRTL ? 'rtl' : 'ltr'}>
               <h3 className="font-bold text-xl text-primary-600">{currentStep.title}</h3>
               <button onClick={onSkip} className="text-gray-400 hover:text-gray-600 transition-colors p-1">
                 <X size={20} />
               </button>
             </div>
             
-            <p className="text-sm text-gray-600 mb-6 leading-relaxed" dir="rtl">
+            <p className="text-sm text-gray-600 mb-6 leading-relaxed" dir={isRTL ? 'rtl' : 'ltr'}>
               {currentStep.description}
             </p>
 
-            <div className="flex justify-between items-center" dir="rtl">
+            <div className="flex justify-between items-center" dir={isRTL ? 'rtl' : 'ltr'}>
               <div className="flex gap-1.5">
                 {steps.map((_, i) => (
                   <div 
@@ -79,8 +81,8 @@ const OnboardingOverlay = ({ step, steps, onNext, onSkip, onComplete }) => {
                 onClick={isLastStep ? onComplete : onNext}
                 className="bg-primary-600 hover:bg-primary-700 text-white px-6 py-2.5 rounded-xl text-sm font-medium transition-all hover:shadow-lg flex items-center gap-2"
               >
-                {isLastStep ? 'סיום' : 'הבא'}
-                {!isLastStep && <ChevronLeft size={16} />} 
+                {isLastStep ? t('finish') : t('next')}
+                {!isLastStep && (isRTL ? <ChevronLeft size={16} /> : <ChevronRight size={16} />)} 
               </button>
             </div>
           </div>
@@ -208,18 +210,18 @@ const OnboardingOverlay = ({ step, steps, onNext, onSkip, onComplete }) => {
       >
         <div className={`absolute w-0 h-0 border-solid ${arrowClass}`}></div>
 
-        <div className="flex justify-between items-start mb-2" dir="rtl">
+        <div className="flex justify-between items-start mb-2" dir={isRTL ? 'rtl' : 'ltr'}>
             <h3 className="font-bold text-lg text-primary-600">{currentStep.title}</h3>
             <button onClick={onSkip} className="text-gray-400 hover:text-gray-600 transition-colors">
                 <X size={16} />
             </button>
         </div>
         
-        <p className="text-sm text-gray-600 mb-5 leading-relaxed" dir="rtl">
+        <p className="text-sm text-gray-600 mb-5 leading-relaxed" dir={isRTL ? 'rtl' : 'ltr'}>
             {currentStep.description}
         </p>
 
-        <div className="flex justify-between items-center" dir="rtl">
+        <div className="flex justify-between items-center" dir={isRTL ? 'rtl' : 'ltr'}>
             <div className="flex gap-1">
                 {steps.map((_, i) => (
                     <div 
@@ -233,8 +235,8 @@ const OnboardingOverlay = ({ step, steps, onNext, onSkip, onComplete }) => {
                 onClick={isLastStep ? onComplete : onNext}
                 className="bg-primary-600 hover:bg-primary-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition-all hover:shadow-lg flex items-center gap-2"
             >
-                {isLastStep ? 'סיום' : 'הבא'}
-                {!isLastStep && <ChevronLeft size={16} />} 
+                {isLastStep ? t('finish') : t('next')}
+                {!isLastStep && (isRTL ? <ChevronLeft size={16} /> : <ChevronRight size={16} />)} 
             </button>
         </div>
       </div>

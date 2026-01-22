@@ -1214,4 +1214,17 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get languageChanged => 'Limba a fost schimbată';
+
+  @override
+  String get createAccountPromptTitle => 'Creează-ți contul';
+
+  @override
+  String get createAccountPromptMessage =>
+      'Actualizări uimitoare vin în următoarele săptămâni! 🚀\n\nCreează un cont acum pentru a nu pierde creațiile tale și a fi primul care se bucură de noile funcții.';
+
+  @override
+  String get createAccountPromptButton => 'Creează cont';
+
+  @override
+  String get maybeLater => 'Poate mai târziu';
 }

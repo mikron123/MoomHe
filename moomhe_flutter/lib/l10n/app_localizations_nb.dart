@@ -1209,4 +1209,17 @@ class AppLocalizationsNb extends AppLocalizations {
 
   @override
   String get languageChanged => 'Språk endret';
+
+  @override
+  String get createAccountPromptTitle => 'Opprett kontoen din';
+
+  @override
+  String get createAccountPromptMessage =>
+      'Fantastiske oppdateringer kommer de neste ukene! 🚀\n\nOpprett en konto nå for ikke å miste kreasjonene dine og vær den første til å nyte nye funksjoner.';
+
+  @override
+  String get createAccountPromptButton => 'Opprett konto';
+
+  @override
+  String get maybeLater => 'Kanskje senere';
 }

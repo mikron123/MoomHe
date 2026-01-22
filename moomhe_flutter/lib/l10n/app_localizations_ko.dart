@@ -1191,4 +1191,17 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get languageChanged => '언어가 변경되었습니다';
+
+  @override
+  String get createAccountPromptTitle => '계정 만들기';
+
+  @override
+  String get createAccountPromptMessage =>
+      '앞으로 몇 주 안에 놀라운 업데이트가 출시됩니다! 🚀\n\n지금 계정을 만들어 창작물을 잃지 않고 새로운 기능을 가장 먼저 즐기세요.';
+
+  @override
+  String get createAccountPromptButton => '계정 만들기';
+
+  @override
+  String get maybeLater => '나중에';
 }

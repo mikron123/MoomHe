@@ -1212,4 +1212,17 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get languageChanged => 'Język zmieniony';
+
+  @override
+  String get createAccountPromptTitle => 'Utwórz swoje konto';
+
+  @override
+  String get createAccountPromptMessage =>
+      'Niesamowite aktualizacje nadchodzą w ciągu najbliższych tygodni! 🚀\n\nUtwórz konto teraz, aby nie stracić swoich kreacji i być pierwszym, który skorzysta z nowych funkcji.';
+
+  @override
+  String get createAccountPromptButton => 'Utwórz konto';
+
+  @override
+  String get maybeLater => 'Może później';
 }

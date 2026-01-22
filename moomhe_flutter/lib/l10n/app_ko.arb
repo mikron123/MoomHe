@@ -476,5 +476,10 @@
 
   "language": "언어",
   "selectLanguage": "언어 선택",
-  "languageChanged": "언어가 변경되었습니다"
+  "languageChanged": "언어가 변경되었습니다",
+
+  "createAccountPromptTitle": "계정 만들기",
+  "createAccountPromptMessage": "앞으로 몇 주 안에 놀라운 업데이트가 출시됩니다! 🚀\n\n지금 계정을 만들어 창작물을 잃지 않고 새로운 기능을 가장 먼저 즐기세요.",
+  "createAccountPromptButton": "계정 만들기",
+  "maybeLater": "나중에"
 }

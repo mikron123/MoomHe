@@ -1203,4 +1203,17 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get languageChanged => 'تم تغيير اللغة';
+
+  @override
+  String get createAccountPromptTitle => 'أنشئ حسابك';
+
+  @override
+  String get createAccountPromptMessage =>
+      'تحديثات مذهلة قادمة في الأسابيع القليلة القادمة! 🚀\n\nأنشئ حساباً الآن حتى لا تفقد إبداعاتك وكن أول من يستمتع بالميزات الجديدة.';
+
+  @override
+  String get createAccountPromptButton => 'إنشاء حساب';
+
+  @override
+  String get maybeLater => 'ربما لاحقاً';
 }

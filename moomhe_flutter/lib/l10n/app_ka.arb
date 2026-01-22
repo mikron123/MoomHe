@@ -476,5 +476,10 @@
 
   "language": "ენა",
   "selectLanguage": "აირჩიეთ ენა",
-  "languageChanged": "ენა შეიცვალა"
+  "languageChanged": "ენა შეიცვალა",
+
+  "createAccountPromptTitle": "შექმენით თქვენი ანგარიში",
+  "createAccountPromptMessage": "საოცარი განახლებები მოდის მომდევნო კვირებში! 🚀\n\nშექმენით ანგარიში ახლავე, რომ არ დაკარგოთ თქვენი შექმნილები და იყავით პირველი, ვინც ისარგებლებს ახალი ფუნქციებით.",
+  "createAccountPromptButton": "ანგარიშის შექმნა",
+  "maybeLater": "იქნებ მოგვიანებით"
 }

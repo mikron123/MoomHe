@@ -476,5 +476,10 @@
 
   "language": "Teanga",
   "selectLanguage": "Roghnaigh teanga",
-  "languageChanged": "Teanga athraithe"
+  "languageChanged": "Teanga athraithe",
+
+  "createAccountPromptTitle": "Cruthaigh do chuntas",
+  "createAccountPromptMessage": "Tá nuashonruithe iontacha ag teacht sna seachtainí amach romhainn! 🚀\n\nCruthaigh cuntas anois ionas nach gcaillfidh tú do chruthaíochtaí agus bí ar an gcéad duine a bhainfidh taitneamh as gnéithe nua.",
+  "createAccountPromptButton": "Cruthaigh cuntas",
+  "maybeLater": "B'fhéidir níos déanaí"
 }

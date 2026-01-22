@@ -476,5 +476,10 @@
 
   "language": "Taal",
   "selectLanguage": "Taal selecteren",
-  "languageChanged": "Taal gewijzigd"
+  "languageChanged": "Taal gewijzigd",
+
+  "createAccountPromptTitle": "Maak je account aan",
+  "createAccountPromptMessage": "Geweldige updates komen de komende weken! 🚀\n\nMaak nu een account aan om je creaties niet te verliezen en als eerste te genieten van nieuwe functies.",
+  "createAccountPromptButton": "Account aanmaken",
+  "maybeLater": "Misschien later"
 }

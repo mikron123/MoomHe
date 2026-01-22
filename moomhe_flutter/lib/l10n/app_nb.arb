@@ -476,5 +476,10 @@
 
   "language": "Språk",
   "selectLanguage": "Velg språk",
-  "languageChanged": "Språk endret"
+  "languageChanged": "Språk endret",
+
+  "createAccountPromptTitle": "Opprett kontoen din",
+  "createAccountPromptMessage": "Fantastiske oppdateringer kommer de neste ukene! 🚀\n\nOpprett en konto nå for ikke å miste kreasjonene dine og vær den første til å nyte nye funksjoner.",
+  "createAccountPromptButton": "Opprett konto",
+  "maybeLater": "Kanskje senere"
 }

@@ -476,5 +476,10 @@
 
   "language": "Keel",
   "selectLanguage": "Vali keel",
-  "languageChanged": "Keel muudetud"
+  "languageChanged": "Keel muudetud",
+
+  "createAccountPromptTitle": "Loo oma konto",
+  "createAccountPromptMessage": "Imelised uuendused on tulemas lähimate nädalate jooksul! 🚀\n\nLoo konto kohe, et mitte kaotada oma loomingut ja olla esimene, kes naudib uusi funktsioone.",
+  "createAccountPromptButton": "Loo konto",
+  "maybeLater": "Võib-olla hiljem"
 }

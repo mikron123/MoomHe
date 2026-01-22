@@ -478,5 +478,10 @@
 
   "language": "שפה",
   "selectLanguage": "בחר שפה",
-  "languageChanged": "השפה השתנתה"
+  "languageChanged": "השפה השתנתה",
+
+  "createAccountPromptTitle": "צור את החשבון שלך",
+  "createAccountPromptMessage": "עדכונים מדהימים מגיעים בשבועות הקרובים! 🚀\n\nצור חשבון עכשיו כדי לא לאבד את היצירות שלך ולהיות הראשון ליהנות מהתכונות החדשות.",
+  "createAccountPromptButton": "צור חשבון",
+  "maybeLater": "אולי מאוחר יותר"
 }

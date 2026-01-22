@@ -12,6 +12,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../theme/app_colors.dart';
 import '../widgets/before_after_slider.dart';
+import '../services/analytics_service.dart';
 import '../l10n/localized_options.dart';
 
 class ImageModal extends StatefulWidget {
@@ -45,6 +46,7 @@ class ImageModal extends StatefulWidget {
 }
 
 class _ImageModalState extends State<ImageModal> {
+  final AnalyticsService _analytics = AnalyticsService();
   late bool _showComparison;
   bool _isDownloading = false;
   bool _isSharing = false;
@@ -165,6 +167,9 @@ class _ImageModalState extends State<ImageModal> {
 
       await Gal.putImage(filePath);
 
+      // Track image saved to gallery
+      _analytics.logImageSavedToGallery();
+
       if (mounted) {
         _showToast(
           message: context.l10n.imageSavedToGallery,
@@ -218,6 +223,9 @@ class _ImageModalState extends State<ImageModal> {
         [XFile(filePath)],
         text: context.l10n.shareText,
       );
+      
+      // Track image shared
+      _analytics.logImageShared();
     } catch (e) {
       if (mounted) {
         _showToast(
@@ -584,7 +592,11 @@ class _ImageModalState extends State<ImageModal> {
                           // Comparison checkbox - only show for AI-processed images after confirming result
                           if (widget.hasAIComparison && !_showNewResultButtons && !_isGoogleLensMode)
                             GestureDetector(
-                              onTap: () => setState(() => _showComparison = !_showComparison),
+                              onTap: () {
+                                final newValue = !_showComparison;
+                                _analytics.logComparisonToggled(enabled: newValue);
+                                setState(() => _showComparison = newValue);
+                              },
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                                 decoration: BoxDecoration(

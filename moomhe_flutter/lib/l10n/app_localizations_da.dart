@@ -1207,4 +1207,17 @@ class AppLocalizationsDa extends AppLocalizations {
 
   @override
   String get languageChanged => 'Sprog ændret';
+
+  @override
+  String get createAccountPromptTitle => 'Opret din konto';
+
+  @override
+  String get createAccountPromptMessage =>
+      'Fantastiske opdateringer kommer i de næste par uger! 🚀\n\nOpret en konto nu, så du ikke mister dine kreationer og vær den første til at nyde nye funktioner.';
+
+  @override
+  String get createAccountPromptButton => 'Opret konto';
+
+  @override
+  String get maybeLater => 'Måske senere';
 }

@@ -411,7 +411,7 @@ async function processImageWithGPTImage(prompt, imageData, docId = null, objectI
       logger.info(`[GPT-Image-1.5] Added object image to request for inpainting`);
     }
     
-    formData.append('prompt', englishPrompt);
+    formData.append('prompt', englishPrompt + '. maintain the exact same camera angle, perspective, and base room structure as the original image');
     formData.append('n', '1');
     formData.append('size', outputSize);
     formData.append('quality', 'low');
@@ -1550,8 +1550,8 @@ exports.redeemCoupon = onRequest({ cors: true }, async (req, res) => {
       return;
     }
     
-    // Get credits to add (default 10)
-    const creditsToAdd = couponData.credits || 10;
+    // Get credits from coupon (default 10) - this will SET the user's credits, not add to them
+    const couponCredits = couponData.credits || 10;
     
     // Check if device already redeemed this coupon
     const redemptionRef = db.collection('couponRedemptions').doc(`${couponCode.toUpperCase()}_${deviceId}`);
@@ -1594,9 +1594,8 @@ exports.redeemCoupon = onRequest({ cors: true }, async (req, res) => {
       return;
     }
     
-    const userData = userDoc.data();
-    const currentCredits = userData.credits || 0;
-    const newCredits = currentCredits + creditsToAdd;
+    // Set credits directly to the coupon value (not adding to existing)
+    const newCredits = couponCredits;
     
     // Perform the redemption in a batch
     const batch = db.batch();
@@ -1613,7 +1612,7 @@ exports.redeemCoupon = onRequest({ cors: true }, async (req, res) => {
       couponCode: couponCode.toUpperCase(),
       deviceId: deviceId,
       userId: userId,
-      creditsAdded: creditsToAdd,
+      creditsSet: couponCredits,
       redeemedAt: admin.firestore.FieldValue.serverTimestamp()
     });
     
@@ -1622,7 +1621,7 @@ exports.redeemCoupon = onRequest({ cors: true }, async (req, res) => {
       couponCode: couponCode.toUpperCase(),
       deviceId: deviceId,
       userId: userId,
-      creditsAdded: creditsToAdd,
+      creditsSet: couponCredits,
       redeemedAt: admin.firestore.FieldValue.serverTimestamp()
     });
     
@@ -1634,13 +1633,13 @@ exports.redeemCoupon = onRequest({ cors: true }, async (req, res) => {
     
     await batch.commit();
     
-    logger.info(`[redeemCoupon] SUCCESS: User ${userId} redeemed coupon ${couponCode} for ${creditsToAdd} credits. New balance: ${newCredits}`);
+    logger.info(`[redeemCoupon] SUCCESS: User ${userId} redeemed coupon ${couponCode}. Credits set to: ${newCredits}`);
     
     res.json({
       success: true,
-      creditsAdded: creditsToAdd,
+      credits: couponCredits,
       newCredits: newCredits,
-      message: `נוספו ${creditsToAdd} קרדיטים לחשבונך!`
+      message: `הקרדיטים שלך עודכנו ל-${couponCredits}!`
     });
     
   } catch (error) {
@@ -2218,6 +2217,14 @@ exports.verifyPurchase = onRequest({ cors: true }, async (req, res) => {
       logger.info(`[verifyPurchase] Also stored purchase by originalTransactionId: ${originalTransactionId}`);
     }
     
+    // Check if user already has the same subscription (this is a restore, not new purchase)
+    const userDoc = await db.collection('users').doc(userId).get();
+    const userData = userDoc.data() || {};
+    const currentSubscription = userData.subscription || 0;
+    const currentProductId = userData.subscriptionProductId;
+    
+    const isRestore = currentSubscription === productConfig.subscription && currentProductId === productId;
+    
     // Update user subscription
     await db.collection('users').doc(userId).update({
       subscription: productConfig.subscription,
@@ -2229,13 +2236,19 @@ exports.verifyPurchase = onRequest({ cors: true }, async (req, res) => {
       lastPurchaseId: purchaseId,
     });
     
-    // Reset monthly usage counter
-    const now = new Date();
-    const monthYear = `${String(now.getMonth() + 1).padStart(2, '0')}-${now.getFullYear()}`;
-    await db.collection('genCount').doc(monthYear).collection('users').doc(userId).set({
-      count: 0,
-      resetAt: admin.firestore.FieldValue.serverTimestamp(),
-    }, { merge: true });
+    // Only reset monthly usage counter for NEW subscriptions, not restores
+    if (!isRestore) {
+      const now = new Date();
+      const monthYear = `${String(now.getMonth() + 1).padStart(2, '0')}-${now.getFullYear()}`;
+      await db.collection('genCount').doc(monthYear).collection('users').doc(userId).set({
+        count: 0,
+        resetAt: admin.firestore.FieldValue.serverTimestamp(),
+        resetReason: 'new_subscription_verified',
+      }, { merge: true });
+      logger.info(`[verifyPurchase] Reset genCount for new subscription`);
+    } else {
+      logger.info(`[verifyPurchase] Skipped genCount reset - this is a restore of existing subscription`);
+    }
     
     // Check for pending notifications that arrived before this verification
     // Process them now that we have the user mapping
@@ -2566,103 +2579,3 @@ async function _resetToFreeTier(userId, reason) {
   });
   logger.info(`[_resetToFreeTier] Reset user ${userId} to free tier, reason: ${reason}`);
 }
-
-// Helper function to generate a random device ID
-function _generateRandomDeviceId() {
-  const chars = 'abcdef0123456789';
-  let result = '';
-  for (let i = 0; i < 16; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return result;
-}
-
-// ===========================================
-// Fix Buggy Device IDs
-// ===========================================
-// One-time fix for users who got the same buggy device ID (Build.ID instead of ANDROID_ID)
-// This updates all users with the buggy deviceId to a unique random string
-exports.fixBuggyDeviceIds = onRequest({ cors: true }, async (req, res) => {
-  res.set('Access-Control-Allow-Origin', '*');
-  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
-  }
-  
-  if (req.method !== 'POST') {
-    res.status(405).json({ error: 'Method not allowed' });
-    return;
-  }
-  
-  try {
-    const { buggyDeviceId } = req.body;
-    
-    // Default to the known buggy device ID if not provided
-    const targetDeviceId = buggyDeviceId || 'BP2A.250605.031.A3';
-    
-    logger.info(`[fixBuggyDeviceIds] Looking for users with deviceId: ${targetDeviceId}`);
-    
-    // Find all users with the buggy device ID
-    const usersRef = db.collection('users');
-    const affectedUsers = await usersRef.where('deviceId', '==', targetDeviceId).get();
-    
-    if (affectedUsers.empty) {
-      logger.info(`[fixBuggyDeviceIds] No users found with deviceId: ${targetDeviceId}`);
-      res.json({
-        success: true,
-        message: 'No affected users found',
-        usersUpdated: 0,
-      });
-      return;
-    }
-    
-    logger.info(`[fixBuggyDeviceIds] Found ${affectedUsers.size} affected users`);
-    
-    // Update each user with a unique random device ID
-    const updates = [];
-    const updatedUsers = [];
-    
-    for (const userDoc of affectedUsers.docs) {
-      const userId = userDoc.id;
-      const newDeviceId = `fixed_${_generateRandomDeviceId()}`;
-      
-      updates.push(
-        usersRef.doc(userId).update({
-          deviceId: newDeviceId,
-          previousDeviceId: targetDeviceId,
-          deviceIdFixedAt: admin.firestore.FieldValue.serverTimestamp(),
-          deviceIdFixReason: 'buggy_build_id_fix',
-        })
-      );
-      
-      updatedUsers.push({
-        userId,
-        newDeviceId,
-      });
-      
-      logger.info(`[fixBuggyDeviceIds] Queued update for user ${userId}: ${targetDeviceId} -> ${newDeviceId}`);
-    }
-    
-    // Execute all updates
-    await Promise.all(updates);
-    
-    logger.info(`[fixBuggyDeviceIds] Successfully updated ${updatedUsers.length} users`);
-    
-    res.json({
-      success: true,
-      message: `Fixed device IDs for ${updatedUsers.length} users`,
-      usersUpdated: updatedUsers.length,
-      updatedUsers: updatedUsers,
-    });
-    
-  } catch (error) {
-    logger.error('[fixBuggyDeviceIds] Error:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: error.message || 'Error fixing device IDs' 
-    });
-  }
-});

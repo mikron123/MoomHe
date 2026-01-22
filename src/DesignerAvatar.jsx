@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Sparkles, X } from 'lucide-react';
 import avatarImage from './assets/avatar.png';
+import { useLocalization } from './localization';
 
 const DesignerAvatar = ({ suggestions, onSelect, onClose, isMobile = false, isThinking = false, initialShowSuggestions = true }) => {
+  const { t, isRTL } = useLocalization();
   const [isVisible, setIsVisible] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
@@ -87,14 +89,14 @@ const DesignerAvatar = ({ suggestions, onSelect, onClose, isMobile = false, isTh
               className="relative w-full max-w-md bg-surface/95 backdrop-blur-xl rounded-t-3xl p-6 pb-8 animate-slide-up border-t border-white/10 max-h-[70vh] overflow-hidden flex flex-col"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between mb-4" dir="rtl">
+              <div className="flex items-center justify-between mb-4" dir={isRTL ? 'rtl' : 'ltr'}>
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full border-2 border-white/20 overflow-hidden bg-purple-100 flex-shrink-0">
                     <img src={avatarImage} alt="AI" className="w-full h-full object-cover" />
                   </div>
-                  <div className="text-right">
-                    <h3 className="text-white font-bold text-sm">המעצבת שלך</h3>
-                    <p className="text-xs text-purple-300">יש לי כמה רעיונות עבורך!</p>
+                  <div className={isRTL ? 'text-right' : 'text-left'}>
+                    <h3 className="text-white font-bold text-sm">{t('yourDesigner')}</h3>
+                    <p className="text-xs text-purple-300">{t('iHaveIdeasForYou')}</p>
                   </div>
                 </div>
                 <button 
@@ -171,12 +173,12 @@ const DesignerAvatar = ({ suggestions, onSelect, onClose, isMobile = false, isTh
 
           {/* Intro Bubble - Only show when suggestions are ready, NOT while thinking */}
           {!isThinking && showSuggestions && (
-            <div className="bg-white rounded-2xl rounded-br-none p-4 shadow-xl border border-purple-100 max-w-[250px] animate-bounce-in relative">
-               {/* Small triangle for speech bubble - positioned right */}
-               <div className="absolute bottom-0 right-[-8px] w-0 h-0 border-r-[8px] border-r-transparent border-b-[12px] border-b-white border-l-[0px] border-l-transparent transform -rotate-12"></div>
+            <div className={`bg-white rounded-2xl p-4 shadow-xl border border-purple-100 max-w-[250px] animate-bounce-in relative ${isRTL ? 'rounded-br-none' : 'rounded-bl-none'}`}>
+               {/* Small triangle for speech bubble - positioned based on RTL */}
+               <div className={`absolute bottom-0 w-0 h-0 border-b-[12px] border-b-white transform ${isRTL ? 'right-[-8px] border-r-[8px] border-r-transparent border-l-[0px] border-l-transparent -rotate-12' : 'left-[-8px] border-l-[8px] border-l-transparent border-r-[0px] border-r-transparent rotate-12'}`}></div>
 
-              <p className="text-gray-800 text-sm font-medium text-right" dir="rtl">
-                היי! יש לי כמה רעיונות מעולים לשדרוג החדר הזה 🎨
+              <p className={`text-gray-800 text-sm font-medium ${isRTL ? 'text-right' : 'text-left'}`} dir={isRTL ? 'rtl' : 'ltr'}>
+                {t('heyIHaveGreatIdeas')}
               </p>
             </div>
           )}
@@ -198,12 +200,12 @@ const DesignerAvatar = ({ suggestions, onSelect, onClose, isMobile = false, isTh
               ))}
             </div>
 
-            <div className="mt-3 pt-3 border-t border-gray-100 flex justify-end">
+            <div className={`mt-3 pt-3 border-t border-gray-100 flex ${isRTL ? 'justify-end' : 'justify-start'}`}>
               <button 
                 onClick={handleDismiss}
                 className="text-xs text-gray-400 hover:text-gray-600 font-medium px-3 py-1 rounded-full hover:bg-gray-100 transition-colors"
               >
-                לא תודה
+                {t('noThanks')}
               </button>
             </div>
           </div>

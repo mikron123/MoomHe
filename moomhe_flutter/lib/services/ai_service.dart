@@ -48,6 +48,8 @@ class AIService {
 
   final Map<String, StreamSubscription> _activeRequests = {};
   String? _cachedDeviceId;
+  String? _cachedCountryCode;
+  String _currentLocale = 'en'; // Default locale
 
   // Image compression settings
   // Maximum dimension (width OR height) is 1536, maintaining aspect ratio
@@ -213,6 +215,9 @@ class AIService {
     // Get detailed device info
     final deviceDetails = await _getDeviceDetails();
     
+    // Get country code by IP (async, non-blocking)
+    final countryCode = await getCountryCodeByIP();
+    
     final userData = {
       'uid': user.uid,
       'email': user.email,
@@ -226,6 +231,9 @@ class AIService {
       'deviceModel': deviceDetails['model'],
       'osVersion': deviceDetails['osVersion'],
       'appVersion': '1.0.0',
+      // User locale and location
+      'appLocale': _currentLocale,
+      'countryCode': countryCode,
     };
 
     try {
@@ -235,6 +243,7 @@ class AIService {
       );
       debugPrint('👤 User record created/updated in Firestore (deviceId: $deviceId)');
       debugPrint('📱 Device: ${deviceDetails['brand']} ${deviceDetails['model']} (${deviceDetails['osVersion']})');
+      debugPrint('🌐 Locale: $_currentLocale, Country: $countryCode');
     } catch (e) {
       debugPrint('❌ Error creating user record: $e');
     }
@@ -270,6 +279,46 @@ class AIService {
 
   /// AndroidId plugin instance for getting unique Android device ID
   static const AndroidId _androidIdPlugin = AndroidId();
+
+  /// Set the current app locale (call this when locale changes)
+  void setCurrentLocale(String localeCode) {
+    _currentLocale = localeCode;
+    debugPrint('🌐 App locale set to: $_currentLocale');
+  }
+
+  /// Get current locale
+  String get currentLocale => _currentLocale;
+
+  /// Get country code from IP address using api.country.is
+  /// Returns cached value if available, otherwise fetches from API
+  /// Response format: {"ip":"89.138.240.113","country":"IL"}
+  Future<String?> getCountryCodeByIP() async {
+    if (_cachedCountryCode != null) {
+      return _cachedCountryCode;
+    }
+
+    try {
+      final client = HttpClient();
+      // Using api.country.is (free, no API key required)
+      final request = await client.getUrl(
+        Uri.parse('https://api.country.is/'),
+      );
+      
+      final response = await request.close();
+      final responseBody = await response.transform(utf8.decoder).join();
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(responseBody) as Map<String, dynamic>;
+        _cachedCountryCode = data['country'] as String?;
+        debugPrint('🌍 Country code by IP: $_cachedCountryCode');
+        return _cachedCountryCode;
+      }
+    } catch (e) {
+      debugPrint('⚠️ Could not get country code by IP: $e');
+    }
+    
+    return null;
+  }
 
   /// Get unique device ID
   /// On Android: Uses Settings.Secure.ANDROID_ID via android_id plugin (unique per app per device)

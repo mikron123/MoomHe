@@ -1214,4 +1214,17 @@ class AppLocalizationsIs extends AppLocalizations {
 
   @override
   String get languageChanged => 'Tungumáli breytt';
+
+  @override
+  String get createAccountPromptTitle => 'Búðu til reikninginn þinn';
+
+  @override
+  String get createAccountPromptMessage =>
+      'Ótrúlegar uppfærslur eru að koma á næstu vikum! 🚀\n\nBúðu til reikning núna til að missa ekki af sköpunarverkum þínum og vertu fyrstur til að njóta nýrra eiginleika.';
+
+  @override
+  String get createAccountPromptButton => 'Búa til reikning';
+
+  @override
+  String get maybeLater => 'Kannski seinna';
 }

@@ -1209,4 +1209,17 @@ class AppLocalizationsLt extends AppLocalizations {
 
   @override
   String get languageChanged => 'Kalba pakeista';
+
+  @override
+  String get createAccountPromptTitle => 'Sukurkite savo paskyrą';
+
+  @override
+  String get createAccountPromptMessage =>
+      'Nuostabūs atnaujinimai ateina per artimiausias savaites! 🚀\n\nSukurkite paskyrą dabar, kad neprarastumėte savo kūrinių ir būtumėte pirmieji, kurie mėgausis naujomis funkcijomis.';
+
+  @override
+  String get createAccountPromptButton => 'Sukurti paskyrą';
+
+  @override
+  String get maybeLater => 'Gal vėliau';
 }

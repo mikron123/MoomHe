@@ -1192,4 +1192,17 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get languageChanged => '言語が変更されました';
+
+  @override
+  String get createAccountPromptTitle => 'アカウントを作成';
+
+  @override
+  String get createAccountPromptMessage =>
+      '数週間以内に素晴らしいアップデートが届きます！🚀\n\n今すぐアカウントを作成して、作品を失わないようにし、新機能をいち早くお楽しみください。';
+
+  @override
+  String get createAccountPromptButton => 'アカウント作成';
+
+  @override
+  String get maybeLater => '後で';
 }

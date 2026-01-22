@@ -1210,4 +1210,17 @@ class AppLocalizationsEt extends AppLocalizations {
 
   @override
   String get languageChanged => 'Keel muudetud';
+
+  @override
+  String get createAccountPromptTitle => 'Loo oma konto';
+
+  @override
+  String get createAccountPromptMessage =>
+      'Imelised uuendused on tulemas lähimate nädalate jooksul! 🚀\n\nLoo konto kohe, et mitte kaotada oma loomingut ja olla esimene, kes naudib uusi funktsioone.';
+
+  @override
+  String get createAccountPromptButton => 'Loo konto';
+
+  @override
+  String get maybeLater => 'Võib-olla hiljem';
 }

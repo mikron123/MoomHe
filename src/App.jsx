@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { Upload, Plus, Palette, RotateCcw, Download, Settings, Home, TreePine, Car, Heart, Hammer, Sparkles, Package, User, Share2, Wand2, Type, Loader2, RotateCw, Lightbulb, Sofa, Droplets, ArrowLeftRight, MessageCircle, HelpCircle, CheckCircle, Mail, History, MoreHorizontal, X, Power, Search } from 'lucide-react'
+import { Upload, Plus, Palette, RotateCcw, Download, Settings, Home, TreePine, Car, Heart, Hammer, Sparkles, Package, User, Share2, Wand2, Type, Loader2, RotateCw, Lightbulb, Sofa, Droplets, ArrowLeftRight, MessageCircle, HelpCircle, CheckCircle, Mail, History, MoreHorizontal, X, Power, Search, Globe, ChevronDown } from 'lucide-react'
 import { 
   fileToGenerativePart, urlToFile, signInUser, createOrUpdateUser, saveImageToHistory, 
   saveUploadToHistory, loadUserHistory, loadUserHistoryPaginated, auth, uploadImageForSharing, 
@@ -25,8 +25,11 @@ import WelcomePremiumModal from './WelcomePremiumModal'
 import BeforeAfterSlider from './BeforeAfterSlider'
 import DesignerAvatar from './DesignerAvatar'
 import MobileMenuModal from './MobileMenuModal'
+import { useLocalization } from './localization.jsx'
 
 function App() {
+  // Localization
+  const { t, language, setLanguage, isRTL, countryCode } = useLocalization()
   // Onboarding State
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [showMobileMenu, setShowMobileMenu] = useState(false)
@@ -84,7 +87,7 @@ function App() {
   })
   const [customPrompt, setCustomPrompt] = useState('')
   const [imageAspectRatio, setImageAspectRatio] = useState(16/9) // Default to 16:9
-  const [activeColorCategory, setActiveColorCategory] = useState('אדומים') // Default to reds
+  const [activeColorCategory, setActiveColorCategory] = useState('reds') // Default to reds
   const [objectImage, setObjectImage] = useState(null)
   const [objectImageFile, setObjectImageFile] = useState(null)
   const [historyPage, setHistoryPage] = useState(1)
@@ -101,10 +104,10 @@ function App() {
   const [userUsage, setUserUsage] = useState(0)
   
   const subscriptionNames = {
-    0: 'חינם',
-    1: 'מתחיל',
-    2: 'משתלם',
-    3: 'מקצועי'
+    0: t('subscriptionFree'),
+    1: t('subscriptionStarter'),
+    2: t('subscriptionValue'),
+    3: t('subscriptionPro')
   }
   const [password, setPassword] = useState('')
   const [isLoadingAuth, setIsLoadingAuth] = useState(false)
@@ -135,6 +138,8 @@ function App() {
   const [isSubmittingContact, setIsSubmittingContact] = useState(false)
   const [showContactSuccess, setShowContactSuccess] = useState(false)
   const [contactError, setContactError] = useState('')
+
+  // Language Selector State
 
   // Google Lens Selection State
   const [isGoogleLensMode, setIsGoogleLensMode] = useState(false)
@@ -225,23 +230,23 @@ function App() {
 
   const onboardingSteps = [
     {
-      title: 'העלה תמונה',
-      description: 'התחל בהעלאת תמונה של החדר שתרצה לעצב. אין לך תמונה? אל דאגה, נשתמש בתמונה לדוגמה.',
+      title: t('onboardingUploadTitle'),
+      description: t('onboardingUploadDesc'),
       targetRef: isMobile ? uploadBtnMobileRef : uploadBtnDesktopRef
     },
     {
-      title: 'בחר עיצוב מחדש',
-      description: 'בחר את הסגנון המועדף עליך מהתפריט הצדדי. נסה "עיצוב מחדש" כדי לראות אפשרויות שונות.',
+      title: t('onboardingStyleTitle'),
+      description: t('onboardingStyleDesc'),
       targetRef: isMobile ? styleBtnMobileRef : styleBtnRef
     },
     {
-      title: 'צור עיצוב',
-      description: 'לחץ על "צור" וה-AI יעצב מחדש את החדר שלך תוך שניות!',
+      title: t('onboardingCreateTitle'),
+      description: t('onboardingCreateDesc'),
       targetRef: isMobile ? createBtnMobileRef : createBtnRef
     },
     {
-      title: 'טיפ נוסף: העלה פריט',
-      description: 'רוצה להוסיף רהיט ספציפי? השתמש בכפתור "העלה פריט" כדי להעלות תמונה של פריט ולשלב אותו בעיצוב.',
+      title: t('onboardingItemTipTitle'),
+      description: t('onboardingItemTipDesc'),
       targetRef: isMobile ? addObjectBtnMobileRef : addObjectBtnDesktopRef
     }
   ]
@@ -378,66 +383,72 @@ function App() {
     'קעקועים': '/assets/tattoo_img.jpg'
   }
 
-  const categoryActionButtons = {
-    'עיצוב פנים וחוץ': [
-      { name: 'עיצוב מחדש', action: () => setShowStyleOptions(!showStyleOptions), icon: Wand2 },
-      { name: 'תיקונים ונזקים', action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer },
-      { name: 'שנה צבע', action: () => setShowColorPalette(!showColorPalette), icon: Palette },
-      { name: 'זווית', action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
-      { name: 'תאורה', action: () => setShowLightingOptions(!showLightingOptions), icon: Lightbulb },
-      { name: 'ריהוט', action: () => setShowFurnitureOptions(!showFurnitureOptions), icon: Sofa },
-      { name: 'חלונות ודלתות', action: () => setShowDoorsWindowsOptions(!showDoorsWindowsOptions), icon: Home },
-      { name: 'רחצה', action: () => setShowBathroomOptions(!showBathroomOptions), icon: Droplets }
+  // Interior design action buttons (localized)
+  const interiorDesignButtons = [
+    { name: t('redesign'), action: () => setShowStyleOptions(!showStyleOptions), icon: Wand2 },
+    { name: t('repairsDamages'), action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer },
+    { name: t('changeColor'), action: () => setShowColorPalette(!showColorPalette), icon: Palette },
+    { name: t('angle'), action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
+    { name: t('lighting'), action: () => setShowLightingOptions(!showLightingOptions), icon: Lightbulb },
+    { name: t('furniture'), action: () => setShowFurnitureOptions(!showFurnitureOptions), icon: Sofa },
+    { name: t('doorsWindows'), action: () => setShowDoorsWindowsOptions(!showDoorsWindowsOptions), icon: Home },
+    { name: t('bathroomShort'), action: () => setShowBathroomOptions(!showBathroomOptions), icon: Droplets }
+  ]
+
+  // Helper function to get category action buttons with localized names
+  const getCategoryActionButtons = () => ({
+    [t('categoryInteriorExterior')]: interiorDesignButtons,
+    [t('categoryGardensBalconies')]: [
+      { name: t('redesign'), action: () => setShowStyleOptions(!showStyleOptions), icon: Wand2 },
+      { name: t('repairsDamages'), action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer },
+      { name: t('changeColor'), action: () => setShowColorPalette(!showColorPalette), icon: Palette },
+      { name: t('angle'), action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
+      { name: t('addPlants'), action: () => addPromptToInput("Add beautiful plants and flowers to this garden"), icon: TreePine },
+      { name: t('enhanceLighting'), action: () => addPromptToInput("Enhance the outdoor lighting"), icon: Settings }
     ],
-    'גינות ומרפסות': [
-      { name: 'עיצוב מחדש', action: () => setShowStyleOptions(!showStyleOptions), icon: Wand2 },
-      { name: 'תיקונים ונזקים', action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer },
-      { name: 'שנה צבע', action: () => setShowColorPalette(!showColorPalette), icon: Palette },
-      { name: 'זווית', action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
-      { name: 'הוסף צמחים', action: () => addPromptToInput("Add beautiful plants and flowers to this garden"), icon: TreePine },
-      { name: 'שיפור תאורה', action: () => addPromptToInput("Enhance the outdoor lighting"), icon: Settings }
+    [t('categoryVehicles')]: [
+      { name: t('redesign'), action: () => setShowStyleOptions(!showStyleOptions), icon: Wand2 },
+      { name: t('repairsDamages'), action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer },
+      { name: t('changeColor'), action: () => setShowColorPalette(!showColorPalette), icon: Palette },
+      { name: t('angle'), action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
+      { name: t('enhanceLighting'), action: () => addPromptToInput("Enhance the lighting and reflections on this vehicle"), icon: Settings },
+      { name: t('addAccessories'), action: () => addPromptToInput("Add accessories and modifications to this vehicle"), icon: Plus }
     ],
-    'רכבים ודו גלגלי': [
-      { name: 'עיצוב מחדש', action: () => setShowStyleOptions(!showStyleOptions), icon: Wand2 },
-      { name: 'תיקונים ונזקים', action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer },
-      { name: 'שנה צבע', action: () => setShowColorPalette(!showColorPalette), icon: Palette },
-      { name: 'זווית', action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
-      { name: 'שיפור תאורה', action: () => addPromptToInput("Enhance the lighting and reflections on this vehicle"), icon: Settings },
-      { name: 'הוסף אביזרים', action: () => addPromptToInput("Add accessories and modifications to this vehicle"), icon: Plus }
+    [t('categoryTattoos')]: [
+      { name: t('redesign'), action: () => setShowStyleOptions(!showStyleOptions), icon: Wand2 },
+      { name: t('repairsDamages'), action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer },
+      { name: t('changeColor'), action: () => setShowColorPalette(!showColorPalette), icon: Palette },
+      { name: t('angle'), action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
+      { name: t('enhanceLighting'), action: () => addPromptToInput("Enhance the lighting to show the tattoo details"), icon: Settings },
+      { name: t('addDetails'), action: () => addPromptToInput("Add more details and shading to this tattoo"), icon: Plus }
     ],
-    'קעקועים': [
-      { name: 'עיצוב מחדש', action: () => setShowStyleOptions(!showStyleOptions), icon: Wand2 },
-      { name: 'תיקונים ונזקים', action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer },
-      { name: 'שנה צבע', action: () => setShowColorPalette(!showColorPalette), icon: Palette },
-      { name: 'זווית', action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
-      { name: 'שיפור תאורה', action: () => addPromptToInput("Enhance the lighting to show the tattoo details"), icon: Settings },
-      { name: 'הוסף פרטים', action: () => addPromptToInput("Add more details and shading to this tattoo"), icon: Plus }
+    [t('categoryMakeupBeauty')]: [
+      { name: t('redesign'), action: () => setShowStyleOptions(!showStyleOptions), icon: Wand2 },
+      { name: t('repairsDamages'), action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer },
+      { name: t('changeColor'), action: () => setShowColorPalette(!showColorPalette), icon: Palette },
+      { name: t('angle'), action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
+      { name: t('enhanceLighting'), action: () => addPromptToInput("Enhance the lighting for better makeup visibility"), icon: Settings },
+      { name: t('addMakeup'), action: () => addPromptToInput("Add more makeup and beauty enhancements"), icon: Sparkles }
     ],
-    'איפור וטיפוח': [
-      { name: 'עיצוב מחדש', action: () => setShowStyleOptions(!showStyleOptions), icon: Wand2 },
-      { name: 'תיקונים ונזקים', action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer },
-      { name: 'שנה צבע', action: () => setShowColorPalette(!showColorPalette), icon: Palette },
-      { name: 'זווית', action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
-      { name: 'שיפור תאורה', action: () => addPromptToInput("Enhance the lighting for better makeup visibility"), icon: Settings },
-      { name: 'הוסף איפור', action: () => addPromptToInput("Add more makeup and beauty enhancements"), icon: Sparkles }
+    [t('categoryAdvertisingProducts')]: [
+      { name: t('redesign'), action: () => setShowStyleOptions(!showStyleOptions), icon: Wand2 },
+      { name: t('repairsDamages'), action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer },
+      { name: t('changeColor'), action: () => setShowColorPalette(!showColorPalette), icon: Palette },
+      { name: t('angle'), action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
+      { name: t('enhanceLighting'), action: () => addPromptToInput("Enhance the product lighting and presentation"), icon: Settings },
+      { name: t('addDetails'), action: () => addPromptToInput("Add product details and features"), icon: Plus }
     ],
-    'פרסום ומוצרים': [
-      { name: 'עיצוב מחדש', action: () => setShowStyleOptions(!showStyleOptions), icon: Wand2 },
-      { name: 'תיקונים ונזקים', action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer },
-      { name: 'שנה צבע', action: () => setShowColorPalette(!showColorPalette), icon: Palette },
-      { name: 'זווית', action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
-      { name: 'שיפור תאורה', action: () => addPromptToInput("Enhance the product lighting and presentation"), icon: Settings },
-      { name: 'הוסף פרטים', action: () => addPromptToInput("Add product details and features"), icon: Plus }
-    ],
-    'פרופיל ותדמית': [
-      { name: 'עיצוב מחדש', action: () => setShowStyleOptions(!showStyleOptions), icon: Wand2 },
-      { name: 'תיקונים ונזקים', action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer },
-      { name: 'שנה צבע', action: () => setShowColorPalette(!showColorPalette), icon: Palette },
-      { name: 'זווית', action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
-      { name: 'שיפור תאורה', action: () => addPromptToInput("Enhance the portrait lighting"), icon: Settings },
-      { name: 'הוסף רקע', action: () => addPromptToInput("Add a professional background"), icon: Plus }
+    [t('categoryProfileImage')]: [
+      { name: t('redesign'), action: () => setShowStyleOptions(!showStyleOptions), icon: Wand2 },
+      { name: t('repairsDamages'), action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer },
+      { name: t('changeColor'), action: () => setShowColorPalette(!showColorPalette), icon: Palette },
+      { name: t('angle'), action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
+      { name: t('enhanceLighting'), action: () => addPromptToInput("Enhance the portrait lighting"), icon: Settings },
+      { name: t('addBackground'), action: () => addPromptToInput("Add a professional background"), icon: Plus }
     ]
-  }
+  })
+  
+  const categoryActionButtons = getCategoryActionButtons()
 
   const handleImageUpload = async (event) => {
     const file = event.target.files[0]
@@ -1465,18 +1476,30 @@ function App() {
   }
 
   const colorCategoryColors = {
-    'אדומים': '#C1121C',
-    'כתומים': '#FF7514', 
-    'צהובים': '#E5BE01',
-    'ירוקים': '#287233',
-    'כחולים': '#1E2460',
-    'סגולים': '#6D3F5B',
-    'אפורים': '#78858B',
-    'לבנים ושחורים': '#F4F4F4'
+    'reds': '#C1121C',
+    'oranges': '#FF7514', 
+    'yellows': '#E5BE01',
+    'greens': '#287233',
+    'blues': '#1E2460',
+    'purples': '#6D3F5B',
+    'grays': '#78858B',
+    'whitesAndBlacks': '#F4F4F4'
+  }
+  
+  // Translation keys for color categories
+  const colorCategoryNames = {
+    'reds': t('colorReds'),
+    'oranges': t('colorOranges'),
+    'yellows': t('colorYellows'),
+    'greens': t('colorGreens'),
+    'blues': t('colorBlues'),
+    'purples': t('colorPurples'),
+    'grays': t('colorGrays'),
+    'whitesAndBlacks': t('colorWhitesAndBlacks')
   }
 
   const colorPalette = {
-    'אדומים': [
+    'reds': [
       { name: 'Flame red', value: 'flame red', hex: '#C1121C', ral: 'RAL 3000' },
       { name: 'Signal red', value: 'signal red', hex: '#A52019', ral: 'RAL 3001' },
       { name: 'Carmine red', value: 'carmine red', hex: '#A2231D', ral: 'RAL 3002' },
@@ -1498,7 +1521,7 @@ function App() {
       { name: 'Raspberry red', value: 'raspberry red', hex: '#C51D34', ral: 'RAL 3027' },
       { name: 'Orient red', value: 'orient red', hex: '#B32428', ral: 'RAL 3031' }
     ],
-    'כתומים': [
+    'oranges': [
       { name: 'Red orange', value: 'red orange', hex: '#C93C20', ral: 'RAL 2001' },
       { name: 'Vermilion', value: 'vermilion', hex: '#CB2821', ral: 'RAL 2002' },
       { name: 'Pastel orange', value: 'pastel orange', hex: '#FF7514', ral: 'RAL 2003' },
@@ -1509,7 +1532,7 @@ function App() {
       { name: 'Deep orange', value: 'deep orange', hex: '#EC7C26', ral: 'RAL 2011' },
       { name: 'Salmon range', value: 'salmon range', hex: '#E55137', ral: 'RAL 2012' }
     ],
-    'צהובים': [
+    'yellows': [
       { name: 'Green beige', value: 'green beige', hex: '#BEBD7F', ral: 'RAL 1000' },
       { name: 'Beige', value: 'beige', hex: '#C2B078', ral: 'RAL 1001' },
       { name: 'Sand yellow', value: 'sand yellow', hex: '#C6A664', ral: 'RAL 1002' },
@@ -1538,7 +1561,7 @@ function App() {
       { name: 'Pastel yellow', value: 'pastel yellow', hex: '#EFA94A', ral: 'RAL 1034' },
       { name: 'Sun yellow', value: 'sun yellow', hex: '#F39F18', ral: 'RAL 1037' }
     ],
-    'ירוקים': [
+    'greens': [
       { name: 'Patina green', value: 'patina green', hex: '#316650', ral: 'RAL 6000' },
       { name: 'Emerald green', value: 'emerald green', hex: '#287233', ral: 'RAL 6001' },
       { name: 'Leaf green', value: 'leaf green', hex: '#2D572C', ral: 'RAL 6002' },
@@ -1571,7 +1594,7 @@ function App() {
       { name: 'Mint turquoise', value: 'mint turquoise', hex: '#497E76', ral: 'RAL 6033' },
       { name: 'Pastel turquoise', value: 'pastel turquoise', hex: '#7FB5B5', ral: 'RAL 6034' }
     ],
-    'כחולים': [
+    'blues': [
       { name: 'Violet blue', value: 'violet blue', hex: '#354D73', ral: 'RAL 5000' },
       { name: 'Green blue', value: 'green blue', hex: '#1F3438', ral: 'RAL 5001' },
       { name: 'Ultramarine blue', value: 'ultramarine blue', hex: '#20214F', ral: 'RAL 5002' },
@@ -1596,7 +1619,7 @@ function App() {
       { name: 'Distant blue', value: 'distant blue', hex: '#49678D', ral: 'RAL 5023' },
       { name: 'Pastel blue', value: 'pastel blue', hex: '#5D9B9B', ral: 'RAL 5024' }
     ],
-    'סגולים': [
+    'purples': [
       { name: 'Red lilac', value: 'red lilac', hex: '#6D3F5B', ral: 'RAL 4001' },
       { name: 'Red violet', value: 'red violet', hex: '#922B3E', ral: 'RAL 4002' },
       { name: 'Heather violet', value: 'heather violet', hex: '#DE4C8A', ral: 'RAL 4003' },
@@ -1608,7 +1631,7 @@ function App() {
       { name: 'Pastel violet', value: 'pastel violet', hex: '#A18594', ral: 'RAL 4009' },
       { name: 'Telemagenta', value: 'telemagenta', hex: '#CF3476', ral: 'RAL 4010' }
     ],
-    'אפורים': [
+    'grays': [
       { name: 'Squirrel grey', value: 'squirrel grey', hex: '#78858B', ral: 'RAL 7000' },
       { name: 'Silver grey', value: 'silver grey', hex: '#8A9597', ral: 'RAL 7001' },
       { name: 'Olive grey', value: 'olive grey', hex: '#7E7B52', ral: 'RAL 7002' },
@@ -1647,7 +1670,7 @@ function App() {
       { name: 'Telegrey 2', value: 'telegrey 2', hex: '#82898F', ral: 'RAL 7046' },
       { name: 'Telegrey 4', value: 'telegrey 4', hex: '#D0D0D0', ral: 'RAL 7047' }
     ],
-    'לבנים ושחורים': [
+    'whitesAndBlacks': [
       { name: 'Cream', value: 'cream', hex: '#FDF4E3', ral: 'RAL 9001' },
       { name: 'Grey white', value: 'grey white', hex: '#E7EBDA', ral: 'RAL 9002' },
       { name: 'Signal white', value: 'signal white', hex: '#F4F4F4', ral: 'RAL 9003' },
@@ -1746,10 +1769,10 @@ function App() {
   ]
 
   const repairsOptions = [
-    { name: 'בצע תיקונים להכל', value: 'repair everything', prompt: 'בצע תיקונים להכל' },
-    { name: 'תסדר ותקנה את הכל', value: 'fix and repair everything', prompt: 'תסדר ותקנה את הכל' },
-    { name: 'תבלגן את הכל', value: 'mess up everything', prompt: 'תבלגן את הכל' },
-    { name: 'תהרוס ותגרום נזקים להכל', value: 'destroy and cause damage to everything', prompt: 'תהרוס ותגרום נזקים להכל' }
+    { name: t('repairEverything'), value: 'repair everything', prompt: 'repair everything' },
+    { name: t('fixAndRepairEverything'), value: 'fix and repair everything', prompt: 'fix and repair everything' },
+    { name: t('messUpEverything'), value: 'mess up everything', prompt: 'mess up everything' },
+    { name: t('destroyAndCauseDamage'), value: 'destroy and cause damage to everything', prompt: 'destroy and cause damage to everything' }
   ]
 
   const styleOptions = [
@@ -1943,7 +1966,7 @@ function App() {
     }
     
     setCustomPrompt(newPrompt)
-    showToast('שורת פרומפט עודכנה. לחץ על ׳צור׳ כדי לבצע')
+    showToast(t('promptUpdated'))
   }
 
   const handleAIEdit = async (prompt) => {
@@ -2114,79 +2137,79 @@ function App() {
 
   const doorsWindowsOptions = [
     {
-      title: 'אפשרויות חלונות',
+      titleKey: 'windowOptions',
       items: [
-        { name: 'חלון קבוע', description: 'הוסף חלון תמונה גדול עם נוף קבוע', icon: Home },
-        { name: 'חלון הזזה', description: 'הוסף חלון הזזה', icon: Home },
-        { name: 'חלון כנף', description: 'הוסף חלון כנף', icon: Home },
-        { name: 'חלון דריי-קיפ', description: 'הוסף חלון דריי-קיפ (הטיה ופתיחה)', icon: Home },
-        { name: 'חלון ציר עליון', description: 'הוסף חלון ציר עליון (אוונינג)', icon: Home },
-        { name: 'חלון גליוטינה', description: 'הוסף חלון גליוטינה', icon: Home },
-        { name: 'חלון כיס', description: 'הוסף חלון כיס', icon: Home },
-        { name: 'חלון קשת', description: 'הוסף חלון קשת שמגדיל את החלל', icon: Home },
+        { nameKey: 'fixedWindow', name: 'Fixed Window', description: 'Add a large picture window with fixed view', icon: Home },
+        { nameKey: 'slidingWindow', name: 'Sliding Window', description: 'Add a sliding window', icon: Home },
+        { nameKey: 'casementWindow', name: 'Casement Window', description: 'Add a casement window', icon: Home },
+        { nameKey: 'tiltTurnWindow', name: 'Tilt-Turn Window', description: 'Add a tilt-turn window', icon: Home },
+        { nameKey: 'awningWindow', name: 'Awning Window', description: 'Add an awning window', icon: Home },
+        { nameKey: 'doubleHungWindow', name: 'Double-Hung Window', description: 'Add a double-hung window', icon: Home },
+        { nameKey: 'pocketWindow', name: 'Pocket Window', description: 'Add a pocket window', icon: Home },
+        { nameKey: 'archWindow', name: 'Arch Window', description: 'Add an arch window to expand the space', icon: Home },
       ]
     },
     {
-      title: 'אפשרויות דלתות',
+      titleKey: 'doorOptions',
       items: [
-        { name: 'דלת כיס', description: 'הוסף דלת כיס שנכנסת לתוך הקיר', icon: Home },
-        { name: 'דלתות צרפתיות', description: 'הוסף דלתות צרפתיות עם זכוכית', icon: Home },
-        { name: 'דלת לובר', description: 'הוסף דלת לובר עם סורגים לאוורור', icon: Home },
-        { name: 'דלת אסם', description: 'הוסף דלת אסם עם מסילה גלויה', icon: Home },
+        { nameKey: 'pocketDoor', name: 'Pocket Door', description: 'Add a pocket door that slides into the wall', icon: Home },
+        { nameKey: 'frenchDoors', name: 'French Doors', description: 'Add French doors with glass panels', icon: Home },
+        { nameKey: 'louverDoor', name: 'Louver Door', description: 'Add a louver door with ventilation slats', icon: Home },
+        { nameKey: 'barnDoor', name: 'Barn Door', description: 'Add a barn door with exposed track', icon: Home },
       ]
     }
   ]
 
   const bathroomOptions = [
     {
-      title: 'אפשרויות אסלה',
+      titleKey: 'toiletOptions',
       items: [
-        { name: 'בידה מחומם', description: 'הוסף מושב אסלה עם בידה', icon: Droplets },
-        { name: 'מושב אסלה', description: 'הוסף מושב אסלה', icon: Droplets },
+        { nameKey: 'bidetSeat', name: 'Bidet Seat', description: 'Add a heated bidet toilet seat', icon: Droplets },
+        { nameKey: 'toiletSeat', name: 'Toilet Seat', description: 'Add a toilet seat', icon: Droplets },
       ]
     },
     {
-      title: 'אפשרויות אמבטיה',
+      titleKey: 'bathtubOptions',
       items: [
-        { name: 'אמבטיה עומדת', description: 'הוסף אמבטיה עומדת', icon: Droplets },
-        { name: 'אמבטיה וינטג', description: 'הוסף אמבטיית vintage', icon: Droplets },
-        { name: 'אמבטיה סטנדרטית', description: 'הוסף אמבטיה סטנדרטית', icon: Droplets },
+        { nameKey: 'freestandingTub', name: 'Freestanding Tub', description: 'Add a freestanding bathtub', icon: Droplets },
+        { nameKey: 'vintageTub', name: 'Vintage Tub', description: 'Add a vintage bathtub', icon: Droplets },
+        { nameKey: 'standardTub', name: 'Standard Tub', description: 'Add a standard bathtub', icon: Droplets },
       ]
     },
     {
-      title: 'אפשרויות מקלחת',
+      titleKey: 'showerOptions',
       items: [
-        { name: 'מקלחת גשם', description: 'הוסף מקלחת עם מערכת ראש גשם', icon: Droplets },
-        { name: 'מקלחון', description: 'הוסף מקלחון', icon: Droplets },
-        { name: 'מקלחת דלתות', description: 'הוסף מקלחון עם דלתות הזזה', icon: Droplets },
+        { nameKey: 'rainShower', name: 'Rain Shower', description: 'Add a shower with rain head system', icon: Droplets },
+        { nameKey: 'showerEnclosure', name: 'Shower Enclosure', description: 'Add a shower enclosure', icon: Droplets },
+        { nameKey: 'slidingShower', name: 'Sliding Shower', description: 'Add a shower enclosure with sliding doors', icon: Droplets },
       ]
     },
     {
-      title: 'אפשרויות כיור',
+      titleKey: 'sinkOptions',
       items: [
-        { name: 'כיור עמוד', description: 'הוסף כיור עמוד בסגנון קלאסי', icon: Droplets },
-        { name: 'כיור נירוסטה', description: 'הוסף כיור נירוסטה', icon: Droplets },
-        { name: 'כיור מובנה', description: 'הוסף כיור מובנה קרמי לבן', icon: Droplets },
+        { nameKey: 'pedestalSink', name: 'Pedestal Sink', description: 'Add a classic pedestal sink', icon: Droplets },
+        { nameKey: 'stainlessSink', name: 'Stainless Sink', description: 'Add a stainless steel sink', icon: Droplets },
+        { nameKey: 'undermountSink', name: 'Undermount Sink', description: 'Add a white ceramic undermount sink', icon: Droplets },
       ]
     },
     {
-      title: 'אפשרויות ג\'קוזי/ספא',
+      titleKey: 'jacuzziSpaOptions',
       items: [
-        { name: 'ג\'קוזי מובנה', description: 'הוסף ג\'קוזי מובנה עם אריחים', icon: Droplets },
-        { name: 'ג\'קוזי נייד', description: 'הוסף ג׳קוזי סטנדרטי', icon: Droplets },
+        { nameKey: 'builtInJacuzzi', name: 'Built-in Jacuzzi', description: 'Add a built-in jacuzzi with tiles', icon: Droplets },
+        { nameKey: 'portableJacuzzi', name: 'Portable Jacuzzi', description: 'Add a standard portable jacuzzi', icon: Droplets },
       ]
     },
     {
-      title: 'אפשרויות בריכה',
+      titleKey: 'poolOptions',
       items: [
-        { name: 'בריכה בתוך הקרקע', description: 'הוסף בריכה בתוך הקרקע מבטון מותאמת אישית', icon: Droplets },
-        { name: 'בריכה מעל הקרקע', description: 'הוסף בריכה מעל הקרקע עם מסגרת מתכת', icon: Droplets },
+        { nameKey: 'ingroundPool', name: 'Inground Pool', description: 'Add a custom concrete inground pool', icon: Droplets },
+        { nameKey: 'abovegroundPool', name: 'Above-ground Pool', description: 'Add an above-ground pool with metal frame', icon: Droplets },
       ]
     }
   ]
 
   return (
-    <div className="min-h-screen text-text font-sans selection:bg-primary-500/30 overflow-x-hidden">
+    <div className="min-h-screen text-text font-sans selection:bg-primary-500/30 overflow-x-hidden" dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Top Navigation Bar */}
       <nav className="fixed top-0 left-0 right-0 z-50 glass-panel border-b-0 rounded-b-2xl mx-2 sm:mx-4 mt-2 px-4 sm:px-6 py-3 flex justify-between items-center animate-slide-up">
         <div className="flex items-center gap-4">
@@ -2194,8 +2217,8 @@ function App() {
             <div className="relative">
               <div className="absolute inset-0 bg-gradient-to-r from-primary-500 to-secondary-500 blur-lg opacity-30 rounded-full"></div>
               <h1 className="relative text-2xl sm:text-3xl font-bold bg-gradient-to-r from-primary-300 via-white to-secondary-300 bg-clip-text text-transparent tracking-tight">
-                מומחה
-                <span className="text-lg sm:text-xl align-super mr-1 bg-gradient-to-r from-secondary-400 to-secondary-300 bg-clip-text text-transparent font-light">AI</span>
+                {t('appName')}
+                <span className={`text-lg sm:text-xl align-super ${isRTL ? 'mr-1' : 'ml-1'} bg-gradient-to-r from-secondary-400 to-secondary-300 bg-clip-text text-transparent font-light`}>AI</span>
               </h1>
             </div>
           </div>
@@ -2224,11 +2247,11 @@ function App() {
             )}
             {userSubscription > 0 ? (
               <div className="flex flex-col items-start leading-none">
-                <span>מנוי פעיל</span>
-                <span className="text-[10px] opacity-80">{userCredits - userUsage > 0 ? userCredits - userUsage : 0} קרדיטים</span>
+                <span>{t('activeSubscription')}</span>
+                <span className="text-[10px] opacity-80">{userCredits - userUsage > 0 ? userCredits - userUsage : 0} {t('credits')}</span>
               </div>
             ) : (
-              'מנוי מקצועי'
+              t('professionalSubscription')
             )}
           </button>
           <button 
@@ -2238,14 +2261,14 @@ function App() {
               trackOnboardingStart()
             }}
             className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-full transition-all"
-            title="הדרכה"
+            title={t('tutorial')}
           >
             <HelpCircle className="w-5 h-5" />
           </button>
           <button 
             onClick={() => setShowContactModal(true)}
             className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-full transition-all"
-            title="צור קשר"
+            title={t('contactUs')}
           >
             <MessageCircle className="w-5 h-5" />
           </button>
@@ -2305,8 +2328,8 @@ function App() {
                  </div>
                  
                  <div className="text-right hidden sm:block">
-                   {!currentUser?.isAnonymous && <div className="text-xs text-textMuted">מחובר כ-</div>}
-                   <div className="text-sm font-medium leading-none text-white">{(currentUser?.email || '').split('@')[0] || 'אורח'}</div>
+                   {!currentUser?.isAnonymous && <div className="text-xs text-textMuted">{t('loggedInAs')}</div>}
+                   <div className="text-sm font-medium leading-none text-white">{(currentUser?.email || '').split('@')[0] || t('guest')}</div>
                  </div>
                </>
              ) : (
@@ -2314,7 +2337,7 @@ function App() {
                  <div className="w-8 h-8 rounded-full bg-surfaceHighlight flex items-center justify-center group-hover:scale-110 transition-transform">
                    <User className="w-4 h-4 text-white" />
                  </div>
-                 <span className="text-sm font-medium hidden sm:block text-white">התחבר</span>
+                 <span className="text-sm font-medium hidden sm:block text-white">{t('login')}</span>
                </>
              )}
            </button>
@@ -2331,10 +2354,10 @@ function App() {
                onClick={handleUploadClick}
                disabled={isProcessing}
                className="w-full py-3 px-2 flex flex-col items-center justify-center gap-2 group bg-gradient-to-br from-blue-500/20 to-primary-500/20 hover:from-blue-500/30 hover:to-primary-500/30 border border-blue-400/30 hover:border-blue-400/50 rounded-xl transition-all duration-300 shadow-lg shadow-blue-500/10 hover:shadow-blue-500/20"
-               title="העלה תמונה"
+               title={t('uploadImage')}
              >
                <Upload className="w-6 h-6 group-hover:scale-110 transition-transform text-blue-400" />
-               <span className="text-[11px] text-blue-300 font-medium">העלה תמונה</span>
+               <span className="text-[11px] text-blue-300 font-medium">{t('uploadImage')}</span>
              </button>
 
              <button 
@@ -2342,10 +2365,10 @@ function App() {
                onClick={handleObjectUploadClick}
                disabled={isProcessing}
                className={`w-full py-3 px-2 flex flex-col items-center justify-center gap-2 group ${objectImageFile ? 'bg-gradient-to-br from-primary-500/30 to-secondary-500/30 border-primary-400/50' : 'bg-gradient-to-br from-green-500/20 to-emerald-500/20 border-green-400/30 hover:border-green-400/50'} hover:from-green-500/30 hover:to-emerald-500/30 border rounded-xl transition-all duration-300 shadow-lg shadow-green-500/10 hover:shadow-green-500/20 disabled:opacity-50 disabled:cursor-not-allowed`}
-               title="העלה פריט"
+               title={t('uploadItem')}
              >
                <Plus className={`w-6 h-6 group-hover:scale-110 transition-transform ${objectImageFile ? 'text-primary-400' : 'text-green-400'}`} />
-               <span className={`text-[11px] font-medium ${objectImageFile ? 'text-primary-300' : 'text-green-300'}`}>העלה פריט</span>
+               <span className={`text-[11px] font-medium ${objectImageFile ? 'text-primary-300' : 'text-green-300'}`}>{t('uploadItem')}</span>
              </button>
 
              <div className="h-px w-full bg-white/10 my-1"></div>
@@ -2356,10 +2379,10 @@ function App() {
                onClick={() => setShowStyleOptions(!showStyleOptions)}
                disabled={isProcessing}
                className={`w-full py-3 px-2 flex flex-col items-center justify-center gap-2 group bg-gradient-to-br from-purple-500/20 to-pink-500/20 hover:from-purple-500/30 hover:to-pink-500/30 border border-purple-400/30 hover:border-purple-400/50 rounded-xl transition-all duration-300 shadow-lg shadow-purple-500/10 hover:shadow-purple-500/20 ${showStyleOptions ? 'ring-2 ring-purple-400/50' : ''} disabled:opacity-50 disabled:cursor-not-allowed`}
-               title="עיצוב מחדש"
+               title={t('redesign')}
              >
                <Wand2 className={`w-6 h-6 group-hover:scale-110 transition-transform text-purple-400`} />
-               <span className="text-[11px] text-purple-300 font-medium">עיצוב מחדש</span>
+               <span className="text-[11px] text-purple-300 font-medium">{t('redesign')}</span>
              </button>
 
 {/* More Tools Button */}
@@ -2367,10 +2390,10 @@ function App() {
                onClick={() => setShowMobileMoreTools(!showMobileMoreTools)}
                disabled={isProcessing}
                className={`w-full py-3 px-2 flex flex-col items-center justify-center gap-2 group bg-surfaceHighlight/40 border border-white/80 rounded-xl transition-all duration-300 ${showMobileMoreTools ? 'bg-surfaceHighlight/60' : 'hover:bg-surfaceHighlight/50'} disabled:opacity-50 disabled:cursor-not-allowed`}
-               title="עוד כלים"
+               title={t('moreTools')}
              >
                <MoreHorizontal className={`w-5 h-5 group-hover:scale-110 transition-transform ${showMobileMoreTools ? 'text-primary-300' : 'text-textMuted'}`} />
-               <span className="text-[11px] text-textMuted font-medium">עוד</span>
+               <span className="text-[11px] text-textMuted font-medium">{t('more')}</span>
              </button>
            </div>
 
@@ -2384,9 +2407,9 @@ function App() {
               className="hidden lg:block fixed inset-0 z-40" 
               onClick={() => setShowMobileMoreTools(false)}
             />
-            <div className="hidden lg:block fixed top-1/2 right-32 -translate-y-1/2 w-48 bg-surface/95 backdrop-blur-xl rounded-xl p-3 shadow-2xl border border-white/10 z-50 animate-fade-in">
+            <div className={`hidden lg:block fixed top-1/2 -translate-y-1/2 w-48 bg-surface/95 backdrop-blur-xl rounded-xl p-3 shadow-2xl border border-white/10 z-50 animate-fade-in ${isRTL ? 'right-32' : 'left-32'}`}>
               <div className="flex items-center justify-between mb-3 pb-2 border-b border-white/10">
-                <span className="text-sm font-medium text-white">כלים נוספים</span>
+                <span className="text-sm font-medium text-white">{t('moreTools')}</span>
                 <button 
                   onClick={() => setShowMobileMoreTools(false)}
                   className="p-1 rounded-full hover:bg-white/10 transition-colors"
@@ -2396,12 +2419,12 @@ function App() {
               </div>
               <div className="flex flex-col gap-1">
                 {[
-                  { icon: Palette, label: 'צבעים', action: () => { setShowColorPalette(!showColorPalette); setShowMobileMoreTools(false); } },
-                  { icon: Sofa, label: 'ריהוט', action: () => { setShowFurnitureOptions(!showFurnitureOptions); setShowMobileMoreTools(false); } },
-                  { icon: Lightbulb, label: 'תאורה', action: () => { setShowLightingOptions(!showLightingOptions); setShowMobileMoreTools(false); } },
-                  { icon: Home, label: 'חלונות ודלתות', action: () => { setShowDoorsWindowsOptions(!showDoorsWindowsOptions); setShowMobileMoreTools(false); } },
-                  { icon: Droplets, label: 'רחצה', action: () => { setShowBathroomOptions(!showBathroomOptions); setShowMobileMoreTools(false); } },
-                  { icon: Hammer, label: 'תיקונים', action: () => { setShowRepairsOptions(!showRepairsOptions); setShowMobileMoreTools(false); } },
+                  { icon: Palette, label: t('colors'), action: () => { setShowColorPalette(!showColorPalette); setShowMobileMoreTools(false); } },
+                  { icon: Sofa, label: t('furniture'), action: () => { setShowFurnitureOptions(!showFurnitureOptions); setShowMobileMoreTools(false); } },
+                  { icon: Lightbulb, label: t('lighting'), action: () => { setShowLightingOptions(!showLightingOptions); setShowMobileMoreTools(false); } },
+                  { icon: Home, label: t('doorsWindows'), action: () => { setShowDoorsWindowsOptions(!showDoorsWindowsOptions); setShowMobileMoreTools(false); } },
+                  { icon: Droplets, label: t('bathroomShort'), action: () => { setShowBathroomOptions(!showBathroomOptions); setShowMobileMoreTools(false); } },
+                  { icon: Hammer, label: t('repairs'), action: () => { setShowRepairsOptions(!showRepairsOptions); setShowMobileMoreTools(false); } },
                 ].map((tool, i) => (
                   <button
                     key={i}
@@ -2427,7 +2450,7 @@ function App() {
                 >
                   <div className="flex items-center gap-3">
                     <Power className={`w-5 h-5 ${isDesignerAvatarEnabled ? 'text-emerald-400' : 'text-gray-500'}`} />
-                    <span className="text-sm text-white">מעצבת AI</span>
+                    <span className="text-sm text-white">{t('aiDesigner')}</span>
                   </div>
                   <div 
                     className={`w-9 h-5 rounded-full p-0.5 transition-all ${
@@ -2473,7 +2496,7 @@ function App() {
                    <div className="absolute inset-0 rounded-full border-4 border-primary-500/30 animate-ping"></div>
                    <div className="absolute inset-0 rounded-full border-4 border-t-primary-400 border-r-secondary-400 border-b-primary-600 border-l-secondary-600 animate-spin"></div>
                  </div>
-                 <p className="mt-4 text-lg font-medium text-white animate-pulse">מעבד עיצוב חדש...</p>
+                 <p className="mt-4 text-lg font-medium text-white animate-pulse">{t('processingNewDesign')}</p>
                </div>
              )}
 
@@ -2484,7 +2507,7 @@ function App() {
              <button 
                onClick={() => setShowMobileHistory(true)}
                className="lg:hidden absolute top-4 left-4 p-2 bg-black/50 text-white rounded-lg backdrop-blur-md hover:bg-black/70 transition-colors shadow-lg border border-white/10 z-10"
-               title="היסטוריה"
+               title={t('history')}
              >
                <History className="w-5 h-5" />
              </button>
@@ -2518,7 +2541,7 @@ function App() {
                  type="text" 
                  value={customPrompt}
                  onChange={(e) => setCustomPrompt(e.target.value)}
-                 placeholder="תאר את העיצוב המבוקש... (לדוגמה: שנה את הספה לצבע כחול, הוסף צמחייה בפינה)"
+                 placeholder={t('promptPlaceholder')}
                  disabled={isProcessing}
                  className="w-full bg-surface/50 border border-white/10 rounded-xl px-4 py-3 pr-10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                  onKeyPress={(e) => e.key === 'Enter' && !isProcessing && handleCustomPromptSubmit()}
@@ -2541,7 +2564,7 @@ function App() {
                disabled={isProcessing || !customPrompt.trim()}
                className="btn-primary flex items-center gap-2 px-8 disabled:opacity-50 disabled:cursor-not-allowed"
              >
-               <span>צור</span>
+               <span>{t('create')}</span>
                <Sparkles className="w-4 h-4" />
              </button>
            </div>
@@ -2549,13 +2572,13 @@ function App() {
 
         {/* Right Panel - History & Details (Desktop) */}
         <aside className="hidden lg:flex flex-col gap-4 w-80 glass-panel rounded-2xl p-4 animate-slide-in-right" style={{animationDelay: '0.2s'}}>
-          <h3 className="text-sm font-semibold text-textMuted uppercase tracking-wider mb-2">היסטוריית עיצובים</h3>
+          <h3 className="text-sm font-semibold text-textMuted uppercase tracking-wider mb-2">{t('designHistory')}</h3>
           
           <div className={`flex-1 overflow-y-auto scrollbar-custom pr-1 -mr-1 space-y-3 ${isProcessing ? 'opacity-50 pointer-events-none' : ''}`}>
             {imageHistory.length === 0 ? (
               <div className="text-center py-10 opacity-50">
                 <Sparkles className="w-8 h-8 mx-auto mb-2" />
-                <p className="text-xs">אין היסטוריה עדיין</p>
+                <p className="text-xs">{t('noHistoryYet')}</p>
               </div>
             ) : (
               imageHistory.map((entry) => (
@@ -2599,7 +2622,7 @@ function App() {
           <span className="text-sm font-medium">
             <span className="md:inline block">שורת פרומפט עודכנה.</span>
             <span className="hidden md:inline"> </span>
-            <span className="md:inline block">לחץ על ׳צור׳ כדי לבצע</span>
+            <span className="md:inline block">{t('promptUpdated')}</span>
           </span>
         </div>
       )}
@@ -2615,12 +2638,12 @@ function App() {
           <div className="absolute inset-0 bg-black/70" />
           
           {/* Tooltip */}
-          <div className="absolute left-1/2 -translate-x-1/2 bottom-44 lg:bottom-32 w-[90%] max-w-[340px] bg-white text-gray-900 p-5 rounded-2xl shadow-2xl animate-bounce-in" dir="rtl" onClick={(e) => e.stopPropagation()}>
+          <div className="absolute left-1/2 -translate-x-1/2 bottom-44 lg:bottom-32 w-[90%] max-w-[340px] bg-white text-gray-900 p-5 rounded-2xl shadow-2xl animate-bounce-in" dir={isRTL ? 'rtl' : 'ltr'} onClick={(e) => e.stopPropagation()}>
             {/* Arrow pointing down */}
             <div className="absolute bottom-[-8px] left-1/2 -translate-x-1/2 w-0 h-0 border-solid border-t-white border-r-transparent border-l-transparent border-b-transparent border-[8px]"></div>
             
             <div className="flex justify-between items-start mb-3">
-              <h3 className="font-bold text-lg text-primary-600">🎨 מעולה! התמונה הועלתה</h3>
+              <h3 className="font-bold text-lg text-primary-600">🎨 {t('imageUploadedSuccess')}</h3>
               <button 
                 onClick={() => {
                   setShowFirstUploadTip(false)
@@ -2634,14 +2657,14 @@ function App() {
             </div>
             
             <p className="text-sm text-gray-600 mb-4 leading-relaxed">
-              עכשיו תאר מה תרצה לשנות בתמונה. לדוגמה: "שנה את צבע הקירות לכחול" או "הוסף צמחים בפינה".
+              {t('describeWhatToChange')}
               <br /><br />
-              💡 <strong>טיפ:</strong> לחץ על "עוד" לקיצורי דרך מוכנים כמו שינוי צבעים, ריהוט, תאורה ועוד!
+              {t('tipClickMore')}
             </p>
             
             <div className="flex items-center gap-2 p-3 bg-primary-50 rounded-xl mb-4">
               <span className="text-2xl">👇</span>
-              <span className="text-sm text-primary-700 font-medium">כתוב את הבקשה שלך בשורה למטה ולחץ "צור"</span>
+              <span className="text-sm text-primary-700 font-medium">{t('writeRequestAndCreate')}</span>
             </div>
             
             <button 
@@ -2652,7 +2675,7 @@ function App() {
               }}
               className="w-full bg-primary-600 hover:bg-primary-700 text-white py-2.5 rounded-xl text-sm font-medium transition-all hover:shadow-lg"
             >
-              הבנתי, בוא נתחיל!
+              {t('gotItLetsStart')}
             </button>
           </div>
         </div>
@@ -2688,7 +2711,7 @@ function App() {
                type="text" 
                value={customPrompt}
                onChange={(e) => setCustomPrompt(e.target.value)}
-               placeholder="מה לשנות?"
+               placeholder={t('whatToChange')}
                disabled={isProcessing}
                className="flex-1 bg-transparent border-none text-white placeholder-gray-500 focus:ring-0 px-2 text-sm py-2 disabled:opacity-50 disabled:cursor-not-allowed"
                onKeyPress={(e) => e.key === 'Enter' && !isProcessing && handleCustomPromptSubmit()}
@@ -2724,7 +2747,7 @@ function App() {
                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500/30 to-primary-500/30 flex items-center justify-center border border-blue-400/40 active:scale-95 transition-transform shadow-lg shadow-blue-500/20">
                  <Upload className="w-6 h-6 text-blue-400" />
                </div>
-               <span className="text-[10px] text-blue-300 font-medium">העלה תמונה</span>
+               <span className="text-[10px] text-blue-300 font-medium">{t('uploadImage')}</span>
              </button>
              
              <button 
@@ -2736,7 +2759,7 @@ function App() {
                <div className={`w-14 h-14 rounded-2xl ${objectImageFile ? 'bg-gradient-to-br from-primary-500/30 to-secondary-500/30 border-primary-400/40' : 'bg-gradient-to-br from-green-500/30 to-emerald-500/30 border-green-400/40'} flex items-center justify-center border active:scale-95 transition-transform shadow-lg shadow-green-500/20`}>
                  <Plus className={`w-6 h-6 ${objectImageFile ? 'text-primary-400' : 'text-green-400'}`} />
                </div>
-               <span className={`text-[10px] font-medium ${objectImageFile ? 'text-primary-300' : 'text-green-300'}`}>העלה פריט</span>
+               <span className={`text-[10px] font-medium ${objectImageFile ? 'text-primary-300' : 'text-green-300'}`}>{t('uploadItem')}</span>
              </button>
 
              <button 
@@ -2748,7 +2771,7 @@ function App() {
                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-500/30 to-pink-500/30 flex items-center justify-center border border-purple-400/40 active:scale-95 transition-transform shadow-lg shadow-purple-500/20">
                  <Wand2 className="w-6 h-6 text-purple-400" />
                </div>
-               <span className="text-[10px] text-purple-300 font-medium">עיצוב מחדש</span>
+               <span className="text-[10px] text-purple-300 font-medium">{t('redesign')}</span>
              </button>
 
              {/* Mobile Designer Avatar Trigger - Inside Toolbar - Placed before "More" button */}
@@ -2764,7 +2787,7 @@ function App() {
                       initialShowSuggestions={shouldAutoOpenAvatar} 
                     />
                   </div>
-                  <span className="text-[10px] text-purple-300 font-medium">מעצבת AI</span>
+                  <span className="text-[10px] text-purple-300 font-medium">{t('aiDesigner')}</span>
                 </div>
              )}
 
@@ -2776,7 +2799,7 @@ function App() {
                <div className="w-14 h-14 rounded-2xl bg-surfaceHighlight/40 flex items-center justify-center border border-white/80 active:scale-95 transition-transform">
                  <MoreHorizontal className="w-6 h-6 text-textMuted" />
                </div>
-               <span className="text-[10px] text-textMuted font-medium">עוד</span>
+               <span className="text-[10px] text-textMuted font-medium">{t('more')}</span>
              </button>
 
           </div>
@@ -2790,7 +2813,7 @@ function App() {
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-lg font-semibold text-white">כלים נוספים</h3>
+                  <h3 className="text-lg font-semibold text-white">{t('moreTools')}</h3>
                   <button 
                     onClick={() => setShowMobileMoreTools(false)}
                     className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
@@ -2800,12 +2823,12 @@ function App() {
                 </div>
                 <div className="grid grid-cols-3 gap-4">
                   {[
-                    { icon: Palette, label: 'צבעים', action: () => { setShowColorPalette(true); setShowMobileMoreTools(false); } },
-                    { icon: Sofa, label: 'ריהוט', action: () => { setShowFurnitureOptions(true); setShowMobileMoreTools(false); } },
-                    { icon: Lightbulb, label: 'תאורה', action: () => { setShowLightingOptions(true); setShowMobileMoreTools(false); } },
-                    { icon: Home, label: 'חלונות ודלתות', action: () => { setShowDoorsWindowsOptions(true); setShowMobileMoreTools(false); } },
-                    { icon: Droplets, label: 'רחצה', action: () => { setShowBathroomOptions(true); setShowMobileMoreTools(false); } },
-                    { icon: Hammer, label: 'תיקונים', action: () => { setShowRepairsOptions(true); setShowMobileMoreTools(false); } },
+                    { icon: Palette, label: t('colors'), action: () => { setShowColorPalette(true); setShowMobileMoreTools(false); } },
+                    { icon: Sofa, label: t('furniture'), action: () => { setShowFurnitureOptions(true); setShowMobileMoreTools(false); } },
+                    { icon: Lightbulb, label: t('lighting'), action: () => { setShowLightingOptions(true); setShowMobileMoreTools(false); } },
+                    { icon: Home, label: t('doorsWindows'), action: () => { setShowDoorsWindowsOptions(true); setShowMobileMoreTools(false); } },
+                    { icon: Droplets, label: t('bathroomShort'), action: () => { setShowBathroomOptions(true); setShowMobileMoreTools(false); } },
+                    { icon: Hammer, label: t('repairs'), action: () => { setShowRepairsOptions(true); setShowMobileMoreTools(false); } },
              ].map((tool, i) => (
                <button 
                  key={i}
@@ -2832,9 +2855,9 @@ function App() {
                     <div className="flex items-center gap-3">
                       <Power className={`w-6 h-6 ${isDesignerAvatarEnabled ? 'text-emerald-400' : 'text-gray-500'}`} />
                       <div className="text-right">
-                        <span className="text-sm text-white font-medium block">מעצבת AI</span>
+                        <span className="text-sm text-white font-medium block">{t('aiDesigner')}</span>
                         <span className={`text-xs ${isDesignerAvatarEnabled ? 'text-emerald-300' : 'text-gray-500'}`}>
-                          {isDesignerAvatarEnabled ? 'פעילה - לחץ לכיבוי' : 'כבויה - לחץ להפעלה'}
+                          {isDesignerAvatarEnabled ? t('aiDesignerActiveClickToDisable') : t('aiDesignerInactiveClickToEnable')}
                         </span>
                       </div>
                     </div>
@@ -2858,7 +2881,7 @@ function App() {
           <div className="hidden">
           {imageHistory.length > 0 && (
              <div className={`pt-2 border-t border-white/5 ${isProcessing ? 'opacity-50 pointer-events-none' : ''}`}>
-               <div className="text-[10px] text-textMuted mb-2">היסטוריה ({imageHistory.length})</div>
+               <div className="text-[10px] text-textMuted mb-2">{t('history')} ({imageHistory.length})</div>
                <div 
                  className="flex gap-3 overflow-x-auto scrollbar-hide -mx-4 px-4"
                  onScroll={(e) => {
@@ -2893,7 +2916,7 @@ function App() {
                      disabled={isProcessing}
                      className="flex-shrink-0 w-16 h-16 rounded-lg bg-white/5 border border-white/10 border-dashed flex flex-col items-center justify-center text-textMuted hover:bg-white/10 hover:border-primary-500/30 transition-all active:scale-95 gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
                    >
-                     <span className="text-[10px]">עוד</span>
+                     <span className="text-[10px]">{t('more')}</span>
                      <span className="text-lg">←</span>
                    </button>
                  )}
@@ -2920,7 +2943,7 @@ function App() {
             <div className="flex justify-between items-center p-4 border-b border-white/10 bg-surface/50">
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
                 <History className="w-5 h-5 text-primary-400" />
-                היסטוריית עיצובים
+                {t('designHistory')}
               </h3>
               <button 
                 onClick={() => setShowMobileHistory(false)} 
@@ -2934,7 +2957,7 @@ function App() {
               {imageHistory.length === 0 ? (
                 <div className="text-center py-8 opacity-50">
                   <Sparkles className="w-6 h-6 mx-auto mb-2" />
-                  <p className="text-xs text-gray-400">אין היסטוריה עדיין</p>
+                  <p className="text-xs text-gray-400">{t('noHistoryYet')}</p>
                 </div>
               ) : (
                 imageHistory.map((entry) => (
@@ -3078,7 +3101,7 @@ function App() {
                       className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold active:from-emerald-600 active:to-teal-600 transition-all"
                     >
                       <CheckCircle className="w-4 h-4" />
-                      <span className="text-sm">אהבתי! שמור</span>
+                      <span className="text-sm">{t('loveItSave')}</span>
                     </button>
                   </div>
                 </div>
@@ -3095,7 +3118,7 @@ function App() {
                     }`}
                   >
                     <ArrowLeftRight className="w-5 h-5" />
-                    <span className="text-[10px] font-medium">השוואה</span>
+                    <span className="text-[10px] font-medium">{t('comparison')}</span>
                   </button>
 
                   {/* Google Lens Button */}
@@ -3105,7 +3128,7 @@ function App() {
                       className="flex flex-col items-center justify-center gap-1 p-2 rounded-xl text-red-400 bg-red-500/10 hover:bg-red-500/20 transition-all"
                     >
                       <X className="w-5 h-5" />
-                      <span className="text-[10px] font-medium">ביטול</span>
+                      <span className="text-[10px] font-medium">{t('cancel')}</span>
                     </button>
                   ) : (
                     <button 
@@ -3113,7 +3136,7 @@ function App() {
                       className="flex flex-col items-center justify-center gap-1 p-2 rounded-xl text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 transition-all"
                     >
                       <Search className="w-5 h-5" />
-                      <span className="text-[10px] font-medium">מוצרים</span>
+                      <span className="text-[10px] font-medium">{t('products')}</span>
                     </button>
                   )}
 
@@ -3123,7 +3146,7 @@ function App() {
                     className="flex flex-col items-center justify-center gap-1 p-2 rounded-xl text-green-400 bg-green-500/10 hover:bg-green-500/20 transition-all disabled:opacity-30"
                   >
                     <Share2 className="w-5 h-5" />
-                    <span className="text-[10px] font-medium">וואטסאפ</span>
+                    <span className="text-[10px] font-medium">{t('whatsApp')}</span>
                   </button>
                   
                   <button 
@@ -3132,7 +3155,7 @@ function App() {
                     className="flex flex-col items-center justify-center gap-1 p-2 rounded-xl text-gray-300 hover:text-white hover:bg-white/10 transition-all disabled:opacity-30"
                   >
                     <Download className="w-5 h-5" />
-                    <span className="text-[10px] font-medium">הורד</span>
+                    <span className="text-[10px] font-medium">{t('download')}</span>
                   </button>
 
                   <button 
@@ -3140,7 +3163,7 @@ function App() {
                     className="flex flex-col items-center justify-center gap-1 p-2 rounded-xl text-red-400 hover:bg-red-500/10 transition-all"
                   >
                     <X className="w-5 h-5" />
-                    <span className="text-[10px] font-medium">סגור</span>
+                    <span className="text-[10px] font-medium">{t('close')}</span>
                   </button>
                 </div>
               )
@@ -3156,8 +3179,8 @@ function App() {
                           <Sparkles className="w-7 h-7 text-white" />
                         </div>
                         <div>
-                          <h3 className="text-lg font-bold text-white">מה דעתך על העיצוב החדש?</h3>
-                          <p className="text-sm text-gray-400">גרור את הסליידר למעלה להשוואה מלאה</p>
+                          <h3 className="text-lg font-bold text-white">{t('whatDoYouThink')}</h3>
+                          <p className="text-sm text-gray-400">{t('dragSliderForComparison')}</p>
                         </div>
                       </div>
 
@@ -3171,7 +3194,7 @@ function App() {
                           className="flex items-center gap-2 px-5 py-3 rounded-xl bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 hover:text-white hover:border-white/20 transition-all whitespace-nowrap group"
                         >
                           <RotateCcw className="w-5 h-5 group-hover:-rotate-45 transition-transform" />
-                          <span className="font-medium">חזור לתמונה המקורית</span>
+                          <span className="font-medium">{t('returnToOriginal')}</span>
                         </button>
                         
                         <button 
@@ -3179,7 +3202,7 @@ function App() {
                           className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold hover:from-emerald-600 hover:to-teal-600 transition-all shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/40 whitespace-nowrap group"
                         >
                           <CheckCircle className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                          <span>אהבתי! שמור את העיצוב</span>
+                          <span>{t('loveItSaveDesign')}</span>
                         </button>
                       </div>
                     </div>
@@ -3198,7 +3221,7 @@ function App() {
                     }`}
                   >
                     <ArrowLeftRight className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                    <span className="font-medium">השוואה</span>
+                    <span className="font-medium">{t('comparison')}</span>
                   </button>
 
                   <div className="w-px h-10 bg-gradient-to-b from-transparent via-white/20 to-transparent mx-2"></div>
@@ -3210,7 +3233,7 @@ function App() {
                       className="group flex items-center gap-2.5 px-5 py-3.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-xl border border-red-500/30 hover:border-red-500/50 transition-all duration-200 whitespace-nowrap hover:scale-[1.02] hover:shadow-lg hover:shadow-red-500/20"
                     >
                       <X className="w-5 h-5 group-hover:rotate-90 transition-transform" />
-                      <span className="font-medium">ביטול חיפוש</span>
+                      <span className="font-medium">{t('cancelSearch')}</span>
                     </button>
                   ) : (
                     <button 
@@ -3218,7 +3241,7 @@ function App() {
                       className="group flex items-center gap-2.5 px-5 py-3.5 bg-blue-600/20 hover:bg-blue-600/35 text-blue-400 hover:text-blue-300 rounded-xl border border-blue-500/30 hover:border-blue-500/50 transition-all duration-200 whitespace-nowrap hover:scale-[1.02] hover:shadow-lg hover:shadow-blue-500/20"
                     >
                       <Search className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                      <span className="font-medium">חפשו מוצרים דומים</span>
+                      <span className="font-medium">{t('searchSimilarProducts')}</span>
                     </button>
                   )}
 
@@ -3230,7 +3253,7 @@ function App() {
                     className="group flex items-center gap-2.5 px-5 py-3.5 bg-green-600/20 hover:bg-green-600/35 text-green-400 hover:text-green-300 rounded-xl border border-green-500/30 hover:border-green-500/50 transition-all duration-200 whitespace-nowrap disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100 hover:scale-[1.02] hover:shadow-lg hover:shadow-green-500/20"
                   >
                     <Share2 className="w-5 h-5 group-hover:scale-110 group-hover:-rotate-12 transition-transform" />
-                    <span className="font-medium">וואטסאפ</span>
+                    <span className="font-medium">{t('whatsApp')}</span>
                   </button>
                   
                   <button 
@@ -3239,7 +3262,7 @@ function App() {
                     className="group flex items-center gap-2.5 px-5 py-3.5 bg-white/10 hover:bg-white/20 text-white rounded-xl border border-white/15 hover:border-white/30 transition-all duration-200 whitespace-nowrap disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100 hover:scale-[1.02] hover:shadow-lg hover:shadow-white/10"
                   >
                     <Download className="w-5 h-5 group-hover:translate-y-0.5 transition-transform" />
-                    <span className="font-medium">הורד</span>
+                    <span className="font-medium">{t('download')}</span>
                   </button>
 
                   <div className="w-px h-10 bg-gradient-to-b from-transparent via-white/20 to-transparent mx-2"></div>
@@ -3249,7 +3272,7 @@ function App() {
                     className="group flex items-center gap-2.5 px-5 py-3.5 bg-red-500/10 hover:bg-red-500/25 text-red-400 hover:text-red-300 rounded-xl border border-red-500/20 hover:border-red-500/40 transition-all duration-200 whitespace-nowrap hover:scale-[1.02]"
                   >
                     <X className="w-5 h-5 group-hover:rotate-90 transition-transform" />
-                    <span className="font-medium">סגור</span>
+                    <span className="font-medium">{t('close')}</span>
                   </button>
                 </div>
               )
@@ -3262,10 +3285,10 @@ function App() {
       
       {/* Color Palette Modal */}
       {showColorPalette && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-fade-in">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-fade-in" dir={isRTL ? 'rtl' : 'ltr'}>
           <div className="glass-card w-full max-w-2xl h-[600px] overflow-hidden flex flex-col bg-surface">
             <div className="p-4 border-b border-white/10 flex justify-between items-center">
-              <h3 className="text-lg font-semibold text-white">פלטת צבעים</h3>
+              <h3 className="text-lg font-semibold text-white">{t('colorPalette')}</h3>
               <button onClick={() => setShowColorPalette(false)} className="text-textMuted hover:text-white p-2"><span className="text-2xl">×</span></button>
             </div>
             <div className="flex-1 overflow-y-auto p-4 scrollbar-custom">
@@ -3277,7 +3300,7 @@ function App() {
                      onClick={() => setActiveColorCategory(cat)}
                      className={`px-4 py-2 rounded-full whitespace-nowrap text-sm transition-all border ${activeColorCategory === cat ? 'bg-primary-500 border-primary-400 text-white shadow-glow' : 'bg-white/5 border-white/5 text-textMuted hover:bg-white/10'}`}
                    >
-                     {cat}
+                     {colorCategoryNames[cat]}
                    </button>
                  ))}
                </div>
@@ -3307,9 +3330,9 @@ function App() {
 
       {/* General Options Modal Wrapper - Used for Furniture, Lighting, etc */}
       {[
-        { show: showFurnitureOptions, close: () => setShowFurnitureOptions(false), title: 'בחר סוג ריהוט', options: furnitureOptions, onSelect: handleFurnitureSelect },
-        { show: showLightingOptions, close: () => setShowLightingOptions(false), title: 'בחר סוג תאורה', options: lightingOptions, onSelect: handleLightingSelect },
-        { show: showStyleOptions, close: () => setShowStyleOptions(false), title: 'בחר סגנון עיצוב', options: styleOptions, onSelect: handleStyleSelect },
+        { show: showFurnitureOptions, close: () => setShowFurnitureOptions(false), title: t('selectFurnitureType'), options: furnitureOptions, onSelect: handleFurnitureSelect },
+        { show: showLightingOptions, close: () => setShowLightingOptions(false), title: t('selectLightingType'), options: lightingOptions, onSelect: handleLightingSelect },
+        { show: showStyleOptions, close: () => setShowStyleOptions(false), title: t('selectDesignStyle'), options: styleOptions, onSelect: handleStyleSelect },
       ].map((modal, i) => modal.show && (
         <div key={i} className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-fade-in">
           <div className="glass-card w-full max-w-2xl max-h-[70vh] overflow-hidden flex flex-col bg-surface">
@@ -3335,8 +3358,8 @@ function App() {
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-white group-hover:text-primary-300 truncate">{option.name}</div>
-                      <div className="text-xs text-gray-400 truncate">{option.value}</div>
+                      <div className="text-sm font-medium text-white group-hover:text-primary-300 truncate">{isRTL ? option.name : option.value}</div>
+                      <div className="text-xs text-gray-400 truncate">{isRTL ? option.value : option.name}</div>
                     </div>
                   </button>
                 ))}
@@ -3353,7 +3376,7 @@ function App() {
            <div className="glass-card w-full max-w-4xl max-h-[80vh] overflow-hidden flex flex-col bg-surface">
               <div className="p-4 border-b border-white/10 flex justify-between items-center">
                  <h3 className="text-lg font-semibold text-white">
-                   {showDoorsWindowsOptions ? 'חלונות ודלתות' : showBathroomOptions ? 'אפשרויות רחצה' : 'בחר סוג תיקון/נזק'}
+                   {showDoorsWindowsOptions ? t('doorsWindows') : showBathroomOptions ? t('bathroomOptions') : t('selectRepairType')}
                  </h3>
                  <button onClick={() => {
                    setShowDoorsWindowsOptions(false); 
@@ -3362,12 +3385,12 @@ function App() {
                  }} className="text-textMuted hover:text-white p-2"><span className="text-2xl">×</span></button>
               </div>
               <div className="flex-1 overflow-y-auto p-6 scrollbar-custom">
-                 <p className="text-center text-gray-400 mb-6">אנא בחר אפשרות מהרשימה למטה.</p>
+                 <p className="text-center text-gray-400 mb-6">{t('pleaseSelectOption')}</p>
                  
                  <div className="grid grid-cols-1 gap-6">
                     {showDoorsWindowsOptions && doorsWindowsOptions.map((section, idx) => (
                       <div key={idx}>
-                         <h4 className="text-white font-semibold mb-3 text-right">{section.title}</h4>
+                         <h4 className="text-white font-semibold mb-3 text-right">{t(section.titleKey)}</h4>
                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                            {section.items.map((item, i) => (
                              <button 
@@ -3376,7 +3399,7 @@ function App() {
                                className="p-3 bg-white/5 rounded-xl text-white hover:bg-white/10 text-right border border-white/5 flex flex-col gap-1 group"
                              >
                                 <div className="flex justify-between items-center w-full">
-                                  <span className="font-medium">{item.name}</span>
+                                  <span className="font-medium">{isRTL ? t(item.nameKey) : item.name}</span>
                                   <item.icon className="w-4 h-4 text-gray-400 group-hover:text-white transition-colors" />
                                 </div>
                                 <span className="text-xs text-gray-400 group-hover:text-gray-300">{item.description}</span>
@@ -3388,7 +3411,7 @@ function App() {
 
                     {showBathroomOptions && bathroomOptions.map((section, idx) => (
                       <div key={idx}>
-                         <h4 className="text-white font-semibold mb-3 text-right">{section.title}</h4>
+                         <h4 className="text-white font-semibold mb-3 text-right">{t(section.titleKey)}</h4>
                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                            {section.items.map((item, i) => (
                              <button 
@@ -3397,7 +3420,7 @@ function App() {
                                className="p-3 bg-white/5 rounded-xl text-white hover:bg-white/10 text-right border border-white/5 flex flex-col gap-1 group"
                              >
                                 <div className="flex justify-between items-center w-full">
-                                  <span className="font-medium">{item.name}</span>
+                                  <span className="font-medium">{isRTL ? t(item.nameKey) : item.name}</span>
                                   <item.icon className="w-4 h-4 text-gray-400 group-hover:text-white transition-colors" />
                                 </div>
                                 <span className="text-xs text-gray-400 group-hover:text-gray-300">{item.description}</span>
@@ -3409,20 +3432,20 @@ function App() {
 
                     {showRepairsOptions && (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <button onClick={() => handleImmediateOptionClick('תסדר ותקנה את הכל')} className="p-4 bg-white/5 rounded-xl text-white hover:bg-white/10 text-right border border-white/5 flex items-center justify-between group">
-                          <span>תסדר ותקנה את הכל</span>
+                        <button onClick={() => handleImmediateOptionClick('fix and repair everything')} className="p-4 bg-white/5 rounded-xl text-white hover:bg-white/10 text-right border border-white/5 flex items-center justify-between group">
+                          <span>{t('fixAndRepairEverything')}</span>
                           <Hammer className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" />
                         </button>
-                        <button onClick={() => handleImmediateOptionClick('בצע תיקונים להכל')} className="p-4 bg-white/5 rounded-xl text-white hover:bg-white/10 text-right border border-white/5 flex items-center justify-between group">
-                          <span>בצע תיקונים להכל</span>
+                        <button onClick={() => handleImmediateOptionClick('repair everything')} className="p-4 bg-white/5 rounded-xl text-white hover:bg-white/10 text-right border border-white/5 flex items-center justify-between group">
+                          <span>{t('repairEverything')}</span>
                           <Hammer className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" />
                         </button>
-                        <button onClick={() => handleImmediateOptionClick('תהרוס ותגרום נזקים להכל')} className="p-4 bg-white/5 rounded-xl text-white hover:bg-white/10 text-right border border-white/5 flex items-center justify-between group">
-                          <span>תהרוס ותגרום נזקים להכל</span>
+                        <button onClick={() => handleImmediateOptionClick('destroy and cause damage to everything')} className="p-4 bg-white/5 rounded-xl text-white hover:bg-white/10 text-right border border-white/5 flex items-center justify-between group">
+                          <span>{t('destroyAndCauseDamage')}</span>
                           <Hammer className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" />
                         </button>
-                         <button onClick={() => handleImmediateOptionClick('תבלגן את הכל')} className="p-4 bg-white/5 rounded-xl text-white hover:bg-white/10 text-right border border-white/5 flex items-center justify-between group">
-                          <span>תבלגן את הכל</span>
+                         <button onClick={() => handleImmediateOptionClick('mess up everything')} className="p-4 bg-white/5 rounded-xl text-white hover:bg-white/10 text-right border border-white/5 flex items-center justify-between group">
+                          <span>{t('messUpEverything')}</span>
                           <Hammer className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" />
                         </button>
                       </div>
@@ -3444,8 +3467,8 @@ function App() {
                 <div className="relative">
                   <div className="absolute inset-0 bg-gradient-to-r from-primary-500 to-secondary-500 blur-lg opacity-30 rounded-full"></div>
                   <h1 className="relative text-3xl font-bold bg-gradient-to-r from-primary-300 via-white to-secondary-300 bg-clip-text text-transparent tracking-tight">
-                    מומחה
-                    <span className="text-xl align-super mr-1 bg-gradient-to-r from-secondary-400 to-secondary-300 bg-clip-text text-transparent font-light">AI</span>
+                    {t('appName')}
+                    <span className={`text-xl align-super ${isRTL ? 'mr-1' : 'ml-1'} bg-gradient-to-r from-secondary-400 to-secondary-300 bg-clip-text text-transparent font-light`}>AI</span>
                   </h1>
                 </div>
               </div>
@@ -3462,7 +3485,7 @@ function App() {
                   onClick={() => setAuthMode('signup')}
                   className={`flex-1 py-2 text-sm font-medium rounded-lg relative z-10 transition-colors ${authMode === 'signup' ? 'text-white font-bold' : 'text-gray-400 hover:text-gray-200'}`}
                 >
-                  צור חשבון חדש
+                  {t('createNewAccount')}
                 </button>
 
                 {/* Login Button (Left in RTL) */}
@@ -3470,28 +3493,28 @@ function App() {
                   onClick={() => setAuthMode('login')}
                   className={`flex-1 py-2 text-sm font-medium rounded-lg relative z-10 transition-colors ${authMode === 'login' ? 'text-white font-bold' : 'text-gray-400 hover:text-gray-200'}`}
                 >
-                  התחברות
+                  {t('login')}
                 </button>
               </div>
 
               <p className="text-sm text-gray-400 min-h-[20px]">
                 {authMode === 'login' 
-                  ? 'ברוכים השבים! התחבר כדי להמשיך' 
-                  : 'הצטרף אלינו כדי לשמור עיצובים ולקבל גישה לכל הפיצ\'רים'}
+                  ? t('welcomeBack') 
+                  : t('joinUs')}
               </p>
             </div>
 
             <div className="space-y-4">
               <input
                 type="email"
-                placeholder="אימייל"
+                placeholder={t('email')}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="input-glass w-full"
               />
               <input
                 type="password"
-                placeholder="סיסמה"
+                placeholder={t('password')}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="input-glass w-full"
@@ -3501,7 +3524,7 @@ function App() {
                 <div className="animate-slide-down">
                   <input
                     type="password"
-                    placeholder="אמת סיסמה"
+                    placeholder={t('confirmPassword')}
                     value={confirmEmail}
                     onChange={(e) => setConfirmEmail(e.target.value)}
                     className="input-glass w-full"
@@ -3510,10 +3533,10 @@ function App() {
               )}
 
               <div className="text-xs text-gray-400 text-center mt-2 mb-4 px-2">
-                בהתחברותך אתה מסכים ל
-                <a href="/eula.html" target="_blank" rel="noopener noreferrer" className="text-primary-300 hover:text-primary-200 mx-1 underline">תנאי השימוש</a>
-                ול
-                <a href="/privacy.html" target="_blank" rel="noopener noreferrer" className="text-primary-300 hover:text-primary-200 mx-1 underline">מדיניות הפרטיות</a>
+                {t('termsAgreement')}
+                <a href={t('termsOfServiceUrl')} target="_blank" rel="noopener noreferrer" className="text-primary-300 hover:text-primary-200 mx-1 underline">{t('termsOfService')}</a>
+                {t('and')}
+                <a href={t('privacyPolicyUrl')} target="_blank" rel="noopener noreferrer" className="text-primary-300 hover:text-primary-200 mx-1 underline">{t('privacyPolicy')}</a>
               </div>
 
               <button
@@ -3521,13 +3544,13 @@ function App() {
                 disabled={isLoadingAuth}
                 className="btn-primary w-full py-3 text-lg mt-4"
               >
-                {isLoadingAuth ? <Loader2 className="w-6 h-6 animate-spin mx-auto" /> : (authMode === 'login' ? 'התחבר' : 'צור חשבון')}
+                {isLoadingAuth ? <Loader2 className="w-6 h-6 animate-spin mx-auto" /> : (authMode === 'login' ? t('loginButton') : t('createAccountButton'))}
               </button>
               
               <div className="flex justify-center items-center mt-4 text-sm">
                 {authMode === 'login' && (
                   <button onClick={handlePasswordReset} className="text-gray-400 hover:text-white text-xs">
-                    שכחת סיסמה?
+                    {t('forgotPassword')}
                   </button>
                 )}
               </div>
@@ -3540,10 +3563,10 @@ function App() {
       {showLogoutModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
           <div className="glass-card max-w-sm w-full p-6 text-center bg-surface">
-            <h3 className="text-xl font-bold text-white mb-4">התנתקות</h3>
-            <p className="text-gray-400 mb-6">האם אתה בטוח שברצונך להתנתק?</p>
+            <h3 className="text-xl font-bold text-white mb-4">{t('logout')}</h3>
+            <p className="text-gray-400 mb-6">{language === 'he' ? 'האם אתה בטוח שברצונך להתנתק?' : 'Are you sure you want to log out?'}</p>
             <div className="flex gap-3 justify-center">
-              <button onClick={() => setShowLogoutModal(false)} className="px-6 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors">ביטול</button>
+              <button onClick={() => setShowLogoutModal(false)} className="px-6 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors">{t('cancel')}</button>
               <button onClick={handleLogout} className="px-6 py-2 rounded-xl bg-red-500/80 hover:bg-red-600/80 text-white transition-colors">התנתק</button>
             </div>
           </div>
@@ -3680,11 +3703,11 @@ function App() {
               <div className="w-16 h-16 bg-secondary-500/20 rounded-full flex items-center justify-center mx-auto mb-4 text-secondary-400">
                 <User size={32} />
               </div>
-              <h3 className="text-2xl font-bold text-white mb-2">נדרשת התחברות</h3>
+              <h3 className="text-2xl font-bold text-white mb-2">{t('loginRequired')}</h3>
               <p className="text-gray-300">
-                עליך להתחבר או ליצור חשבון כדי לרכוש מנוי.
+                {t('loginRequiredMessage')}
                 <br />
-                האם ברצונך לעבור להתחברות?
+                {t('wantToLogin')}
               </p>
             </div>
             <div className="flex gap-4">
@@ -3695,7 +3718,7 @@ function App() {
                 }}
                 className="flex-1 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 transition-colors font-medium"
               >
-                לא עכשיו
+                {t('notNowThanks')}
               </button>
               <button 
                 onClick={() => {
@@ -3714,48 +3737,48 @@ function App() {
       {/* Subscription Modal */}
       {showSubscriptionModal && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[80] flex items-center justify-center p-0 md:p-4 animate-fade-in">
-          <div className="glass-card w-full h-full md:h-auto md:max-w-4xl md:max-h-[90vh] p-0 relative bg-surface border border-white/10 shadow-2xl overflow-hidden flex flex-col">
+          <div className="glass-card w-full h-full md:h-auto md:max-w-4xl md:max-h-[90vh] p-0 relative bg-surface border border-white/10 shadow-2xl overflow-hidden flex flex-col" dir={isRTL ? 'rtl' : 'ltr'}>
             <div className="p-6 sm:p-8 text-center border-b border-white/5 bg-gradient-to-b from-white/5 to-transparent flex-shrink-0">
-              <button onClick={() => setShowSubscriptionModal(false)} className="absolute top-4 left-4 text-gray-400 hover:text-white transition-colors p-2 z-10 bg-black/20 rounded-full md:bg-transparent">
+              <button onClick={() => setShowSubscriptionModal(false)} className={`absolute top-4 ${isRTL ? 'left-4' : 'right-4'} text-gray-400 hover:text-white transition-colors p-2 z-10 bg-black/20 rounded-full md:bg-transparent`}>
                  <span className="text-2xl leading-none">×</span>
               </button>
               
-              <h2 className="text-2xl md:text-3xl font-bold text-white mb-2 mt-2 md:mt-0">מנוי מקצועי</h2>
+              <h2 className="text-2xl md:text-3xl font-bold text-white mb-2 mt-2 md:mt-0">{t('professionalSubscription')}</h2>
               <div className="inline-block px-4 py-1 rounded-full bg-gradient-to-r from-secondary-500 to-secondary-600 text-white text-sm font-medium shadow-glow mb-2 md:mb-4">
-                מחירי השקעה מיוחדים 🚀
+                {t('specialLaunchPrices')}
               </div>
               <p className="text-gray-300 max-w-lg mx-auto text-sm md:text-base">
-                שדרג את יכולות העיצוב שלך עם חבילות המנוי המשתלמות שלנו. בחר את החבילה המתאימה ביותר לצרכים שלך.
+                {t('upgradeYourDesignAbilities')}
               </p>
             </div>
 
             <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 pt-6 md:pt-8 scrollbar-custom">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 pb-safe">
                 
-                {/* Starter Plan - מתחיל */}
+                {/* Starter Plan */}
                 <div className="relative">
                   <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent rounded-2xl"></div>
                   <div className="relative bg-surfaceHighlight/20 border border-white/10 rounded-2xl p-5 md:p-6 flex flex-col h-full">
                     <div className="mb-4">
-                      <h3 className="text-xl font-bold text-white mb-1">מתחיל</h3>
+                      <h3 className="text-xl font-bold text-white mb-1">{t('starter')}</h3>
                       <div className="flex items-baseline gap-1">
                         <span className="text-3xl font-bold text-white">₪19</span>
-                        <span className="text-sm text-gray-400">/חודש</span>
+                        <span className="text-sm text-gray-400">{t('perMonth')}</span>
                       </div>
                     </div>
                     
                     <div className="space-y-3 mb-6 flex-1">
                       <div className="flex items-center gap-2 text-sm text-gray-300">
                         <div className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-secondary-400">✓</div>
-                        <span>50 תמונות בחודש</span>
+                        <span>{t('imagesPerMonth', { count: 50 })}</span>
                       </div>
                       <div className="flex items-center gap-2 text-sm text-gray-300">
                         <div className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-secondary-400">✓</div>
-                        <span>גישה לכל כלי העיצוב</span>
+                        <span>{t('accessToAllTools')}</span>
                       </div>
                       <div className="flex items-center gap-2 text-sm text-gray-300">
                         <div className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-secondary-400">✓</div>
-                        <span>תמיכה במייל</span>
+                        <span>{t('emailSupport')}</span>
                       </div>
                     </div>
 
@@ -3771,50 +3794,50 @@ function App() {
                       {userSubscription === 1 && userCredits === 50 ? (
                         <span className="flex items-center justify-center gap-2">
                           <CheckCircle className="w-5 h-5" />
-                          המנוי הנוכחי שלך
+                          {t('yourCurrentPlan')}
                         </span>
                       ) : (
-                        'בחר חבילה'
+                        t('selectPlan')
                       )}
                     </button>
                   </div>
                 </div>
 
-                {/* Pro Plan - משתלם */}
+                {/* Value Plan */}
                 <div className="relative md:-mt-4 md:-mb-4 z-10">
                   <div className="absolute inset-0 bg-gradient-to-b from-secondary-900/50 to-transparent rounded-2xl"></div>
                   <div className="relative bg-surfaceHighlight/40 border border-secondary-500/50 rounded-2xl p-5 md:p-6 flex flex-col h-full shadow-lg shadow-secondary-900/20">
                     <div className="absolute top-0 right-1/2 transform translate-x-1/2 -translate-y-1/2 bg-secondary-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg whitespace-nowrap">
-                      הכי משתלם: פי 4 יותר תמונות! 🔥
+                      {t('mostValue')}
                     </div>
                     
                     <div className="mb-4 mt-2">
-                      <h3 className="text-xl font-bold text-white mb-1">משתלם</h3>
+                      <h3 className="text-xl font-bold text-white mb-1">{t('value')}</h3>
                       <div className="flex items-baseline gap-1">
                         <span className="text-3xl font-bold text-secondary-400">₪49</span>
-                        <span className="text-sm text-gray-400">/חודש</span>
+                        <span className="text-sm text-gray-400">{t('perMonth')}</span>
                       </div>
                       <div className="text-xs text-green-400 font-medium mt-1">
-                        חסוך 35% למחיר תמונה
+                        {t('savePerImage')}
                       </div>
                     </div>
                     
                     <div className="space-y-3 mb-6 flex-1">
                       <div className="flex items-center gap-2 text-sm text-white">
                         <div className="w-5 h-5 rounded-full bg-secondary-500/20 flex items-center justify-center text-secondary-400">✓</div>
-                        <span className="font-medium">200 תמונות בחודש</span>
+                        <span className="font-medium">{t('imagesPerMonth', { count: 200 })}</span>
                       </div>
                       <div className="flex items-center gap-2 text-sm text-white">
                         <div className="w-5 h-5 rounded-full bg-secondary-500/20 flex items-center justify-center text-secondary-400">✓</div>
-                        <span>גישה מוקדמת לפיצ'רים</span>
+                        <span>{t('earlyAccess')}</span>
                       </div>
                       <div className="flex items-center gap-2 text-sm text-white">
                         <div className="w-5 h-5 rounded-full bg-secondary-500/20 flex items-center justify-center text-secondary-400">✓</div>
-                        <span>תמיכה בוואטסאפ אישי</span>
+                        <span>{t('prioritySupport')}</span>
                       </div>
                       <div className="flex items-center gap-2 text-sm text-white">
                         <div className="w-5 h-5 rounded-full bg-secondary-500/20 flex items-center justify-center text-secondary-400">✓</div>
-                        <span>שמירת היסטוריה ללא הגבלה</span>
+                        <span>{t('historyStorage')}</span>
                       </div>
                     </div>
 
@@ -3830,50 +3853,50 @@ function App() {
                       {userSubscription === 2 && userCredits === 200 ? (
                         <span className="flex items-center justify-center gap-2">
                           <CheckCircle className="w-5 h-5" />
-                          המנוי הנוכחי שלך
+                          {t('yourCurrentPlan')}
                         </span>
                       ) : (
-                        'בחר חבילה'
+                        t('selectPlan')
                       )}
                     </button>
                   </div>
                 </div>
 
-                {/* Professional Plan - מקצועי */}
+                {/* Professional Plan */}
                 <div className="relative">
                   <div className="absolute inset-0 bg-gradient-to-b from-amber-900/30 to-transparent rounded-2xl"></div>
                   <div className="relative bg-surfaceHighlight/30 border border-amber-500/30 rounded-2xl p-5 md:p-6 flex flex-col h-full shadow-lg shadow-amber-900/10">
                     <div className="absolute top-0 right-1/2 transform translate-x-1/2 -translate-y-1/2 bg-gradient-to-r from-amber-500 to-yellow-500 text-black text-xs font-bold px-3 py-1 rounded-full shadow-lg whitespace-nowrap">
-                      ⭐ לאנשי מקצוע
+                      ⭐ {t('forProfessionals')}
                     </div>
                     
                     <div className="mb-4 mt-2">
-                      <h3 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-400">מקצועי</h3>
+                      <h3 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-400">{t('professional')}</h3>
                       <div className="flex items-baseline gap-1">
                         <span className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-400">₪99</span>
-                        <span className="text-sm text-gray-400">/חודש</span>
+                        <span className="text-sm text-gray-400">{t('perMonth')}</span>
                       </div>
                       <div className="text-xs text-green-400 font-medium mt-1">
-                        חסוך 42% למחיר תמונה
+                        {t('save42PerImage')}
                       </div>
                     </div>
                     
                     <div className="space-y-3 mb-6 flex-1">
                       <div className="flex items-center gap-2 text-sm text-gray-300">
                         <div className="w-5 h-5 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-400">✓</div>
-                        <span className="font-medium">450 תמונות בחודש</span>
+                        <span className="font-medium">{t('imagesPerMonth', { count: 450 })}</span>
                       </div>
                       <div className="flex items-center gap-2 text-sm text-gray-300">
                         <div className="w-5 h-5 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-400">✓</div>
-                        <span>כל הפיצ׳רים המתקדמים</span>
+                        <span>{t('allAdvancedFeatures')}</span>
                       </div>
                       <div className="flex items-center gap-2 text-sm text-gray-300">
                         <div className="w-5 h-5 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-400">✓</div>
-                        <span>תמיכה מועדפת</span>
+                        <span>{t('premiumSupport')}</span>
                       </div>
                       <div className="flex items-center gap-2 text-sm text-gray-300">
                         <div className="w-5 h-5 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-400">✓</div>
-                        <span>לאנשי מקצוע בתחום</span>
+                        <span>{t('forIndustryProfessionals')}</span>
                       </div>
                     </div>
 
@@ -3889,10 +3912,10 @@ function App() {
                       {userSubscription === 3 && userCredits === 450 ? (
                         <span className="flex items-center justify-center gap-2">
                           <CheckCircle className="w-5 h-5" />
-                          המנוי הנוכחי שלך
+                          {t('yourCurrentPlan')}
                         </span>
                       ) : (
-                        'בחר חבילה'
+                        t('selectPlan')
                       )}
                     </button>
                   </div>
@@ -3902,7 +3925,7 @@ function App() {
             </div>
             
             <div className="p-4 text-center text-xs text-gray-500 border-t border-white/5 bg-black/20">
-              ניתן לבטל את המנוי בכל עת. החיוב מתחדש אוטומטית כל חודש. ט.ל.ח
+              {t('subscriptionDisclaimer')}
             </div>
           </div>
         </div>
@@ -3956,7 +3979,7 @@ function App() {
               <div className="flex justify-between items-center">
                 <h3 className="text-xl font-bold text-white flex items-center gap-2">
                   <Mail className="w-5 h-5 text-primary-400" />
-                  צור קשר
+                  {t('contactUs')}
                 </h3>
                 <button 
                   onClick={() => {
@@ -3968,7 +3991,7 @@ function App() {
                   <span className="text-2xl leading-none">×</span>
                 </button>
               </div>
-              <p className="text-gray-400 text-sm mt-2">נשמח לשמוע ממך! מלא את הפרטים ונחזור אליך בהקדם.</p>
+              <p className="text-gray-400 text-sm mt-2">{t('contactSubtitle')}</p>
             </div>
             
             {/* Form */}
@@ -3980,7 +4003,7 @@ function App() {
               )}
               
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">טלפון</label>
+                <label className="block text-sm font-medium text-gray-300 mb-2">{t('phone')}</label>
                 <input
                   type="tel"
                   value={contactPhone}
@@ -3992,7 +4015,7 @@ function App() {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">אימייל</label>
+                <label className="block text-sm font-medium text-gray-300 mb-2">{t('email')}</label>
                 <input
                   type="email"
                   value={contactEmail}
@@ -4004,18 +4027,18 @@ function App() {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">הודעה</label>
+                <label className="block text-sm font-medium text-gray-300 mb-2">{t('message')}</label>
                 <textarea
                   value={contactMessage}
                   onChange={(e) => setContactMessage(e.target.value)}
-                  placeholder="כתוב את הודעתך כאן..."
+                  placeholder={t('writeYourMessage')}
                   rows={4}
                   className="w-full bg-surface/50 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all resize-none"
-                  dir="rtl"
+                  dir={isRTL ? 'rtl' : 'ltr'}
                 />
               </div>
               
-              <p className="text-xs text-gray-500 text-center">* נא להזין לפחות טלפון או אימייל</p>
+              <p className="text-xs text-gray-500 text-center">{t('enterPhoneOrEmail')}</p>
               
               <button
                 onClick={handleContactSubmit}
@@ -4025,12 +4048,12 @@ function App() {
                 {isSubmittingContact ? (
                   <>
                     <Loader2 className="w-5 h-5 animate-spin" />
-                    שולח...
+                    {t('sending')}
                   </>
                 ) : (
                   <>
                     <Mail className="w-5 h-5" />
-                    שלח הודעה
+                    {t('sendMessage')}
                   </>
                 )}
               </button>
@@ -4049,27 +4072,28 @@ function App() {
                 <CheckCircle className="w-10 h-10 text-emerald-400" />
               </div>
               <h3 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-200 via-emerald-400 to-green-400">
-                תודה רבה!
+                {t('messageSentSuccess')}
               </h3>
             </div>
             
             {/* Message */}
             <div className="p-6 text-center">
               <p className="text-gray-300 mb-6 leading-relaxed">
-                ההודעה שלך התקבלה בהצלחה.<br />
-                נחזור אליך בהקדם האפשרי.
+                {language === 'he' ? 'ההודעה שלך התקבלה בהצלחה.' : 'Your message has been received successfully.'}<br />
+                {language === 'he' ? 'נחזור אליך בהקדם האפשרי.' : 'We will get back to you as soon as possible.'}
               </p>
               
               <button
                 onClick={() => setShowContactSuccess(false)}
                 className="px-8 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 text-white font-bold shadow-lg hover:shadow-emerald-500/30 transform hover:-translate-y-0.5 transition-all duration-200"
               >
-                סגור
+                {t('close')}
               </button>
             </div>
           </div>
         </div>
       )}
+
     </div>
   )
 }
