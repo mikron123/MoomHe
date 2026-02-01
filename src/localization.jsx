@@ -187,6 +187,7 @@ const translations = {
     camera: "Camera",
     uploadItem: "Add Item",
     redesign: "Redesign",
+    readyDesigns: "Ready Designs",
     more: "More",
     moreOptions: "More Options",
     history: "History",
@@ -642,6 +643,18 @@ const translations = {
     categoryTattoos: "Tattoos",
     categoryMakeupBeauty: "Makeup & Beauty",
     categoryAdvertisingProducts: "Advertising & Products",
+    
+    // Ready Designs Room Categories
+    roomKitchens: "Kitchens",
+    roomLivingRooms: "Living Rooms",
+    roomBathrooms: "Bathrooms",
+    roomAdultBedrooms: "Adult Bedrooms",
+    roomKidsBedrooms: "Kids Bedrooms",
+    roomDiningAreas: "Dining Areas",
+    roomOffices: "Home Offices",
+    roomBalconies: "Balconies",
+    roomGardens: "Gardens",
+    roomEntrances: "Entrances",
     categoryProfileImage: "Profile & Image",
   },
   
@@ -697,6 +710,7 @@ const translations = {
     camera: "מצלמה",
     uploadItem: "הוספת פריט",
     redesign: "עיצוב מחדש",
+    readyDesigns: "עיצובים מוכנים",
     more: "עוד",
     moreOptions: "אפשרויות נוספות",
     history: "היסטוריה",
@@ -1152,6 +1166,18 @@ const translations = {
     categoryTattoos: "קעקועים",
     categoryMakeupBeauty: "איפור וטיפוח",
     categoryAdvertisingProducts: "פרסום ומוצרים",
+    
+    // Ready Designs Room Categories
+    roomKitchens: "מטבחים",
+    roomLivingRooms: "סלונים",
+    roomBathrooms: "שירותים ורחצה",
+    roomAdultBedrooms: "חדרי שינה בוגרים",
+    roomKidsBedrooms: "חדרי שינה ילדים",
+    roomDiningAreas: "פינות אוכל",
+    roomOffices: "חדרי עבודה",
+    roomBalconies: "מרפסות",
+    roomGardens: "גינות",
+    roomEntrances: "מבואות",
     categoryProfileImage: "פרופיל ותדמית",
   },
   

@@ -25,6 +25,7 @@ import WelcomePremiumModal from './WelcomePremiumModal'
 import BeforeAfterSlider from './BeforeAfterSlider'
 import DesignerAvatar from './DesignerAvatar'
 import MobileMenuModal from './MobileMenuModal'
+import ReadyDesignsModal from './ReadyDesignsModal'
 import { useLocalization } from './localization.jsx'
 
 function App() {
@@ -132,6 +133,7 @@ function App() {
   
   // Contact Form State
   const [showContactModal, setShowContactModal] = useState(false)
+  const [showReadyDesignsModal, setShowReadyDesignsModal] = useState(false)
   const [contactPhone, setContactPhone] = useState('')
   const [contactEmail, setContactEmail] = useState('')
   const [contactMessage, setContactMessage] = useState('')
@@ -385,7 +387,7 @@ function App() {
 
   // Interior design action buttons (localized)
   const interiorDesignButtons = [
-    { name: t('redesign'), action: () => setShowStyleOptions(!showStyleOptions), icon: Wand2 },
+    { name: t('readyDesigns'), action: () => setShowReadyDesignsModal(true), icon: Wand2 },
     { name: t('repairsDamages'), action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer },
     { name: t('changeColor'), action: () => setShowColorPalette(!showColorPalette), icon: Palette },
     { name: t('angle'), action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
@@ -399,7 +401,7 @@ function App() {
   const getCategoryActionButtons = () => ({
     [t('categoryInteriorExterior')]: interiorDesignButtons,
     [t('categoryGardensBalconies')]: [
-      { name: t('redesign'), action: () => setShowStyleOptions(!showStyleOptions), icon: Wand2 },
+      { name: t('readyDesigns'), action: () => setShowReadyDesignsModal(true), icon: Wand2 },
       { name: t('repairsDamages'), action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer },
       { name: t('changeColor'), action: () => setShowColorPalette(!showColorPalette), icon: Palette },
       { name: t('angle'), action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
@@ -407,7 +409,7 @@ function App() {
       { name: t('enhanceLighting'), action: () => addPromptToInput("Enhance the outdoor lighting"), icon: Settings }
     ],
     [t('categoryVehicles')]: [
-      { name: t('redesign'), action: () => setShowStyleOptions(!showStyleOptions), icon: Wand2 },
+      { name: t('readyDesigns'), action: () => setShowReadyDesignsModal(true), icon: Wand2 },
       { name: t('repairsDamages'), action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer },
       { name: t('changeColor'), action: () => setShowColorPalette(!showColorPalette), icon: Palette },
       { name: t('angle'), action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
@@ -415,7 +417,7 @@ function App() {
       { name: t('addAccessories'), action: () => addPromptToInput("Add accessories and modifications to this vehicle"), icon: Plus }
     ],
     [t('categoryTattoos')]: [
-      { name: t('redesign'), action: () => setShowStyleOptions(!showStyleOptions), icon: Wand2 },
+      { name: t('readyDesigns'), action: () => setShowReadyDesignsModal(true), icon: Wand2 },
       { name: t('repairsDamages'), action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer },
       { name: t('changeColor'), action: () => setShowColorPalette(!showColorPalette), icon: Palette },
       { name: t('angle'), action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
@@ -423,7 +425,7 @@ function App() {
       { name: t('addDetails'), action: () => addPromptToInput("Add more details and shading to this tattoo"), icon: Plus }
     ],
     [t('categoryMakeupBeauty')]: [
-      { name: t('redesign'), action: () => setShowStyleOptions(!showStyleOptions), icon: Wand2 },
+      { name: t('readyDesigns'), action: () => setShowReadyDesignsModal(true), icon: Wand2 },
       { name: t('repairsDamages'), action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer },
       { name: t('changeColor'), action: () => setShowColorPalette(!showColorPalette), icon: Palette },
       { name: t('angle'), action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
@@ -431,7 +433,7 @@ function App() {
       { name: t('addMakeup'), action: () => addPromptToInput("Add more makeup and beauty enhancements"), icon: Sparkles }
     ],
     [t('categoryAdvertisingProducts')]: [
-      { name: t('redesign'), action: () => setShowStyleOptions(!showStyleOptions), icon: Wand2 },
+      { name: t('readyDesigns'), action: () => setShowReadyDesignsModal(true), icon: Wand2 },
       { name: t('repairsDamages'), action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer },
       { name: t('changeColor'), action: () => setShowColorPalette(!showColorPalette), icon: Palette },
       { name: t('angle'), action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
@@ -439,7 +441,7 @@ function App() {
       { name: t('addDetails'), action: () => addPromptToInput("Add product details and features"), icon: Plus }
     ],
     [t('categoryProfileImage')]: [
-      { name: t('redesign'), action: () => setShowStyleOptions(!showStyleOptions), icon: Wand2 },
+      { name: t('readyDesigns'), action: () => setShowReadyDesignsModal(true), icon: Wand2 },
       { name: t('repairsDamages'), action: () => setShowRepairsOptions(!showRepairsOptions), icon: Hammer },
       { name: t('changeColor'), action: () => setShowColorPalette(!showColorPalette), icon: Palette },
       { name: t('angle'), action: () => setShowAnglePanel(!showAnglePanel), icon: RotateCcw },
@@ -1475,6 +1477,96 @@ function App() {
     }
   }
 
+  // Handle preset design generation (from ReadyDesignsModal)
+  const handlePresetDesignGeneration = async (prompt, presetImageFile) => {
+    // Check if user can make requests
+    if (isAuthenticated && currentUser) {
+      const canMakeRequest = await aiService.canMakeRequest(currentUser.uid)
+      if (!canMakeRequest) {
+        trackLimitReached(userSubscription, userUsage, userCredits)
+        setShowLimitModal(true)
+        setIsProcessing(false)
+        return
+      }
+    }
+    
+    try {
+      console.log('🎨 Preset Design Generation - Prompt:', prompt)
+      console.log('📸 Main image URL:', mainImage)
+      console.log('🖼️ Preset design image:', presetImageFile?.name)
+      
+      // Save current image as 'Before' image for comparison
+      setBeforeImage(mainImage)
+      
+      // Process preset image for AI
+      const objectImageData = await fileToGenerativePart(presetImageFile)
+      console.log('🖼️ Preset image processed successfully')
+      
+      // Get device fingerprint
+      const deviceId = await getDeviceFingerprint()
+      
+      // Get the image data for the server
+      let imageDataForServer = mainImage
+      if (mainImage.startsWith('blob:')) {
+        const response = await fetch(mainImage)
+        const blob = await response.blob()
+        imageDataForServer = await new Promise((resolve) => {
+          const reader = new FileReader()
+          reader.onloadend = () => resolve(reader.result)
+          reader.readAsDataURL(blob)
+        })
+      }
+      
+      // Call the AI service
+      const result = await aiService.processImageWithPrompt(
+        currentUser, 
+        prompt, 
+        imageDataForServer, 
+        objectImageData,
+        deviceId
+      )
+      
+      if (result.success && result.imageUrl) {
+        const imageDataUrl = result.imageUrl.startsWith('data:') 
+          ? result.imageUrl 
+          : `data:image/png;base64,${result.imageUrl}`
+        
+        setMainImage(imageDataUrl)
+        setImageAspectRatio(16/9)
+        setCurrentHistoryId(null)
+        
+        // Clear object image after successful processing
+        setObjectImage(null)
+        setObjectImageFile(null)
+        if (objectInputRef.current) {
+          objectInputRef.current.value = ''
+        }
+        
+        setCustomPrompt('')
+        showToast('העיצוב הוחל בהצלחה!')
+        
+        // Update usage count
+        if (isAuthenticated && currentUser) {
+          const newUsage = await aiService.getUserUsage(currentUser.uid)
+          if (newUsage !== null) {
+            setUserUsage(newUsage)
+          }
+        }
+      } else {
+        throw new Error(result.error || 'Failed to process preset design')
+      }
+    } catch (error) {
+      console.error('Preset design generation failed:', error)
+      if (error.message && (error.message.includes('limit reached') || error.message.includes('credits'))) {
+        setShowLimitModal(true)
+      } else {
+        showToast('שגיאה בעיבוד העיצוב. נסה שוב.')
+      }
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
   const colorCategoryColors = {
     'reds': '#C1121C',
     'oranges': '#FF7514', 
@@ -2373,17 +2465,17 @@ function App() {
 
              <div className="h-px w-full bg-white/10 my-1"></div>
 
-             {/* Main Tool - Redesign */}
-             <button
-               ref={styleBtnRef}
-               onClick={() => setShowStyleOptions(!showStyleOptions)}
-               disabled={isProcessing}
-               className={`w-full py-3 px-2 flex flex-col items-center justify-center gap-2 group bg-gradient-to-br from-purple-500/20 to-pink-500/20 hover:from-purple-500/30 hover:to-pink-500/30 border border-purple-400/30 hover:border-purple-400/50 rounded-xl transition-all duration-300 shadow-lg shadow-purple-500/10 hover:shadow-purple-500/20 ${showStyleOptions ? 'ring-2 ring-purple-400/50' : ''} disabled:opacity-50 disabled:cursor-not-allowed`}
-               title={t('redesign')}
-             >
-               <Wand2 className={`w-6 h-6 group-hover:scale-110 transition-transform text-purple-400`} />
-               <span className="text-[11px] text-purple-300 font-medium">{t('redesign')}</span>
-             </button>
+            {/* Main Tool - Ready Designs */}
+            <button
+              ref={styleBtnRef}
+              onClick={() => setShowReadyDesignsModal(true)}
+              disabled={isProcessing}
+              className={`w-full py-3 px-2 flex flex-col items-center justify-center gap-2 group bg-gradient-to-br from-purple-500/20 to-pink-500/20 hover:from-purple-500/30 hover:to-pink-500/30 border border-purple-400/30 hover:border-purple-400/50 rounded-xl transition-all duration-300 shadow-lg shadow-purple-500/10 hover:shadow-purple-500/20 ${showReadyDesignsModal ? 'ring-2 ring-purple-400/50' : ''} disabled:opacity-50 disabled:cursor-not-allowed`}
+              title={t('readyDesigns')}
+            >
+              <Wand2 className={`w-6 h-6 group-hover:scale-110 transition-transform text-purple-400`} />
+              <span className="text-[11px] text-purple-300 font-medium">{t('readyDesigns')}</span>
+            </button>
 
 {/* More Tools Button */}
             <button
@@ -2762,17 +2854,17 @@ function App() {
                <span className={`text-[10px] font-medium ${objectImageFile ? 'text-primary-300' : 'text-green-300'}`}>{t('uploadItem')}</span>
              </button>
 
-             <button 
-               ref={styleBtnMobileRef}
-               onClick={() => setShowStyleOptions(true)}
-               disabled={isProcessing}
-               className="flex flex-col items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
-             >
-               <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-500/30 to-pink-500/30 flex items-center justify-center border border-purple-400/40 active:scale-95 transition-transform shadow-lg shadow-purple-500/20">
-                 <Wand2 className="w-6 h-6 text-purple-400" />
-               </div>
-               <span className="text-[10px] text-purple-300 font-medium">{t('redesign')}</span>
-             </button>
+            <button 
+              ref={styleBtnMobileRef}
+              onClick={() => setShowReadyDesignsModal(true)}
+              disabled={isProcessing}
+              className="flex flex-col items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-500/30 to-pink-500/30 flex items-center justify-center border border-purple-400/40 active:scale-95 transition-transform shadow-lg shadow-purple-500/20">
+                <Wand2 className="w-6 h-6 text-purple-400" />
+              </div>
+              <span className="text-[10px] text-purple-300 font-medium">{t('readyDesigns')}</span>
+            </button>
 
              {/* Mobile Designer Avatar Trigger - Inside Toolbar - Placed before "More" button */}
              {isMobile && !isProcessing && isDesignerAvatarEnabled && (avatarSuggestions.length > 0 || isAvatarThinking) && (
@@ -3585,6 +3677,62 @@ function App() {
         userSubscription={userSubscription}
         currentUsage={userUsage}
         limit={userCredits}
+      />
+
+      <ReadyDesignsModal
+        isOpen={showReadyDesignsModal}
+        onClose={() => setShowReadyDesignsModal(false)}
+        onSelectDesign={async (design) => {
+          console.log('Selected design:', design)
+          setShowReadyDesignsModal(false)
+          
+          // Check if main image is loaded
+          if (!mainImage) {
+            showToast('יש להעלות תמונה ראשית לפני בחירת עיצוב')
+            return
+          }
+          
+          setIsProcessing(true)
+          
+          try {
+            // Fetch the design image from URL
+            const response = await fetch(design.url)
+            const blob = await response.blob()
+            
+            // Create data URL for preview
+            const dataUrl = await new Promise((resolve) => {
+              const reader = new FileReader()
+              reader.onload = () => resolve(reader.result)
+              reader.readAsDataURL(blob)
+            })
+            
+            // Create File object
+            const file = new File([blob], `preset_${design.id}.jpg`, { type: 'image/jpeg' })
+            
+            // Set object image state for UI preview
+            setObjectImage(dataUrl)
+            setObjectImageFile(file)
+            
+            // Generate prompt based on category
+            let prompt = ''
+            if (design.categoryId === 'kitchen' || design.categoryId === 'kitchens') {
+              prompt = "Use the attached image, remove the current kitchen from the main image and disregard it, and apply the attached image kitchen design including all of its elements. IMPORTANT: MAINTAIN the same structure, proportion, room size, windows and camera angle! DO NOT EXPAND THE KITCHEN SPACE - ESTIMATE THE FURNITURE SIZE OF BOTH IMAGES TO APPLY IT SO THAT IT WOULD KEEP THE SAME ACTUAL SPACE SIZE AND PROPORTIONS. IF there are no handles on the attached image's new design, then do not keep the original's image handles."
+            } else {
+              // Default prompt for other categories
+              prompt = `Use the attached image as a reference design. Apply this ${design.title} style to the room while maintaining the same structure, proportion, room size, windows and camera angle.`
+            }
+            
+            setCustomPrompt(prompt)
+            
+            // Immediately trigger the AI generation with the preset design
+            await handlePresetDesignGeneration(prompt, file)
+            
+          } catch (error) {
+            console.error('Error loading preset design:', error)
+            showToast('שגיאה בטעינת העיצוב')
+            setIsProcessing(false)
+          }
+        }}
       />
 
       <MobileMenuModal

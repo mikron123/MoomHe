@@ -10,5 +10,12 @@ service firebase.storage {
     match /temp/{userId}/{allPaths=**} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
+    
+    // PreDesigns images - public read, admin only write
+    match /preDesigns/{categoryId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null && 
+                   request.auth.uid == 'OBAc1IAmd8fPhOJyKFl0PXx5Kqu1';
+    }
   }
 }
