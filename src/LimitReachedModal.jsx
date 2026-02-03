@@ -19,7 +19,7 @@ const LimitReachedModal = ({ isOpen, onClose, onShowPricing, userSubscription, c
         {/* Close button */}
         <button 
           onClick={onClose}
-          className={`absolute top-4 ${isRTL ? 'left-4' : 'right-4'} text-textMuted hover:text-white p-1 rounded-full hover:bg-white/10 transition-colors`}
+          className={`absolute top-4 ${isRTL ? 'left-4' : 'right-4'} z-20 text-textMuted hover:text-white p-1 rounded-full hover:bg-white/10 transition-colors`}
         >
           <X className="w-5 h-5" />
         </button>

@@ -1227,4 +1227,37 @@ class AppLocalizationsIs extends AppLocalizations {
 
   @override
   String get maybeLater => 'Kannski seinna';
+
+  @override
+  String get readyDesigns => 'Hönnunarsafn';
+
+  @override
+  String get noCategories => 'Engir flokkar';
+
+  @override
+  String get noDesigns => 'Engin hönnun';
+
+  @override
+  String get noDesignsInCategory => 'Engin hönnun í þessum flokki';
+
+  @override
+  String get loadingDesigns => 'Hleð hönnun...';
+
+  @override
+  String get loading => 'Hleður...';
+
+  @override
+  String get categoryKitchen => 'Eldhús';
+
+  @override
+  String get categoryKidsBedroom => 'Barnasvefnherbergi';
+
+  @override
+  String get categoryBathroom => 'Baðherbergi';
+
+  @override
+  String get categoryLivingRoom => 'Stofa';
+
+  @override
+  String get categoryMasterBedroom => 'Aðal svefnherbergi';
 }

@@ -481,5 +481,18 @@
   "createAccountPromptTitle": "Luo tilisi",
   "createAccountPromptMessage": "Upeita päivityksiä on tulossa lähiviikkoina! 🚀\n\nLuo tili nyt, ettet menetä luomuksiasi ja ole ensimmäinen, joka nauttii uusista ominaisuuksista.",
   "createAccountPromptButton": "Luo tili",
-  "maybeLater": "Ehkä myöhemmin"
+  "maybeLater": "Ehkä myöhemmin",
+
+  "readyDesigns": "Suunnittelugalleria",
+  "noCategories": "Ei kategorioita",
+  "noDesigns": "Ei malleja",
+  "noDesignsInCategory": "Ei malleja tässä kategoriassa",
+  "loadingDesigns": "Ladataan malleja...",
+  "loading": "Ladataan...",
+
+  "categoryKitchen": "Keittiö",
+  "categoryKidsBedroom": "Lastenhuone",
+  "categoryBathroom": "Kylpyhuone",
+  "categoryLivingRoom": "Olohuone",
+  "categoryMasterBedroom": "Päämakamihuone"
 }

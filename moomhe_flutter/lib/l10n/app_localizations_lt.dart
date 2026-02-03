@@ -1222,4 +1222,37 @@ class AppLocalizationsLt extends AppLocalizations {
 
   @override
   String get maybeLater => 'Gal vėliau';
+
+  @override
+  String get readyDesigns => 'Dizaino galerija';
+
+  @override
+  String get noCategories => 'Nėra kategorijų';
+
+  @override
+  String get noDesigns => 'Nėra dizainų';
+
+  @override
+  String get noDesignsInCategory => 'Šioje kategorijoje nėra dizainų';
+
+  @override
+  String get loadingDesigns => 'Kraunami dizainai...';
+
+  @override
+  String get loading => 'Kraunama...';
+
+  @override
+  String get categoryKitchen => 'Virtuvė';
+
+  @override
+  String get categoryKidsBedroom => 'Vaikų miegamasis';
+
+  @override
+  String get categoryBathroom => 'Vonios kambarys';
+
+  @override
+  String get categoryLivingRoom => 'Svetainė';
+
+  @override
+  String get categoryMasterBedroom => 'Pagrindinis miegamasis';
 }

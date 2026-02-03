@@ -1224,4 +1224,37 @@ class AppLocalizationsFi extends AppLocalizations {
 
   @override
   String get maybeLater => 'Ehkä myöhemmin';
+
+  @override
+  String get readyDesigns => 'Suunnittelugalleria';
+
+  @override
+  String get noCategories => 'Ei kategorioita';
+
+  @override
+  String get noDesigns => 'Ei malleja';
+
+  @override
+  String get noDesignsInCategory => 'Ei malleja tässä kategoriassa';
+
+  @override
+  String get loadingDesigns => 'Ladataan malleja...';
+
+  @override
+  String get loading => 'Ladataan...';
+
+  @override
+  String get categoryKitchen => 'Keittiö';
+
+  @override
+  String get categoryKidsBedroom => 'Lastenhuone';
+
+  @override
+  String get categoryBathroom => 'Kylpyhuone';
+
+  @override
+  String get categoryLivingRoom => 'Olohuone';
+
+  @override
+  String get categoryMasterBedroom => 'Päämakamihuone';
 }

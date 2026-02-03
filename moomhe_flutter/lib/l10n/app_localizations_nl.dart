@@ -1223,4 +1223,37 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get maybeLater => 'Misschien later';
+
+  @override
+  String get readyDesigns => 'Ontwerpgalerij';
+
+  @override
+  String get noCategories => 'Geen categorieën';
+
+  @override
+  String get noDesigns => 'Geen ontwerpen';
+
+  @override
+  String get noDesignsInCategory => 'Geen ontwerpen in deze categorie';
+
+  @override
+  String get loadingDesigns => 'Ontwerpen laden...';
+
+  @override
+  String get loading => 'Laden...';
+
+  @override
+  String get categoryKitchen => 'Keuken';
+
+  @override
+  String get categoryKidsBedroom => 'Kinderkamer';
+
+  @override
+  String get categoryBathroom => 'Badkamer';
+
+  @override
+  String get categoryLivingRoom => 'Woonkamer';
+
+  @override
+  String get categoryMasterBedroom => 'Hoofdslaapkamer';
 }

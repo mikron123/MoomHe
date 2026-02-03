@@ -1223,4 +1223,37 @@ class AppLocalizationsEt extends AppLocalizations {
 
   @override
   String get maybeLater => 'Võib-olla hiljem';
+
+  @override
+  String get readyDesigns => 'Disainigalerii';
+
+  @override
+  String get noCategories => 'Kategooriaid pole';
+
+  @override
+  String get noDesigns => 'Disaine pole';
+
+  @override
+  String get noDesignsInCategory => 'Selles kategoorias pole disaine';
+
+  @override
+  String get loadingDesigns => 'Disainide laadimine...';
+
+  @override
+  String get loading => 'Laadimine...';
+
+  @override
+  String get categoryKitchen => 'Köök';
+
+  @override
+  String get categoryKidsBedroom => 'Lastetuba';
+
+  @override
+  String get categoryBathroom => 'Vannituba';
+
+  @override
+  String get categoryLivingRoom => 'Elutuba';
+
+  @override
+  String get categoryMasterBedroom => 'Põhimagamistuba';
 }

@@ -483,5 +483,18 @@
   "createAccountPromptTitle": "צור את החשבון שלך",
   "createAccountPromptMessage": "עדכונים מדהימים מגיעים בשבועות הקרובים! 🚀\n\nצור חשבון עכשיו כדי לא לאבד את היצירות שלך ולהיות הראשון ליהנות מהתכונות החדשות.",
   "createAccountPromptButton": "צור חשבון",
-  "maybeLater": "אולי מאוחר יותר"
+  "maybeLater": "אולי מאוחר יותר",
+
+  "readyDesigns": "גלריית עיצובים",
+  "noCategories": "אין קטגוריות",
+  "noDesigns": "בקרוב...",
+  "noDesignsInCategory": "עיצובים חדשים יתווספו כאן",
+  "loadingDesigns": "טוען עיצובים...",
+  "loading": "טוען...",
+
+  "categoryKitchen": "מטבח",
+  "categoryKidsBedroom": "חדר ילדים",
+  "categoryBathroom": "חדר אמבטיה",
+  "categoryLivingRoom": "סלון",
+  "categoryMasterBedroom": "חדר שינה ראשי"
 }

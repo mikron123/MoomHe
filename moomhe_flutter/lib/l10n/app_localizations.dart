@@ -2478,6 +2478,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Maybe Later'**
   String get maybeLater;
+
+  /// No description provided for @readyDesigns.
+  ///
+  /// In en, this message translates to:
+  /// **'Design Gallery'**
+  String get readyDesigns;
+
+  /// No description provided for @noCategories.
+  ///
+  /// In en, this message translates to:
+  /// **'No categories'**
+  String get noCategories;
+
+  /// No description provided for @noDesigns.
+  ///
+  /// In en, this message translates to:
+  /// **'Coming soon...'**
+  String get noDesigns;
+
+  /// No description provided for @noDesignsInCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'New designs will be added here'**
+  String get noDesignsInCategory;
+
+  /// No description provided for @loadingDesigns.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading designs...'**
+  String get loadingDesigns;
+
+  /// No description provided for @loading.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading...'**
+  String get loading;
+
+  /// No description provided for @categoryKitchen.
+  ///
+  /// In en, this message translates to:
+  /// **'Kitchen'**
+  String get categoryKitchen;
+
+  /// No description provided for @categoryKidsBedroom.
+  ///
+  /// In en, this message translates to:
+  /// **'Kids Bedroom'**
+  String get categoryKidsBedroom;
+
+  /// No description provided for @categoryBathroom.
+  ///
+  /// In en, this message translates to:
+  /// **'Bathroom'**
+  String get categoryBathroom;
+
+  /// No description provided for @categoryLivingRoom.
+  ///
+  /// In en, this message translates to:
+  /// **'Living Room'**
+  String get categoryLivingRoom;
+
+  /// No description provided for @categoryMasterBedroom.
+  ///
+  /// In en, this message translates to:
+  /// **'Master Bedroom'**
+  String get categoryMasterBedroom;
 }
 
 class _AppLocalizationsDelegate

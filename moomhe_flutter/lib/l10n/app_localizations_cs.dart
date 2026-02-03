@@ -1220,4 +1220,37 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String get maybeLater => 'Možná později';
+
+  @override
+  String get readyDesigns => 'Galerie návrhů';
+
+  @override
+  String get noCategories => 'Žádné kategorie';
+
+  @override
+  String get noDesigns => 'Žádné návrhy';
+
+  @override
+  String get noDesignsInCategory => 'V této kategorii nejsou žádné návrhy';
+
+  @override
+  String get loadingDesigns => 'Načítání návrhů...';
+
+  @override
+  String get loading => 'Načítání...';
+
+  @override
+  String get categoryKitchen => 'Kuchyně';
+
+  @override
+  String get categoryKidsBedroom => 'Dětský pokoj';
+
+  @override
+  String get categoryBathroom => 'Koupelna';
+
+  @override
+  String get categoryLivingRoom => 'Obývací pokoj';
+
+  @override
+  String get categoryMasterBedroom => 'Hlavní ložnice';
 }

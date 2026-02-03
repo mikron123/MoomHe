@@ -1224,4 +1224,37 @@ class AppLocalizationsHu extends AppLocalizations {
 
   @override
   String get maybeLater => 'Talán később';
+
+  @override
+  String get readyDesigns => 'Tervgaléria';
+
+  @override
+  String get noCategories => 'Nincsenek kategóriák';
+
+  @override
+  String get noDesigns => 'Nincsenek tervek';
+
+  @override
+  String get noDesignsInCategory => 'Ebben a kategóriában nincsenek tervek';
+
+  @override
+  String get loadingDesigns => 'Tervek betöltése...';
+
+  @override
+  String get loading => 'Betöltés...';
+
+  @override
+  String get categoryKitchen => 'Konyha';
+
+  @override
+  String get categoryKidsBedroom => 'Gyerekszoba';
+
+  @override
+  String get categoryBathroom => 'Fürdőszoba';
+
+  @override
+  String get categoryLivingRoom => 'Nappali';
+
+  @override
+  String get categoryMasterBedroom => 'Főhálószoba';
 }

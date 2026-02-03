@@ -1216,4 +1216,37 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get maybeLater => 'ربما لاحقاً';
+
+  @override
+  String get readyDesigns => 'معرض التصاميم';
+
+  @override
+  String get noCategories => 'لا توجد فئات';
+
+  @override
+  String get noDesigns => 'لا توجد تصاميم';
+
+  @override
+  String get noDesignsInCategory => 'لا توجد تصاميم في هذه الفئة';
+
+  @override
+  String get loadingDesigns => 'جاري تحميل التصاميم...';
+
+  @override
+  String get loading => 'جاري التحميل...';
+
+  @override
+  String get categoryKitchen => 'مطبخ';
+
+  @override
+  String get categoryKidsBedroom => 'غرفة نوم أطفال';
+
+  @override
+  String get categoryBathroom => 'حمام';
+
+  @override
+  String get categoryLivingRoom => 'غرفة المعيشة';
+
+  @override
+  String get categoryMasterBedroom => 'غرفة النوم الرئيسية';
 }

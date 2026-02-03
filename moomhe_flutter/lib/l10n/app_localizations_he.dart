@@ -1209,4 +1209,37 @@ class AppLocalizationsHe extends AppLocalizations {
 
   @override
   String get maybeLater => 'אולי מאוחר יותר';
+
+  @override
+  String get readyDesigns => 'גלריית עיצובים';
+
+  @override
+  String get noCategories => 'אין קטגוריות';
+
+  @override
+  String get noDesigns => 'בקרוב...';
+
+  @override
+  String get noDesignsInCategory => 'עיצובים חדשים יתווספו כאן';
+
+  @override
+  String get loadingDesigns => 'טוען עיצובים...';
+
+  @override
+  String get loading => 'טוען...';
+
+  @override
+  String get categoryKitchen => 'מטבח';
+
+  @override
+  String get categoryKidsBedroom => 'חדר ילדים';
+
+  @override
+  String get categoryBathroom => 'חדר אמבטיה';
+
+  @override
+  String get categoryLivingRoom => 'סלון';
+
+  @override
+  String get categoryMasterBedroom => 'חדר שינה ראשי';
 }

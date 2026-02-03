@@ -8,7 +8,7 @@
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
     import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-    import { getFirestore, collection, query, orderBy, limit, getDocs, where, doc, setDoc, addDoc, deleteDoc, getDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+    import { getFirestore, collection, query, orderBy, limit, getDocs, where, doc, setDoc, addDoc, deleteDoc, getDoc, serverTimestamp, updateDoc, or } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
     import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js';
 
     const firebaseConfig = {
@@ -255,11 +255,19 @@
       currentTab = tab;
       document.getElementById('history-tab-content').classList.toggle('hidden', tab !== 'history');
       document.getElementById('predesigns-tab-content').classList.toggle('hidden', tab !== 'predesigns');
+      document.getElementById('users-tab-content').classList.toggle('hidden', tab !== 'users');
       
       document.getElementById('history-tab-btn').classList.toggle('bg-purple-600', tab === 'history');
       document.getElementById('history-tab-btn').classList.toggle('bg-gray-800', tab !== 'history');
       document.getElementById('predesigns-tab-btn').classList.toggle('bg-purple-600', tab === 'predesigns');
       document.getElementById('predesigns-tab-btn').classList.toggle('bg-gray-800', tab !== 'predesigns');
+      document.getElementById('users-tab-btn').classList.toggle('bg-purple-600', tab === 'users');
+      document.getElementById('users-tab-btn').classList.toggle('bg-gray-800', tab !== 'users');
+      
+      // Load users when switching to users tab
+      if (tab === 'users') {
+        loadPremiumUsers();
+      }
     };
 
     // ========== PRESET DESIGNS MANAGEMENT ==========
@@ -448,20 +456,36 @@
       }
     }
 
-    // Compress image to thumbnail
-    async function compressImage(file, maxWidth = 400, quality = 0.7) {
+    // Compress image - max dimension on largest side, maintaining aspect ratio
+    async function compressImage(file, maxDimension = 1536, quality = 0.8) {
       return new Promise((resolve) => {
         const reader = new FileReader();
         reader.onload = (e) => {
           const img = new Image();
           img.onload = () => {
             const canvas = document.createElement('canvas');
-            const ratio = maxWidth / img.width;
-            canvas.width = maxWidth;
-            canvas.height = img.height * ratio;
+            
+            let width = img.width;
+            let height = img.height;
+            
+            // Scale down based on largest dimension
+            if (width > height) {
+              if (width > maxDimension) {
+                height = (height * maxDimension) / width;
+                width = maxDimension;
+              }
+            } else {
+              if (height > maxDimension) {
+                width = (width * maxDimension) / height;
+                height = maxDimension;
+              }
+            }
+            
+            canvas.width = width;
+            canvas.height = height;
             
             const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, width, height);
             
             canvas.toBlob((blob) => {
               resolve(blob);
@@ -497,15 +521,16 @@
 
         // Generate unique filename
         const timestamp = Date.now();
-        const fileName = `${timestamp}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+        const fileName = `${timestamp}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_').replace(/\.[^.]+$/, '')}.jpg`;
         
-        // Upload original image
+        // Compress and upload main image (max 1536px, 0.8 quality - same as app)
         progressBar.querySelector('.progress-fill').style.width = '30%';
+        const compressedBlob = await compressImage(file, 1536, 0.8);
         const originalRef = ref(storage, `preDesigns/${categoryId}/${fileName}`);
-        await uploadBytes(originalRef, file);
+        await uploadBytes(originalRef, compressedBlob);
         const url = await getDownloadURL(originalRef);
         
-        // Create and upload thumbnail
+        // Create and upload thumbnail (400px, 0.7 quality)
         progressBar.querySelector('.progress-fill').style.width = '60%';
         const thumbnailBlob = await compressImage(file, 400, 0.7);
         const thumbFileName = `thumb_${fileName}`;
@@ -617,6 +642,213 @@
       } catch (error) {
         console.error('Error deleting category:', error);
         alert('שגיאה במחיקת הקטגוריה: ' + error.message);
+      }
+    };
+
+    // ========== USERS MANAGEMENT ==========
+    
+    // Load users with credits > 3 OR subscription > 0
+    async function loadPremiumUsers() {
+      const usersList = document.getElementById('users-list');
+      const usersLoading = document.getElementById('users-loading');
+      
+      if (!usersList) return;
+      
+      usersList.innerHTML = '';
+      usersLoading.classList.remove('hidden');
+
+      try {
+        // Query users with credits > 3
+        const creditsQuery = query(
+          collection(db, 'users'),
+          where('credits', '>', 3)
+        );
+        
+        // Query users with subscription > 0
+        const subscriptionQuery = query(
+          collection(db, 'users'),
+          where('subscription', '>', 0)
+        );
+        
+        // Execute both queries
+        const [creditsSnapshot, subscriptionSnapshot] = await Promise.all([
+          getDocs(creditsQuery),
+          getDocs(subscriptionQuery)
+        ]);
+        
+        // Merge results and remove duplicates
+        const usersMap = new Map();
+        
+        creditsSnapshot.forEach((docSnap) => {
+          usersMap.set(docSnap.id, { id: docSnap.id, ...docSnap.data() });
+        });
+        
+        subscriptionSnapshot.forEach((docSnap) => {
+          usersMap.set(docSnap.id, { id: docSnap.id, ...docSnap.data() });
+        });
+        
+        const users = Array.from(usersMap.values());
+        
+        if (users.length === 0) {
+          usersList.innerHTML = '<div class="text-gray-400 text-center py-8">אין משתמשים עם מנוי או קרדיטים</div>';
+          return;
+        }
+
+        // Sort by subscription desc, then credits desc
+        users.sort((a, b) => {
+          if ((b.subscription || 0) !== (a.subscription || 0)) {
+            return (b.subscription || 0) - (a.subscription || 0);
+          }
+          return (b.credits || 0) - (a.credits || 0);
+        });
+
+        // Calculate MRR - only for users with valid payment source
+        let mrr = 0;
+        let paidUsersCount = 0;
+        const mrrBreakdown = { 450: 0, 200: 0, 50: 0, 40: 0 };
+        
+        users.forEach((user) => {
+          // Only count users with lastPaymentEvent or lastPurchaseId
+          if (!user.lastPaymentEvent && !user.lastPurchaseId) return;
+          
+          const credits = user.credits || 0;
+          if (credits >= 450) {
+            mrr += 100;
+            mrrBreakdown[450]++;
+            paidUsersCount++;
+          } else if (credits >= 200) {
+            mrr += 50;
+            mrrBreakdown[200]++;
+            paidUsersCount++;
+          } else if (credits >= 50) {
+            mrr += 20;
+            mrrBreakdown[50]++;
+            paidUsersCount++;
+          } else if (credits >= 40) {
+            mrr += 15;
+            mrrBreakdown[40]++;
+            paidUsersCount++;
+          }
+        });
+
+        // Update MRR display
+        document.getElementById('mrr-total').textContent = `₪${mrr}`;
+        document.getElementById('mrr-users').textContent = `${paidUsersCount} משלמים`;
+        document.getElementById('mrr-breakdown').innerHTML = `
+          <span class="text-purple-300">450: ${mrrBreakdown[450]}</span>
+          <span class="text-blue-300">200: ${mrrBreakdown[200]}</span>
+          <span class="text-emerald-300">50: ${mrrBreakdown[50]}</span>
+          <span class="text-yellow-300">40: ${mrrBreakdown[40]}</span>
+        `;
+
+        // Render users
+        users.forEach((user) => {
+          const userEl = document.createElement('div');
+          userEl.className = 'bg-gray-800/50 rounded-xl border border-gray-700/50 p-4 hover:border-purple-500/30 transition-all';
+          
+          const lastActive = user.lastActive?.toDate?.();
+          const lastActiveStr = lastActive ? lastActive.toLocaleDateString('he-IL') + ' ' + lastActive.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) : 'לא ידוע';
+          
+          const canceledAt = user.canceledAt?.toDate?.();
+          const canceledStr = canceledAt ? canceledAt.toLocaleDateString('he-IL') : null;
+          
+          const subscriptionLabels = {
+            0: 'ללא מנוי',
+            1: 'Basic',
+            2: 'Pro',
+            3: 'Premium'
+          };
+          
+          // Determine payment source
+          const paymentSource = user.lastPaymentEvent ? 'GROW' : (user.lastPurchaseId ? 'MOBILE' : '?');
+          const paymentSourceColor = user.lastPaymentEvent ? 'text-blue-400 bg-blue-500/20' : (user.lastPurchaseId ? 'text-orange-400 bg-orange-500/20' : 'text-gray-400 bg-gray-500/20');
+          
+          userEl.innerHTML = `
+            <div class="flex items-start justify-between gap-4">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 mb-2">
+                  <p class="text-sm font-mono text-purple-400 truncate">${user.id}</p>
+                  <button 
+                    onclick="copyToClipboard('${user.id}')"
+                    class="text-xs bg-gray-700/50 hover:bg-purple-600/30 text-gray-400 hover:text-purple-400 px-2 py-0.5 rounded transition-all"
+                  >
+                    📋
+                  </button>
+                  <span class="text-xs px-2 py-0.5 rounded font-medium ${paymentSourceColor}">${paymentSource}</span>
+                </div>
+                ${user.email ? `<p class="text-sm text-gray-300 mb-1">📧 ${user.email}</p>` : ''}
+                <div class="flex flex-wrap gap-3 text-xs text-gray-400">
+                  <span>📱 ${user.deviceBrand || 'Unknown'}</span>
+                  <span>🕐 ${lastActiveStr}</span>
+                </div>
+                ${user.lastPurchaseId ? `<p class="text-xs text-orange-400 mt-1">🧾 ${user.lastPurchaseId}</p>` : ''}
+                ${canceledStr ? `<p class="text-xs text-red-400 mt-2">❌ בוטל ב: ${canceledStr}</p>` : ''}
+              </div>
+              <div class="flex flex-col items-end gap-2">
+                <div class="flex items-center gap-3">
+                  <div class="text-center">
+                    <p class="text-lg font-bold ${user.subscription > 0 ? 'text-emerald-400' : 'text-gray-500'}">${subscriptionLabels[user.subscription] || user.subscription}</p>
+                    <p class="text-xs text-gray-500">מנוי</p>
+                  </div>
+                  <div class="text-center">
+                    <p class="text-lg font-bold ${user.credits > 0 ? 'text-yellow-400' : 'text-gray-500'}">${user.credits || 0}</p>
+                    <p class="text-xs text-gray-500">קרדיטים</p>
+                  </div>
+                </div>
+                ${(user.subscription > 0 || user.credits > 3) && !canceledStr ? `
+                  <button 
+                    onclick="cancelUserSubscription('${user.id}')"
+                    class="bg-red-600/20 hover:bg-red-600/40 text-red-400 px-3 py-1.5 rounded-lg text-xs transition-colors border border-red-600/30"
+                  >
+                    ❌ בטל מנוי
+                  </button>
+                ` : ''}
+              </div>
+            </div>
+          `;
+          usersList.appendChild(userEl);
+        });
+
+        document.getElementById('users-count').textContent = `${users.length} משתמשים`;
+      } catch (error) {
+        console.error('Error loading users:', error);
+        usersList.innerHTML = `<div class="text-red-400 text-center py-8">שגיאה: ${error.message}</div>`;
+      } finally {
+        usersLoading.classList.add('hidden');
+      }
+    }
+    window.loadPremiumUsers = loadPremiumUsers;
+
+    // Cancel user subscription
+    window.cancelUserSubscription = async (userId) => {
+      if (!confirm(`האם אתה בטוח שברצונך לבטל את המנוי של משתמש ${userId.slice(0, 12)}...?\n\nפעולה זו תאפס את המנוי והקרדיטים ל-0.`)) return;
+
+      try {
+        await updateDoc(doc(db, 'users', userId), {
+          subscription: 0,
+          credits: 0,
+          canceledAt: serverTimestamp()
+        });
+        
+        alert('המנוי בוטל בהצלחה');
+        await loadPremiumUsers();
+      } catch (error) {
+        console.error('Error canceling subscription:', error);
+        alert('שגיאה בביטול המנוי: ' + error.message);
+      }
+    };
+
+    // Copy to clipboard helper
+    window.copyToClipboard = async (text) => {
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch (err) {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
       }
     };
   </script>
@@ -734,6 +966,13 @@
           class="bg-gray-800 text-white px-6 py-2.5 rounded-xl font-medium transition-all hover:opacity-90"
         >
           🎨 עיצובים מוכנים
+        </button>
+        <button 
+          id="users-tab-btn"
+          onclick="switchTab('users')"
+          class="bg-gray-800 text-white px-6 py-2.5 rounded-xl font-medium transition-all hover:opacity-90"
+        >
+          👥 ניהול משתמשים
         </button>
       </div>
     </div>
@@ -877,6 +1116,58 @@
                 <div class="col-span-full text-gray-400 text-center py-8">בחר קטגוריה לצפייה בעיצובים</div>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Users Tab Content -->
+      <div id="users-tab-content" class="hidden">
+        <!-- MRR Summary -->
+        <div class="bg-gradient-to-r from-emerald-900/30 to-blue-900/30 rounded-2xl border border-emerald-500/30 p-6 mb-6">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm text-emerald-300 mb-1">💰 MRR (Monthly Recurring Revenue)</p>
+              <p id="mrr-total" class="text-4xl font-bold text-emerald-400">₪0</p>
+              <p id="mrr-users" class="text-sm text-gray-400 mt-1">0 משלמים</p>
+            </div>
+            <div class="text-right">
+              <p class="text-xs text-gray-400 mb-2">פירוט לפי חבילה:</p>
+              <div id="mrr-breakdown" class="flex gap-4 text-sm">
+                <span class="text-purple-300">450: 0</span>
+                <span class="text-blue-300">200: 0</span>
+                <span class="text-emerald-300">50: 0</span>
+                <span class="text-yellow-300">40: 0</span>
+              </div>
+              <p class="text-xs text-gray-500 mt-2">450=₪100 | 200=₪50 | 50=₪20 | 40=₪15</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-gray-800/50 rounded-2xl border border-gray-700/50 p-6">
+          <div class="flex items-center justify-between mb-6">
+            <div>
+              <h3 class="font-semibold text-white text-lg">👥 משתמשים עם מנוי או קרדיטים</h3>
+              <p class="text-sm text-gray-400 mt-1">משתמשים עם credits &gt; 3 או subscription &gt; 0</p>
+            </div>
+            <div class="flex items-center gap-3">
+              <span id="users-count" class="text-sm text-purple-400"></span>
+              <button 
+                onclick="loadPremiumUsers()"
+                class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm transition-colors"
+              >
+                🔄 רענן
+              </button>
+            </div>
+          </div>
+
+          <!-- Loading -->
+          <div id="users-loading" class="hidden flex items-center justify-center py-12">
+            <div class="w-8 h-8 border-4 border-purple-500/30 border-t-purple-500 rounded-full animate-spin"></div>
+          </div>
+
+          <!-- Users List -->
+          <div id="users-list" class="space-y-3">
+            <div class="text-gray-400 text-center py-8">לחץ על הטאב כדי לטעון משתמשים</div>
           </div>
         </div>
       </div>

@@ -6,6 +6,14 @@ export const ar = {
   appTitle: "خبير AI",
   appName: "خبير",
   
+  // Design Gallery Categories
+  categoryKitchen: "مطبخ",
+  categoryKidsBedroom: "غرفة أطفال",
+  categoryBathroom: "حمام",
+  categoryLivingRoom: "غرفة معيشة",
+  categoryMasterBedroom: "غرفة نوم رئيسية",
+  readyDesigns: "معرض التصاميم",
+  
   // Auth
   guest: "ضيف",
   loginToSaveDesigns: "سجل الدخول لحفظ تصاميمك",
@@ -185,6 +193,14 @@ export const es = {
   appTitle: "Experto AI",
   appName: "Experto",
   
+  // Design Gallery Categories
+  categoryKitchen: "Cocina",
+  categoryKidsBedroom: "Dormitorio infantil",
+  categoryBathroom: "Baño",
+  categoryLivingRoom: "Sala de estar",
+  categoryMasterBedroom: "Dormitorio principal",
+  readyDesigns: "Galería de diseños",
+  
   // Auth
   guest: "Invitado",
   loginToSaveDesigns: "Inicia sesión para guardar tus diseños",
@@ -363,6 +379,14 @@ export const de = {
   // App
   appTitle: "Experte AI",
   appName: "Experte",
+  
+  // Design Gallery Categories
+  categoryKitchen: "Küche",
+  categoryKidsBedroom: "Kinderzimmer",
+  categoryBathroom: "Badezimmer",
+  categoryLivingRoom: "Wohnzimmer",
+  categoryMasterBedroom: "Schlafzimmer",
+  readyDesigns: "Design-Galerie",
   
   // Auth
   guest: "Gast",
@@ -659,6 +683,14 @@ export const fr = {
   // App
   appTitle: "Expert AI",
   appName: "Expert",
+  
+  // Design Gallery Categories
+  categoryKitchen: "Cuisine",
+  categoryKidsBedroom: "Chambre d'enfant",
+  categoryBathroom: "Salle de bain",
+  categoryLivingRoom: "Salon",
+  categoryMasterBedroom: "Chambre principale",
+  readyDesigns: "Galerie de designs",
   
   // Auth
   guest: "Invité",
@@ -957,6 +989,13 @@ export const fr = {
 export const it = {
   appTitle: "Esperto AI",
   appName: "Esperto",
+  // Design Gallery Categories
+  categoryKitchen: "Cucina",
+  categoryKidsBedroom: "Camera dei bambini",
+  categoryBathroom: "Bagno",
+  categoryLivingRoom: "Soggiorno",
+  categoryMasterBedroom: "Camera da letto",
+  readyDesigns: "Galleria design",
   guest: "Ospite",
   loginToSaveDesigns: "Accedi per salvare i tuoi design",
   loggedOutSuccess: "Disconnessione riuscita",
@@ -1050,6 +1089,13 @@ export const it = {
 export const pt = {
   appTitle: "Especialista AI",
   appName: "Especialista",
+  // Design Gallery Categories
+  categoryKitchen: "Cozinha",
+  categoryKidsBedroom: "Quarto infantil",
+  categoryBathroom: "Banheiro",
+  categoryLivingRoom: "Sala de estar",
+  categoryMasterBedroom: "Quarto principal",
+  readyDesigns: "Galeria de designs",
   guest: "Convidado",
   loginToSaveDesigns: "Faça login para salvar seus designs",
   loggedOutSuccess: "Logout realizado com sucesso",
@@ -1143,6 +1189,12 @@ export const pt = {
 export const nl = {
   appTitle: "Expert AI",
   appName: "Expert",
+  categoryKitchen: "Keuken",
+  categoryKidsBedroom: "Kinderkamer",
+  categoryBathroom: "Badkamer",
+  categoryLivingRoom: "Woonkamer",
+  categoryMasterBedroom: "Slaapkamer",
+  readyDesigns: "Ontwerpgalerij",
   guest: "Gast",
   login: "Inloggen",
   logout: "Uitloggen",
@@ -1212,6 +1264,13 @@ export const nl = {
 export const ja = {
   appTitle: "エキスパートAI",
   appName: "エキスパート",
+  // Design Gallery Categories
+  categoryKitchen: "キッチン",
+  categoryKidsBedroom: "子供部屋",
+  categoryBathroom: "バスルーム",
+  categoryLivingRoom: "リビングルーム",
+  categoryMasterBedroom: "主寝室",
+  readyDesigns: "デザインギャラリー",
   guest: "ゲスト",
   login: "ログイン",
   logout: "ログアウト",
@@ -1281,6 +1340,13 @@ export const ja = {
 export const ko = {
   appTitle: "전문가 AI",
   appName: "전문가",
+  // Design Gallery Categories
+  categoryKitchen: "주방",
+  categoryKidsBedroom: "어린이 방",
+  categoryBathroom: "욕실",
+  categoryLivingRoom: "거실",
+  categoryMasterBedroom: "안방",
+  readyDesigns: "디자인 갤러리",
   guest: "게스트",
   login: "로그인",
   logout: "로그아웃",
@@ -1350,6 +1416,13 @@ export const ko = {
 export const zh = {
   appTitle: "专家AI",
   appName: "专家",
+  // Design Gallery Categories
+  categoryKitchen: "厨房",
+  categoryKidsBedroom: "儿童房",
+  categoryBathroom: "浴室",
+  categoryLivingRoom: "客厅",
+  categoryMasterBedroom: "主卧",
+  readyDesigns: "设计画廊",
   guest: "访客",
   login: "登录",
   logout: "登出",
@@ -1419,6 +1492,13 @@ export const zh = {
 export const zh_HK = {
   appTitle: "專家AI",
   appName: "專家",
+  // Design Gallery Categories
+  categoryKitchen: "廚房",
+  categoryKidsBedroom: "兒童房",
+  categoryBathroom: "浴室",
+  categoryLivingRoom: "客廳",
+  categoryMasterBedroom: "主臥室",
+  readyDesigns: "設計畫廊",
   guest: "訪客",
   login: "登入",
   logout: "登出",

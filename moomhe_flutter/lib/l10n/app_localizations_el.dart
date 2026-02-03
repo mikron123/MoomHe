@@ -1232,4 +1232,38 @@ class AppLocalizationsEl extends AppLocalizations {
 
   @override
   String get maybeLater => 'Ίσως αργότερα';
+
+  @override
+  String get readyDesigns => 'Γκαλερί σχεδίων';
+
+  @override
+  String get noCategories => 'Δεν υπάρχουν κατηγορίες';
+
+  @override
+  String get noDesigns => 'Δεν υπάρχουν σχέδια';
+
+  @override
+  String get noDesignsInCategory =>
+      'Δεν υπάρχουν σχέδια σε αυτήν την κατηγορία';
+
+  @override
+  String get loadingDesigns => 'Φόρτωση σχεδίων...';
+
+  @override
+  String get loading => 'Φόρτωση...';
+
+  @override
+  String get categoryKitchen => 'Κουζίνα';
+
+  @override
+  String get categoryKidsBedroom => 'Παιδικό υπνοδωμάτιο';
+
+  @override
+  String get categoryBathroom => 'Μπάνιο';
+
+  @override
+  String get categoryLivingRoom => 'Σαλόνι';
+
+  @override
+  String get categoryMasterBedroom => 'Κύρια κρεβατοκάμαρα';
 }

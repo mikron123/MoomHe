@@ -1223,4 +1223,37 @@ class AppLocalizationsKa extends AppLocalizations {
 
   @override
   String get maybeLater => 'იქნებ მოგვიანებით';
+
+  @override
+  String get readyDesigns => 'დიზაინის გალერეა';
+
+  @override
+  String get noCategories => 'კატეგორიები არ არის';
+
+  @override
+  String get noDesigns => 'დიზაინები არ არის';
+
+  @override
+  String get noDesignsInCategory => 'ამ კატეგორიაში დიზაინები არ არის';
+
+  @override
+  String get loadingDesigns => 'დიზაინების ჩატვირთვა...';
+
+  @override
+  String get loading => 'იტვირთება...';
+
+  @override
+  String get categoryKitchen => 'სამზარეულო';
+
+  @override
+  String get categoryKidsBedroom => 'საბავშვო საძინებელი';
+
+  @override
+  String get categoryBathroom => 'აბაზანა';
+
+  @override
+  String get categoryLivingRoom => 'მისაღები ოთახი';
+
+  @override
+  String get categoryMasterBedroom => 'მთავარი საძინებელი';
 }

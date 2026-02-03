@@ -1227,4 +1227,37 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get maybeLater => 'Poate mai târziu';
+
+  @override
+  String get readyDesigns => 'Galerie de design';
+
+  @override
+  String get noCategories => 'Nu există categorii';
+
+  @override
+  String get noDesigns => 'Nu există design-uri';
+
+  @override
+  String get noDesignsInCategory => 'Nu există design-uri în această categorie';
+
+  @override
+  String get loadingDesigns => 'Se încarcă design-urile...';
+
+  @override
+  String get loading => 'Se încarcă...';
+
+  @override
+  String get categoryKitchen => 'Bucătărie';
+
+  @override
+  String get categoryKidsBedroom => 'Dormitor pentru copii';
+
+  @override
+  String get categoryBathroom => 'Baie';
+
+  @override
+  String get categoryLivingRoom => 'Living';
+
+  @override
+  String get categoryMasterBedroom => 'Dormitor principal';
 }

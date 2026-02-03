@@ -481,5 +481,18 @@
   "createAccountPromptTitle": "Creează-ți contul",
   "createAccountPromptMessage": "Actualizări uimitoare vin în următoarele săptămâni! 🚀\n\nCreează un cont acum pentru a nu pierde creațiile tale și a fi primul care se bucură de noile funcții.",
   "createAccountPromptButton": "Creează cont",
-  "maybeLater": "Poate mai târziu"
+  "maybeLater": "Poate mai târziu",
+
+  "readyDesigns": "Galerie de design",
+  "noCategories": "Nu există categorii",
+  "noDesigns": "Nu există design-uri",
+  "noDesignsInCategory": "Nu există design-uri în această categorie",
+  "loadingDesigns": "Se încarcă design-urile...",
+  "loading": "Se încarcă...",
+
+  "categoryKitchen": "Bucătărie",
+  "categoryKidsBedroom": "Dormitor pentru copii",
+  "categoryBathroom": "Baie",
+  "categoryLivingRoom": "Living",
+  "categoryMasterBedroom": "Dormitor principal"
 }

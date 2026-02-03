@@ -481,5 +481,18 @@
   "createAccountPromptTitle": "Búðu til reikninginn þinn",
   "createAccountPromptMessage": "Ótrúlegar uppfærslur eru að koma á næstu vikum! 🚀\n\nBúðu til reikning núna til að missa ekki af sköpunarverkum þínum og vertu fyrstur til að njóta nýrra eiginleika.",
   "createAccountPromptButton": "Búa til reikning",
-  "maybeLater": "Kannski seinna"
+  "maybeLater": "Kannski seinna",
+
+  "readyDesigns": "Hönnunarsafn",
+  "noCategories": "Engir flokkar",
+  "noDesigns": "Engin hönnun",
+  "noDesignsInCategory": "Engin hönnun í þessum flokki",
+  "loadingDesigns": "Hleð hönnun...",
+  "loading": "Hleður...",
+
+  "categoryKitchen": "Eldhús",
+  "categoryKidsBedroom": "Barnasvefnherbergi",
+  "categoryBathroom": "Baðherbergi",
+  "categoryLivingRoom": "Stofa",
+  "categoryMasterBedroom": "Aðal svefnherbergi"
 }

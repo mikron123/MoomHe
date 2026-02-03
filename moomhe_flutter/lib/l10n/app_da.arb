@@ -481,5 +481,18 @@
   "createAccountPromptTitle": "Opret din konto",
   "createAccountPromptMessage": "Fantastiske opdateringer kommer i de næste par uger! 🚀\n\nOpret en konto nu, så du ikke mister dine kreationer og vær den første til at nyde nye funktioner.",
   "createAccountPromptButton": "Opret konto",
-  "maybeLater": "Måske senere"
+  "maybeLater": "Måske senere",
+
+  "readyDesigns": "Designgalleri",
+  "noCategories": "Ingen kategorier",
+  "noDesigns": "Ingen designs",
+  "noDesignsInCategory": "Ingen designs i denne kategori",
+  "loadingDesigns": "Indlæser designs...",
+  "loading": "Indlæser...",
+
+  "categoryKitchen": "Køkken",
+  "categoryKidsBedroom": "Børneværelse",
+  "categoryBathroom": "Badeværelse",
+  "categoryLivingRoom": "Stue",
+  "categoryMasterBedroom": "Hovedsoveværelse"
 }

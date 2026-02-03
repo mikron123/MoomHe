@@ -481,5 +481,18 @@
   "createAccountPromptTitle": "Kreirajte svoj račun",
   "createAccountPromptMessage": "Nevjerojatna ažuriranja stižu u sljedećim tjednima! 🚀\n\nKreirajte račun sada kako ne biste izgubili svoje kreacije i budite prvi koji će uživati u novim značajkama.",
   "createAccountPromptButton": "Kreiraj račun",
-  "maybeLater": "Možda kasnije"
+  "maybeLater": "Možda kasnije",
+
+  "readyDesigns": "Galerija dizajna",
+  "noCategories": "Nema kategorija",
+  "noDesigns": "Nema dizajna",
+  "noDesignsInCategory": "Nema dizajna u ovoj kategoriji",
+  "loadingDesigns": "Učitavanje dizajna...",
+  "loading": "Učitavanje...",
+
+  "categoryKitchen": "Kuhinja",
+  "categoryKidsBedroom": "Dječja soba",
+  "categoryBathroom": "Kupaonica",
+  "categoryLivingRoom": "Dnevni boravak",
+  "categoryMasterBedroom": "Glavna spavaća soba"
 }

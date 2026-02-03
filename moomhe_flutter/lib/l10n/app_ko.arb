@@ -481,5 +481,18 @@
   "createAccountPromptTitle": "계정 만들기",
   "createAccountPromptMessage": "앞으로 몇 주 안에 놀라운 업데이트가 출시됩니다! 🚀\n\n지금 계정을 만들어 창작물을 잃지 않고 새로운 기능을 가장 먼저 즐기세요.",
   "createAccountPromptButton": "계정 만들기",
-  "maybeLater": "나중에"
+  "maybeLater": "나중에",
+
+  "readyDesigns": "디자인 갤러리",
+  "noCategories": "카테고리 없음",
+  "noDesigns": "디자인 없음",
+  "noDesignsInCategory": "이 카테고리에 디자인이 없습니다",
+  "loadingDesigns": "디자인 로딩 중...",
+  "loading": "로딩 중...",
+
+  "categoryKitchen": "주방",
+  "categoryKidsBedroom": "어린이 침실",
+  "categoryBathroom": "욕실",
+  "categoryLivingRoom": "거실",
+  "categoryMasterBedroom": "안방"
 }

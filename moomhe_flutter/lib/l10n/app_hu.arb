@@ -481,5 +481,18 @@
   "createAccountPromptTitle": "Hozd létre a fiókodat",
   "createAccountPromptMessage": "Fantasztikus frissítések érkeznek a következő hetekben! 🚀\n\nHozz létre fiókot most, hogy ne veszítsd el alkotásaidat, és elsőként élvezhesd az új funkciókat.",
   "createAccountPromptButton": "Fiók létrehozása",
-  "maybeLater": "Talán később"
+  "maybeLater": "Talán később",
+
+  "readyDesigns": "Tervgaléria",
+  "noCategories": "Nincsenek kategóriák",
+  "noDesigns": "Nincsenek tervek",
+  "noDesignsInCategory": "Ebben a kategóriában nincsenek tervek",
+  "loadingDesigns": "Tervek betöltése...",
+  "loading": "Betöltés...",
+
+  "categoryKitchen": "Konyha",
+  "categoryKidsBedroom": "Gyerekszoba",
+  "categoryBathroom": "Fürdőszoba",
+  "categoryLivingRoom": "Nappali",
+  "categoryMasterBedroom": "Főhálószoba"
 }

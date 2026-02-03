@@ -481,5 +481,18 @@
   "createAccountPromptTitle": "Sukurkite savo paskyrą",
   "createAccountPromptMessage": "Nuostabūs atnaujinimai ateina per artimiausias savaites! 🚀\n\nSukurkite paskyrą dabar, kad neprarastumėte savo kūrinių ir būtumėte pirmieji, kurie mėgausis naujomis funkcijomis.",
   "createAccountPromptButton": "Sukurti paskyrą",
-  "maybeLater": "Gal vėliau"
+  "maybeLater": "Gal vėliau",
+
+  "readyDesigns": "Dizaino galerija",
+  "noCategories": "Nėra kategorijų",
+  "noDesigns": "Nėra dizainų",
+  "noDesignsInCategory": "Šioje kategorijoje nėra dizainų",
+  "loadingDesigns": "Kraunami dizainai...",
+  "loading": "Kraunama...",
+
+  "categoryKitchen": "Virtuvė",
+  "categoryKidsBedroom": "Vaikų miegamasis",
+  "categoryBathroom": "Vonios kambarys",
+  "categoryLivingRoom": "Svetainė",
+  "categoryMasterBedroom": "Pagrindinis miegamasis"
 }

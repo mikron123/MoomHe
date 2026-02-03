@@ -426,5 +426,18 @@
   "createAccountPromptTitle": "Créez votre compte",
   "createAccountPromptMessage": "Des mises à jour incroyables arrivent dans les prochaines semaines ! 🚀\n\nCréez un compte maintenant pour ne pas perdre vos créations et être le premier à profiter des nouvelles fonctionnalités.",
   "createAccountPromptButton": "Créer un compte",
-  "maybeLater": "Peut-être plus tard"
+  "maybeLater": "Peut-être plus tard",
+
+  "readyDesigns": "Galerie de designs",
+  "noCategories": "Aucune catégorie",
+  "noDesigns": "Aucun design",
+  "noDesignsInCategory": "Aucun design dans cette catégorie",
+  "loadingDesigns": "Chargement des designs...",
+  "loading": "Chargement...",
+
+  "categoryKitchen": "Cuisine",
+  "categoryKidsBedroom": "Chambre d'enfant",
+  "categoryBathroom": "Salle de bain",
+  "categoryLivingRoom": "Salon",
+  "categoryMasterBedroom": "Chambre principale"
 }

@@ -1204,4 +1204,37 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get maybeLater => '나중에';
+
+  @override
+  String get readyDesigns => '디자인 갤러리';
+
+  @override
+  String get noCategories => '카테고리 없음';
+
+  @override
+  String get noDesigns => '디자인 없음';
+
+  @override
+  String get noDesignsInCategory => '이 카테고리에 디자인이 없습니다';
+
+  @override
+  String get loadingDesigns => '디자인 로딩 중...';
+
+  @override
+  String get loading => '로딩 중...';
+
+  @override
+  String get categoryKitchen => '주방';
+
+  @override
+  String get categoryKidsBedroom => '어린이 침실';
+
+  @override
+  String get categoryBathroom => '욕실';
+
+  @override
+  String get categoryLivingRoom => '거실';
+
+  @override
+  String get categoryMasterBedroom => '안방';
 }

@@ -1199,6 +1199,39 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get maybeLater => '以后再说';
+
+  @override
+  String get readyDesigns => '设计画廊';
+
+  @override
+  String get noCategories => '暂无分类';
+
+  @override
+  String get noDesigns => '暂无设计';
+
+  @override
+  String get noDesignsInCategory => '该分类暂无设计';
+
+  @override
+  String get loadingDesigns => '正在加载设计...';
+
+  @override
+  String get loading => '加载中...';
+
+  @override
+  String get categoryKitchen => '厨房';
+
+  @override
+  String get categoryKidsBedroom => '儿童卧室';
+
+  @override
+  String get categoryBathroom => '浴室';
+
+  @override
+  String get categoryLivingRoom => '客厅';
+
+  @override
+  String get categoryMasterBedroom => '主卧室';
 }
 
 /// The translations for Chinese, as used in Hong Kong (`zh_HK`).
@@ -2389,4 +2422,37 @@ class AppLocalizationsZhHk extends AppLocalizationsZh {
 
   @override
   String get maybeLater => '稍後再說';
+
+  @override
+  String get readyDesigns => '設計畫廊';
+
+  @override
+  String get noCategories => '暫無分類';
+
+  @override
+  String get noDesigns => '暫無設計';
+
+  @override
+  String get noDesignsInCategory => '該分類暫無設計';
+
+  @override
+  String get loadingDesigns => '正在載入設計...';
+
+  @override
+  String get loading => '載入中...';
+
+  @override
+  String get categoryKitchen => '廚房';
+
+  @override
+  String get categoryKidsBedroom => '兒童睡房';
+
+  @override
+  String get categoryBathroom => '浴室';
+
+  @override
+  String get categoryLivingRoom => '客廳';
+
+  @override
+  String get categoryMasterBedroom => '主人房';
 }

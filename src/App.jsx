@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { Upload, Plus, Palette, RotateCcw, Download, Settings, Home, TreePine, Car, Heart, Hammer, Sparkles, Package, User, Share2, Wand2, Type, Loader2, RotateCw, Lightbulb, Sofa, Droplets, ArrowLeftRight, MessageCircle, HelpCircle, CheckCircle, Mail, History, MoreHorizontal, X, Power, Search, Globe, ChevronDown } from 'lucide-react'
+import { Upload, Plus, Palette, RotateCcw, Download, Settings, Home, TreePine, Car, Heart, Hammer, Sparkles, Package, User, Share2, Wand2, Type, Loader2, RotateCw, Lightbulb, Sofa, Droplets, ArrowLeftRight, MessageCircle, HelpCircle, CheckCircle, Mail, History, MoreHorizontal, X, Search, Globe, ChevronDown } from 'lucide-react'
 import { 
   fileToGenerativePart, urlToFile, signInUser, createOrUpdateUser, saveImageToHistory, 
   saveUploadToHistory, loadUserHistory, loadUserHistoryPaginated, auth, uploadImageForSharing, 
@@ -23,7 +23,6 @@ import ColorApplicationDialog from './ColorApplicationDialog'
 import LimitReachedModal from './LimitReachedModal'
 import WelcomePremiumModal from './WelcomePremiumModal'
 import BeforeAfterSlider from './BeforeAfterSlider'
-import DesignerAvatar from './DesignerAvatar'
 import MobileMenuModal from './MobileMenuModal'
 import ReadyDesignsModal from './ReadyDesignsModal'
 import { useLocalization } from './localization.jsx'
@@ -79,13 +78,6 @@ function App() {
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
   const [showImageModal, setShowImageModal] = useState(false)
   const [currentHistoryId, setCurrentHistoryId] = useState(null)
-  const [avatarSuggestions, setAvatarSuggestions] = useState([])
-  const [isAvatarThinking, setIsAvatarThinking] = useState(false)
-  const [shouldAutoOpenAvatar, setShouldAutoOpenAvatar] = useState(false)
-  const [isDesignerAvatarEnabled, setIsDesignerAvatarEnabled] = useState(() => {
-    const saved = localStorage.getItem('designerAvatarEnabled')
-    return saved === null ? true : saved === 'true' // Default to enabled
-  })
   const [customPrompt, setCustomPrompt] = useState('')
   const [imageAspectRatio, setImageAspectRatio] = useState(16/9) // Default to 16:9
   const [activeColorCategory, setActiveColorCategory] = useState('reds') // Default to reds
@@ -544,12 +536,6 @@ function App() {
             setCurrentHistoryId(newHistoryId)
             console.log('Set current history ID to newly uploaded image:', newHistoryId)
             
-            // Set thinking state for avatar suggestions (only if enabled)
-            if (isDesignerAvatarEnabled) {
-              setIsAvatarThinking(true)
-              setShouldAutoOpenAvatar(true) // Auto-open suggestions when they arrive
-            }
-            
             console.log('Current history after reload:', historyResult.history.map(h => ({ id: h.id, prompt: h.prompt })))
           } catch (error) {
             console.error('Failed to save upload to Firebase:', error)
@@ -732,55 +718,6 @@ function App() {
     setIsSelectingLens(false)
   }
 
-  // Listen for suggestions on current uploaded image
-  useEffect(() => {
-    if (!currentHistoryId || !isDesignerAvatarEnabled) {
-      setAvatarSuggestions([])
-      setIsAvatarThinking(false)
-      return
-    }
-    
-    const unsubscribe = onSnapshot(doc(db, 'userHistory', currentHistoryId), (docSnapshot) => {
-      if (docSnapshot.exists()) {
-        const data = docSnapshot.data()
-        // Only show if we have suggestions and avatar is enabled
-        if (isDesignerAvatarEnabled && data.suggestions && Array.isArray(data.suggestions) && data.suggestions.length > 0) {
-          setAvatarSuggestions(data.suggestions)
-          setIsAvatarThinking(false)
-        }
-      }
-    })
-    
-    return () => unsubscribe()
-  }, [currentHistoryId, isDesignerAvatarEnabled])
-
-  const handleAvatarSuggestionSelect = (suggestion) => {
-    const prompt = suggestion.prompt
-    setCustomPrompt(prompt)
-    handleAIEdit(prompt)
-    
-    // Clear the input field after execution (setCustomPrompt updates the state used by input, so setting it empty effectively clears it, 
-    // BUT handleAIEdit uses the passed prompt argument, so we can clear customPrompt state immediately or after a short delay)
-    // However, handleAIEdit is async. We might want to clear it after initiation.
-    // Wait, handleAIEdit uses `mainImage`. It doesn't use `customPrompt` directly if passed as arg.
-    // So clearing `customPrompt` here is fine for the UI.
-    setTimeout(() => setCustomPrompt(''), 100)
-    
-    // Don't clear suggestions - keep them available for other choices
-    // setAvatarSuggestions([]) <-- removed this line to keep suggestions visible
-  }
-
-  const toggleDesignerAvatar = () => {
-    const newValue = !isDesignerAvatarEnabled
-    setIsDesignerAvatarEnabled(newValue)
-    localStorage.setItem('designerAvatarEnabled', newValue.toString())
-    // If disabling, clear current suggestions
-    if (!newValue) {
-      setAvatarSuggestions([])
-      setIsAvatarThinking(false)
-    }
-  }
-
   const handleWhatsAppShare = async () => {
     trackImageShare('whatsapp')
     try {
@@ -919,8 +856,6 @@ function App() {
     setCurrentHistoryId(null) // Clear history ID for gallery image
     // Clear objects when selecting gallery image
     setDetectedObjects([])
-    // Don't auto-open avatar for gallery images
-    setShouldAutoOpenAvatar(false)
   }
 
   const handleHistoryImageClick = (historyEntry) => {
@@ -941,10 +876,6 @@ function App() {
     
     setImageAspectRatio(16/9) // Reset to default until new image loads
     setCurrentHistoryId(historyEntry.id)
-    
-    // Don't auto-open avatar suggestions when navigating history
-    // Only auto-open for newly uploaded images
-    setShouldAutoOpenAvatar(false)
   }
 
 
@@ -1446,8 +1377,10 @@ function App() {
       const finalPrompt = customPrompt
       
       // If object image is available, modify prompt to include it
+      // Skip prefix for English prompts (preset designs already mention the images)
       let promptWithObject = finalPrompt
-      if (objectImageFile) {
+      const isEnglishPrompt = /^[A-Za-z]/.test(finalPrompt.trim())
+      if (objectImageFile && !isEnglishPrompt) {
         promptWithObject = `השתמש בתמונות שצורפו, ${finalPrompt}`
       }
       
@@ -1498,7 +1431,7 @@ function App() {
       // Save current image as 'Before' image for comparison
       setBeforeImage(mainImage)
       
-      // Process preset image for AI
+      // Process preset image for AI (using same method as regular object images)
       const objectImageData = await fileToGenerativePart(presetImageFile)
       console.log('🖼️ Preset image processed successfully')
       
@@ -1517,8 +1450,8 @@ function App() {
         })
       }
       
-      // Call the AI service
-      const result = await aiService.processImageWithPrompt(
+      // Submit request to server
+      const requestId = await aiService.submitImageGenerationRequest(
         currentUser, 
         prompt, 
         imageDataForServer, 
@@ -1526,7 +1459,10 @@ function App() {
         deviceId
       )
       
-      if (result.success && result.imageUrl) {
+      // Wait for completion
+      const result = await aiService.waitForRequestCompletion(requestId)
+      
+      if (result && result.imageUrl) {
         const imageDataUrl = result.imageUrl.startsWith('data:') 
           ? result.imageUrl 
           : `data:image/png;base64,${result.imageUrl}`
@@ -1545,15 +1481,9 @@ function App() {
         setCustomPrompt('')
         showToast('העיצוב הוחל בהצלחה!')
         
-        // Update usage count
-        if (isAuthenticated && currentUser) {
-          const newUsage = await aiService.getUserUsage(currentUser.uid)
-          if (newUsage !== null) {
-            setUserUsage(newUsage)
-          }
-        }
+        // Usage count is updated automatically via Firestore listener
       } else {
-        throw new Error(result.error || 'Failed to process preset design')
+        throw new Error(result?.error || 'Failed to process preset design')
       }
     } catch (error) {
       console.error('Preset design generation failed:', error)
@@ -2061,8 +1991,13 @@ function App() {
     showToast(t('promptUpdated'))
   }
 
-  const handleAIEdit = async (prompt) => {
+  const handleAIEdit = async (prompt, overrideObjectData = null) => {
     if (!mainImage) return
+    
+    // overrideObjectData can be either a File or a pre-built objectImageData object
+    // If it's a File, we'll process it later. If it's an object with inlineData, use it directly.
+    const isPrebuiltObjectData = overrideObjectData && overrideObjectData.inlineData
+    const effectiveObjectFile = isPrebuiltObjectData ? null : (overrideObjectData || objectImageFile)
     
     const startTime = Date.now()
     setIsProcessing(true)
@@ -2080,7 +2015,7 @@ function App() {
       return 'custom'
     }
     const promptType = getPromptType(prompt)
-    trackGenerationStart(promptType, !!objectImageFile)
+    trackGenerationStart(promptType, !!(isPrebuiltObjectData || effectiveObjectFile))
     
     // Save current image as 'Before' image for comparison
     setBeforeImage(mainImage)
@@ -2090,7 +2025,7 @@ function App() {
       // Debug: Log the prompt being sent to AI
       console.log('🎨 AI Image Alteration - Prompt being sent:', prompt)
       console.log('📸 Main image URL:', mainImage)
-      console.log('🖼️ Object image available:', !!objectImageFile)
+      console.log('🖼️ Object image available:', !!(isPrebuiltObjectData || effectiveObjectFile))
       
       // Check if user can make requests
       if (isAuthenticated && currentUser) {
@@ -2124,9 +2059,13 @@ function App() {
       
       // Process object image if available
       let objectImageData = null;
-      if (objectImageFile) {
-        console.log('🖼️ Processing object image file:', objectImageFile.name, objectImageFile.type, objectImageFile.size);
-        objectImageData = await fileToGenerativePart(objectImageFile);
+      if (isPrebuiltObjectData) {
+        // Use pre-built objectImageData directly (from preset designs)
+        objectImageData = overrideObjectData;
+        console.log('🖼️ Using pre-built object image data');
+      } else if (effectiveObjectFile) {
+        console.log('🖼️ Processing object image file:', effectiveObjectFile.name, effectiveObjectFile.type, effectiveObjectFile.size);
+        objectImageData = await fileToGenerativePart(effectiveObjectFile);
         console.log('🖼️ Object image processed successfully:', !!objectImageData);
       } else {
         console.log('🖼️ No object image file available');
@@ -2530,32 +2469,6 @@ function App() {
                 ))}
               </div>
               
-              {/* Designer Avatar Toggle */}
-              <div className="mt-2 pt-2 border-t border-white/10">
-                <button 
-                  onClick={toggleDesignerAvatar}
-                  className={`flex items-center justify-between w-full p-2 rounded-lg transition-all ${
-                    isDesignerAvatarEnabled 
-                      ? 'bg-emerald-500/20 hover:bg-emerald-500/30' 
-                      : 'hover:bg-white/10'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <Power className={`w-5 h-5 ${isDesignerAvatarEnabled ? 'text-emerald-400' : 'text-gray-500'}`} />
-                    <span className="text-sm text-white">{t('aiDesigner')}</span>
-                  </div>
-                  <div 
-                    className={`w-9 h-5 rounded-full p-0.5 transition-all ${
-                      isDesignerAvatarEnabled ? 'bg-emerald-500' : 'bg-gray-600'
-                    }`}
-                    dir="ltr"
-                  >
-                    <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${
-                      isDesignerAvatarEnabled ? 'translate-x-4' : 'translate-x-0'
-                    }`} />
-                  </div>
-                </button>
-              </div>
             </div>
           </>
         )}
@@ -2866,23 +2779,6 @@ function App() {
               <span className="text-[10px] text-purple-300 font-medium">{t('readyDesigns')}</span>
             </button>
 
-             {/* Mobile Designer Avatar Trigger - Inside Toolbar - Placed before "More" button */}
-             {isMobile && !isProcessing && isDesignerAvatarEnabled && (avatarSuggestions.length > 0 || isAvatarThinking) && (
-                <div className="relative flex flex-col items-center gap-1">
-                  <div className="w-14 h-14 flex items-center justify-center">
-                    <DesignerAvatar 
-                      suggestions={avatarSuggestions} 
-                      onSelect={handleAvatarSuggestionSelect} 
-                      onClose={() => setAvatarSuggestions([])}
-                      isMobile={true}
-                      isThinking={isAvatarThinking}
-                      initialShowSuggestions={shouldAutoOpenAvatar} 
-                    />
-                  </div>
-                  <span className="text-[10px] text-purple-300 font-medium">{t('aiDesigner')}</span>
-                </div>
-             )}
-
              <button 
                onClick={() => setShowMobileMoreTools(true)}
                disabled={isProcessing}
@@ -2934,37 +2830,6 @@ function App() {
              ))}
           </div>
                 
-                {/* Designer Avatar Toggle */}
-                <div className="mt-4 pt-4 border-t border-white/10">
-                  <button 
-                    onClick={toggleDesignerAvatar}
-                    className={`w-full flex items-center justify-between p-4 rounded-2xl transition-all active:scale-[0.98] ${
-                      isDesignerAvatarEnabled 
-                        ? 'bg-gradient-to-r from-emerald-500/20 to-green-500/20 border border-emerald-400/30' 
-                        : 'bg-white/5 border border-white/10'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <Power className={`w-6 h-6 ${isDesignerAvatarEnabled ? 'text-emerald-400' : 'text-gray-500'}`} />
-                      <div className="text-right">
-                        <span className="text-sm text-white font-medium block">{t('aiDesigner')}</span>
-                        <span className={`text-xs ${isDesignerAvatarEnabled ? 'text-emerald-300' : 'text-gray-500'}`}>
-                          {isDesignerAvatarEnabled ? t('aiDesignerActiveClickToDisable') : t('aiDesignerInactiveClickToEnable')}
-                        </span>
-                      </div>
-                    </div>
-                    <div 
-                      className={`w-12 h-7 rounded-full p-1 transition-all ${
-                        isDesignerAvatarEnabled ? 'bg-emerald-500' : 'bg-gray-600'
-                      }`}
-                      dir="ltr"
-                    >
-                      <div className={`w-5 h-5 rounded-full bg-white shadow-md transition-transform ${
-                        isDesignerAvatarEnabled ? 'translate-x-5' : 'translate-x-0'
-                      }`} />
-                    </div>
-                  </button>
-                </div>
               </div>
             </div>
           )}
@@ -3692,8 +3557,6 @@ function App() {
             return
           }
           
-          setIsProcessing(true)
-          
           try {
             // Fetch the design image from URL
             const response = await fetch(design.url)
@@ -3706,8 +3569,17 @@ function App() {
               reader.readAsDataURL(blob)
             })
             
-            // Create File object
+            // Create File object for state (for UI preview and potential manual re-trigger)
             const file = new File([blob], `preset_${design.id}.jpg`, { type: 'image/jpeg' })
+            
+            // Create objectImageData directly from dataUrl (for immediate auto-submit)
+            // Format: "data:image/jpeg;base64,XXXX" -> { inlineData: { data: "XXXX", mimeType: "image/jpeg" } }
+            const base64Data = dataUrl.split(',')[1]
+            const mimeType = dataUrl.split(';')[0].split(':')[1]
+            const objectImageData = {
+              inlineData: { data: base64Data, mimeType: mimeType }
+            }
+            console.log('🖼️ Pre-built objectImageData, mimeType:', mimeType, 'dataLength:', base64Data.length)
             
             // Set object image state for UI preview
             setObjectImage(dataUrl)
@@ -3716,16 +3588,21 @@ function App() {
             // Generate prompt based on category
             let prompt = ''
             if (design.categoryId === 'kitchen' || design.categoryId === 'kitchens') {
-              prompt = "Use the attached image, remove the current kitchen from the main image and disregard it, and apply the attached image kitchen design including all of its elements. IMPORTANT: MAINTAIN the same structure, proportion, room size, windows and camera angle! DO NOT EXPAND THE KITCHEN SPACE - ESTIMATE THE FURNITURE SIZE OF BOTH IMAGES TO APPLY IT SO THAT IT WOULD KEEP THE SAME ACTUAL SPACE SIZE AND PROPORTIONS. IF there are no handles on the attached image's new design, then do not keep the original's image handles."
+              prompt = "Use the design of the second image and apply it to the first image while NOT changing the first image room structure, windows, doors and point of view. Do not remove doors."
             } else {
               // Default prompt for other categories
-              prompt = `Use the attached image as a reference design. Apply this ${design.title} style to the room while maintaining the same structure, proportion, room size, windows and camera angle.`
+              prompt = `Use the attached image as a reference design. Apply this ${design.categoryLabel} style to the room while maintaining the same structure, proportion, room size, windows, doors and camera angle. Do not remove doors.`
             }
             
             setCustomPrompt(prompt)
             
-            // Immediately trigger the AI generation with the preset design
-            await handlePresetDesignGeneration(prompt, file)
+            // Directly trigger AI edit with pre-built objectImageData (bypassing File/FileReader)
+            await handleAIEdit(prompt, objectImageData)
+            
+            // Clear object image and prompt after successful processing
+            setObjectImage(null)
+            setObjectImageFile(null)
+            setCustomPrompt('')
             
           } catch (error) {
             console.error('Error loading preset design:', error)
@@ -4077,18 +3954,6 @@ function App() {
             </div>
           </div>
         </div>
-      )}
-
-      {/* Designer Avatar Component */}
-      {(!isMobile && !isProcessing && isDesignerAvatarEnabled) && (
-        <DesignerAvatar 
-          suggestions={avatarSuggestions} 
-          onSelect={handleAvatarSuggestionSelect} 
-          onClose={() => setAvatarSuggestions([])}
-          isMobile={false}
-          isThinking={isAvatarThinking}
-          initialShowSuggestions={shouldAutoOpenAvatar} 
-        />
       )}
 
       {showOnboarding && (

@@ -1231,4 +1231,37 @@ class AppLocalizationsGa extends AppLocalizations {
 
   @override
   String get maybeLater => 'B\'fhéidir níos déanaí';
+
+  @override
+  String get readyDesigns => 'Gailearaí dearaidh';
+
+  @override
+  String get noCategories => 'Níl aon chatagóirí';
+
+  @override
+  String get noDesigns => 'Níl aon dearaí';
+
+  @override
+  String get noDesignsInCategory => 'Níl aon dearaí sa chatagóir seo';
+
+  @override
+  String get loadingDesigns => 'Ag lódáil dearaí...';
+
+  @override
+  String get loading => 'Ag lódáil...';
+
+  @override
+  String get categoryKitchen => 'Cistin';
+
+  @override
+  String get categoryKidsBedroom => 'Seomra leapa páistí';
+
+  @override
+  String get categoryBathroom => 'Seomra folctha';
+
+  @override
+  String get categoryLivingRoom => 'Seomra suí';
+
+  @override
+  String get categoryMasterBedroom => 'Príomhsheomra codlata';
 }

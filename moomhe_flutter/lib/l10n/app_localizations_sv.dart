@@ -1218,4 +1218,37 @@ class AppLocalizationsSv extends AppLocalizations {
 
   @override
   String get maybeLater => 'Kanske senare';
+
+  @override
+  String get readyDesigns => 'Designgalleri';
+
+  @override
+  String get noCategories => 'Inga kategorier';
+
+  @override
+  String get noDesigns => 'Inga designer';
+
+  @override
+  String get noDesignsInCategory => 'Inga designer i denna kategori';
+
+  @override
+  String get loadingDesigns => 'Laddar designer...';
+
+  @override
+  String get loading => 'Laddar...';
+
+  @override
+  String get categoryKitchen => 'Kök';
+
+  @override
+  String get categoryKidsBedroom => 'Barnrum';
+
+  @override
+  String get categoryBathroom => 'Badrum';
+
+  @override
+  String get categoryLivingRoom => 'Vardagsrum';
+
+  @override
+  String get categoryMasterBedroom => 'Huvudsovrum';
 }

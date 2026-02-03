@@ -916,90 +916,6 @@ exports.processImageRequestExperimental = onDocumentCreated({
   }
 });
 
-// Cloud function triggered when a new userHistory document is created
-exports.generateSuggestions = onDocumentCreated('userHistory/{docId}', async (event) => {
-  const docId = event.params.docId;
-  const docData = event.data.data();
-
-  // Only run for uploaded images (not requests, not generated ones) and if suggestions don't exist yet
-  if (docData.type !== 'uploaded' || docData.suggestions) {
-    return;
-  }
-
-  logger.info(`Generating interior design suggestions for document: ${docId}`);
-
-  try {
-    const imageUrl = docData.storageUrl || docData.originalImageUrl;
-    if (!imageUrl) {
-      logger.warn('No image URL found for generating suggestions');
-      return;
-    }
-
-    // Fetch the image
-    const response = await fetch(imageUrl);
-    const arrayBuffer = await response.arrayBuffer();
-    const base64Data = Buffer.from(arrayBuffer).toString('base64');
-    const mimeType = response.headers.get('content-type') || 'image/jpeg';
-    
-    const imageData = {
-      inlineData: {
-        data: base64Data,
-        mimeType: mimeType
-      }
-    };
-
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-    
-    // Prompt for suggestions
-    const prompt = `
-      You are a witty, creative, and professional interior designer. 
-      Analyze this room image and provide 5 specific, actionable suggestions to improve, renovate, or redesign it.
-      
-      IMPORTANT: Every suggestion must preserve the room's general structure, shape, and window/door openings exactly as they appear in the original image. Only change the interior design elements like furniture, colors, decor, lighting fixtures, etc.
-      
-      For each suggestion provide:
-      1. "label": A short, catchy title in Hebrew (3-6 words) that describes the change.
-      2. "prompt": A detailed English prompt that I can feed into an AI image generator to visualize this specific change. It should describe the entire room but emphasize this specific modification. CRITICAL: Each prompt MUST include the instruction to "maintain the exact same room structure, layout, walls, window openings, and door positions as the original image".
-      
-      Return ONLY a valid JSON array of objects with keys "label" and "prompt". Do not wrap in markdown code blocks.
-      Example:
-      [
-        { "label": "הוספת צמחים ירוקים ורעננים", "prompt": "A modern living room with lush green potted plants added to the corners and shelves, bright natural lighting, photorealistic. Maintain the exact same room structure, layout, walls, window openings, and door positions as the original image." },
-        ...
-      ]
-    `;
-
-    const result = await model.generateContent([prompt, imageData]);
-    const responseText = result.response.text();
-    
-    // Clean and parse JSON
-    let cleanResponse = responseText
-      .replace(/```json\s*/gi, '')
-      .replace(/```\s*/g, '')
-      .trim();
-      
-    let suggestions = [];
-    try {
-      suggestions = JSON.parse(cleanResponse);
-    } catch (e) {
-      logger.error('Failed to parse suggestions JSON:', e);
-      // Fallback parsing or retry logic could go here
-      return;
-    }
-
-    if (Array.isArray(suggestions) && suggestions.length > 0) {
-      // Update Firestore document
-      await db.collection('userHistory').doc(docId).update({
-        suggestions: suggestions,
-        suggestionsGeneratedAt: admin.firestore.FieldValue.serverTimestamp()
-      });
-      logger.info(`Successfully generated ${suggestions.length} suggestions for ${docId}`);
-    }
-
-  } catch (error) {
-    logger.error('Error generating suggestions:', error);
-  }
-});
 
 // HTTP function for object detection
 exports.detectObjects = onRequest({ cors: true }, async (req, res) => {
@@ -2579,3 +2495,77 @@ async function _resetToFreeTier(userId, reason) {
   });
   logger.info(`[_resetToFreeTier] Reset user ${userId} to free tier, reason: ${reason}`);
 }
+
+// Helper HTTP function to reset credits for users without subscription
+// Finds all users where subscription field doesn't exist or equals 0, and sets their credits to 0
+exports.resetCreditsForFreeUsers = onRequest({ cors: true }, async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+  
+  try {
+    const usersRef = db.collection('users');
+    let updatedCount = 0;
+    let processedCount = 0;
+    let batchCount = 0;
+    
+    // Get all users
+    const allUsersSnapshot = await usersRef.get();
+    
+    // Firestore batch limit is 500, so we process in chunks
+    const BATCH_SIZE = 500;
+    let batch = db.batch();
+    let currentBatchSize = 0;
+    
+    for (const doc of allUsersSnapshot.docs) {
+      const userData = doc.data();
+      processedCount++;
+      
+      // Check if subscription field doesn't exist or equals 0
+      if (userData.subscription === undefined || userData.subscription === null || userData.subscription === 0) {
+        batch.update(doc.ref, { credits: 0 });
+        updatedCount++;
+        currentBatchSize++;
+        logger.info(`[resetCreditsForFreeUsers] Marking user ${doc.id} for credits reset (subscription: ${userData.subscription})`);
+        
+        // Commit batch when reaching limit
+        if (currentBatchSize >= BATCH_SIZE) {
+          await batch.commit();
+          batchCount++;
+          logger.info(`[resetCreditsForFreeUsers] Committed batch ${batchCount} with ${currentBatchSize} updates`);
+          batch = db.batch();
+          currentBatchSize = 0;
+        }
+      }
+    }
+    
+    // Commit remaining updates
+    if (currentBatchSize > 0) {
+      await batch.commit();
+      batchCount++;
+      logger.info(`[resetCreditsForFreeUsers] Committed final batch ${batchCount} with ${currentBatchSize} updates`);
+    }
+    
+    logger.info(`[resetCreditsForFreeUsers] Successfully reset credits for ${updatedCount} users in ${batchCount} batches`);
+    
+    res.status(200).json({
+      success: true,
+      message: `Reset credits for ${updatedCount} users without subscription`,
+      processedCount,
+      updatedCount,
+      batchCount,
+    });
+    
+  } catch (error) {
+    logger.error('[resetCreditsForFreeUsers] Error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Error resetting credits',
+    });
+  }
+});

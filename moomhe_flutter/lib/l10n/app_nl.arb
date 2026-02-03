@@ -481,5 +481,18 @@
   "createAccountPromptTitle": "Maak je account aan",
   "createAccountPromptMessage": "Geweldige updates komen de komende weken! 🚀\n\nMaak nu een account aan om je creaties niet te verliezen en als eerste te genieten van nieuwe functies.",
   "createAccountPromptButton": "Account aanmaken",
-  "maybeLater": "Misschien later"
+  "maybeLater": "Misschien later",
+
+  "readyDesigns": "Ontwerpgalerij",
+  "noCategories": "Geen categorieën",
+  "noDesigns": "Geen ontwerpen",
+  "noDesignsInCategory": "Geen ontwerpen in deze categorie",
+  "loadingDesigns": "Ontwerpen laden...",
+  "loading": "Laden...",
+
+  "categoryKitchen": "Keuken",
+  "categoryKidsBedroom": "Kinderkamer",
+  "categoryBathroom": "Badkamer",
+  "categoryLivingRoom": "Woonkamer",
+  "categoryMasterBedroom": "Hoofdslaapkamer"
 }

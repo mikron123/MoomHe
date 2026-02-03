@@ -481,5 +481,18 @@
   "createAccountPromptTitle": "建立您的帳戶",
   "createAccountPromptMessage": "未來幾週將有令人驚嘆的更新！🚀\n\n立即建立帳戶，以免遺失您的創作，並成為第一個享受新功能的人。",
   "createAccountPromptButton": "建立帳戶",
-  "maybeLater": "稍後再說"
+  "maybeLater": "稍後再說",
+
+  "readyDesigns": "設計畫廊",
+  "noCategories": "暫無分類",
+  "noDesigns": "暫無設計",
+  "noDesignsInCategory": "該分類暫無設計",
+  "loadingDesigns": "正在載入設計...",
+  "loading": "載入中...",
+
+  "categoryKitchen": "廚房",
+  "categoryKidsBedroom": "兒童睡房",
+  "categoryBathroom": "浴室",
+  "categoryLivingRoom": "客廳",
+  "categoryMasterBedroom": "主人房"
 }

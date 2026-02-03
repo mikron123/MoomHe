@@ -481,5 +481,18 @@
   "createAccountPromptTitle": "Skapa ditt konto",
   "createAccountPromptMessage": "Fantastiska uppdateringar kommer de närmaste veckorna! 🚀\n\nSkapa ett konto nu för att inte förlora dina skapelser och var först med att njuta av nya funktioner.",
   "createAccountPromptButton": "Skapa konto",
-  "maybeLater": "Kanske senare"
+  "maybeLater": "Kanske senare",
+
+  "readyDesigns": "Designgalleri",
+  "noCategories": "Inga kategorier",
+  "noDesigns": "Inga designer",
+  "noDesignsInCategory": "Inga designer i denna kategori",
+  "loadingDesigns": "Laddar designer...",
+  "loading": "Laddar...",
+
+  "categoryKitchen": "Kök",
+  "categoryKidsBedroom": "Barnrum",
+  "categoryBathroom": "Badrum",
+  "categoryLivingRoom": "Vardagsrum",
+  "categoryMasterBedroom": "Huvudsovrum"
 }

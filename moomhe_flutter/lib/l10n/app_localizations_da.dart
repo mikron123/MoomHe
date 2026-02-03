@@ -1220,4 +1220,37 @@ class AppLocalizationsDa extends AppLocalizations {
 
   @override
   String get maybeLater => 'Måske senere';
+
+  @override
+  String get readyDesigns => 'Designgalleri';
+
+  @override
+  String get noCategories => 'Ingen kategorier';
+
+  @override
+  String get noDesigns => 'Ingen designs';
+
+  @override
+  String get noDesignsInCategory => 'Ingen designs i denne kategori';
+
+  @override
+  String get loadingDesigns => 'Indlæser designs...';
+
+  @override
+  String get loading => 'Indlæser...';
+
+  @override
+  String get categoryKitchen => 'Køkken';
+
+  @override
+  String get categoryKidsBedroom => 'Børneværelse';
+
+  @override
+  String get categoryBathroom => 'Badeværelse';
+
+  @override
+  String get categoryLivingRoom => 'Stue';
+
+  @override
+  String get categoryMasterBedroom => 'Hovedsoveværelse';
 }

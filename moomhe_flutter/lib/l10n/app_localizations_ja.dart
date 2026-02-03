@@ -1205,4 +1205,37 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get maybeLater => '後で';
+
+  @override
+  String get readyDesigns => 'デザインギャラリー';
+
+  @override
+  String get noCategories => 'カテゴリーがありません';
+
+  @override
+  String get noDesigns => 'デザインがありません';
+
+  @override
+  String get noDesignsInCategory => 'このカテゴリーにデザインがありません';
+
+  @override
+  String get loadingDesigns => 'デザインを読み込み中...';
+
+  @override
+  String get loading => '読み込み中...';
+
+  @override
+  String get categoryKitchen => 'キッチン';
+
+  @override
+  String get categoryKidsBedroom => '子供部屋';
+
+  @override
+  String get categoryBathroom => 'バスルーム';
+
+  @override
+  String get categoryLivingRoom => 'リビングルーム';
+
+  @override
+  String get categoryMasterBedroom => '主寝室';
 }

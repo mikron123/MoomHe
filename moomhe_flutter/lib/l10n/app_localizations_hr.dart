@@ -1220,4 +1220,37 @@ class AppLocalizationsHr extends AppLocalizations {
 
   @override
   String get maybeLater => 'Možda kasnije';
+
+  @override
+  String get readyDesigns => 'Galerija dizajna';
+
+  @override
+  String get noCategories => 'Nema kategorija';
+
+  @override
+  String get noDesigns => 'Nema dizajna';
+
+  @override
+  String get noDesignsInCategory => 'Nema dizajna u ovoj kategoriji';
+
+  @override
+  String get loadingDesigns => 'Učitavanje dizajna...';
+
+  @override
+  String get loading => 'Učitavanje...';
+
+  @override
+  String get categoryKitchen => 'Kuhinja';
+
+  @override
+  String get categoryKidsBedroom => 'Dječja soba';
+
+  @override
+  String get categoryBathroom => 'Kupaonica';
+
+  @override
+  String get categoryLivingRoom => 'Dnevni boravak';
+
+  @override
+  String get categoryMasterBedroom => 'Glavna spavaća soba';
 }

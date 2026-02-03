@@ -1226,4 +1226,37 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get maybeLater => 'Vielleicht später';
+
+  @override
+  String get readyDesigns => 'Design-Galerie';
+
+  @override
+  String get noCategories => 'Keine Kategorien';
+
+  @override
+  String get noDesigns => 'Keine Designs';
+
+  @override
+  String get noDesignsInCategory => 'Keine Designs in dieser Kategorie';
+
+  @override
+  String get loadingDesigns => 'Designs werden geladen...';
+
+  @override
+  String get loading => 'Wird geladen...';
+
+  @override
+  String get categoryKitchen => 'Küche';
+
+  @override
+  String get categoryKidsBedroom => 'Kinderzimmer';
+
+  @override
+  String get categoryBathroom => 'Badezimmer';
+
+  @override
+  String get categoryLivingRoom => 'Wohnzimmer';
+
+  @override
+  String get categoryMasterBedroom => 'Hauptschlafzimmer';
 }

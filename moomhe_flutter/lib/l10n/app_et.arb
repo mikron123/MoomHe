@@ -481,5 +481,18 @@
   "createAccountPromptTitle": "Loo oma konto",
   "createAccountPromptMessage": "Imelised uuendused on tulemas lähimate nädalate jooksul! 🚀\n\nLoo konto kohe, et mitte kaotada oma loomingut ja olla esimene, kes naudib uusi funktsioone.",
   "createAccountPromptButton": "Loo konto",
-  "maybeLater": "Võib-olla hiljem"
+  "maybeLater": "Võib-olla hiljem",
+
+  "readyDesigns": "Disainigalerii",
+  "noCategories": "Kategooriaid pole",
+  "noDesigns": "Disaine pole",
+  "noDesignsInCategory": "Selles kategoorias pole disaine",
+  "loadingDesigns": "Disainide laadimine...",
+  "loading": "Laadimine...",
+
+  "categoryKitchen": "Köök",
+  "categoryKidsBedroom": "Lastetuba",
+  "categoryBathroom": "Vannituba",
+  "categoryLivingRoom": "Elutuba",
+  "categoryMasterBedroom": "Põhimagamistuba"
 }

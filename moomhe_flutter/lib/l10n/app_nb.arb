@@ -481,5 +481,18 @@
   "createAccountPromptTitle": "Opprett kontoen din",
   "createAccountPromptMessage": "Fantastiske oppdateringer kommer de neste ukene! 🚀\n\nOpprett en konto nå for ikke å miste kreasjonene dine og vær den første til å nyte nye funksjoner.",
   "createAccountPromptButton": "Opprett konto",
-  "maybeLater": "Kanskje senere"
+  "maybeLater": "Kanskje senere",
+
+  "readyDesigns": "Designgalleri",
+  "noCategories": "Ingen kategorier",
+  "noDesigns": "Ingen design",
+  "noDesignsInCategory": "Ingen design i denne kategorien",
+  "loadingDesigns": "Laster design...",
+  "loading": "Laster...",
+
+  "categoryKitchen": "Kjøkken",
+  "categoryKidsBedroom": "Barnerom",
+  "categoryBathroom": "Baderom",
+  "categoryLivingRoom": "Stue",
+  "categoryMasterBedroom": "Hovedsoverom"
 }

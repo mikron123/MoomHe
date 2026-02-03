@@ -481,5 +481,18 @@
   "createAccountPromptTitle": "Δημιουργήστε τον λογαριασμό σας",
   "createAccountPromptMessage": "Καταπληκτικές ενημερώσεις έρχονται τις επόμενες εβδομάδες! 🚀\n\nΔημιουργήστε λογαριασμό τώρα για να μην χάσετε τις δημιουργίες σας και να είστε οι πρώτοι που θα απολαύσετε τις νέες λειτουργίες.",
   "createAccountPromptButton": "Δημιουργία λογαριασμού",
-  "maybeLater": "Ίσως αργότερα"
+  "maybeLater": "Ίσως αργότερα",
+
+  "readyDesigns": "Γκαλερί σχεδίων",
+  "noCategories": "Δεν υπάρχουν κατηγορίες",
+  "noDesigns": "Δεν υπάρχουν σχέδια",
+  "noDesignsInCategory": "Δεν υπάρχουν σχέδια σε αυτήν την κατηγορία",
+  "loadingDesigns": "Φόρτωση σχεδίων...",
+  "loading": "Φόρτωση...",
+
+  "categoryKitchen": "Κουζίνα",
+  "categoryKidsBedroom": "Παιδικό υπνοδωμάτιο",
+  "categoryBathroom": "Μπάνιο",
+  "categoryLivingRoom": "Σαλόνι",
+  "categoryMasterBedroom": "Κύρια κρεβατοκάμαρα"
 }

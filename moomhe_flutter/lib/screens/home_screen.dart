@@ -23,6 +23,7 @@ import '../modals/contact_modal.dart';
 import '../modals/ai_error_modal.dart';
 import '../modals/rate_app_modal.dart';
 import '../modals/create_account_prompt_modal.dart';
+import '../modals/ready_designs_modal.dart';
 import '../models/history_entry.dart';
 import '../services/ai_service.dart';
 import '../services/analytics_service.dart';
@@ -74,6 +75,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
 
   // UI state
   bool _showOnboarding = false;
+  bool _showReadyDesigns = false;
   late AnimationController _processingController;
   late AnimationController _shimmerController;
   late AnimationController _pulseController;
@@ -449,6 +451,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
     }
 
     switch (action) {
+      case 'ready_designs':
+        _showReadyDesignsModal();
+        break;
       case 'style':
         _showStyleSelector();
         break;
@@ -508,6 +513,42 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
         },
       ),
     );
+  }
+
+  void _showReadyDesignsModal() {
+    setState(() => _showReadyDesigns = true);
+  }
+
+  void _hideReadyDesignsModal() {
+    setState(() => _showReadyDesigns = false);
+  }
+
+  void _onReadyDesignSelected(SelectedDesign design) {
+    _hideReadyDesignsModal();
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (mounted) {
+        _handleReadyDesignSelection(design);
+      }
+    });
+  }
+
+  Future<void> _handleReadyDesignSelection(SelectedDesign design) async {
+    // Set the downloaded design image as the object image
+    setState(() {
+      _objectImage = design.localPath;
+    });
+
+    // Generate prompt based on category (similar to web implementation)
+    String prompt;
+    final categoryId = design.categoryId.toLowerCase();
+    if (categoryId == 'kitchen' || categoryId == 'kitchens') {
+      prompt = "Use the design of the second image and apply it to the first image while NOT changing the first image room structure, windows, doors and point of view. Do not remove doors.";
+    } else {
+      prompt = "Use the attached image as a reference design. Apply this ${design.categoryLabel} style to the room while maintaining the same structure, proportion, room size, windows, doors and camera angle. Do not remove doors.";
+    }
+
+    // Trigger AI processing with the prompt
+    await _processWithPrompt(prompt, promptType: 'ready_design');
   }
 
   void _showColorPalette() {
@@ -1504,8 +1545,48 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
                 setState(() => _showOnboarding = false);
               },
             ),
+
+          // Ready Designs Modal - persistent in tree, slides in/out
+          _buildReadyDesignsOverlay(),
         ],
       ),
+    );
+  }
+
+  Widget _buildReadyDesignsOverlay() {
+    final screenHeight = MediaQuery.of(context).size.height;
+    
+    return Stack(
+      children: [
+        // Dark backdrop
+        if (_showReadyDesigns)
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: _hideReadyDesignsModal,
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 200),
+                opacity: _showReadyDesigns ? 1.0 : 0.0,
+                child: Container(
+                  color: Colors.black.withValues(alpha: 0.5),
+                ),
+              ),
+            ),
+          ),
+        
+        // The modal itself - slides up from bottom
+        AnimatedPositioned(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+          left: 0,
+          right: 0,
+          bottom: _showReadyDesigns ? 0 : -screenHeight,
+          height: screenHeight * 0.85,
+          child: ReadyDesignsModal(
+            onSelectDesign: _onReadyDesignSelected,
+            onClose: _hideReadyDesignsModal,
+          ),
+        ),
+      ],
     );
   }
 
@@ -2086,13 +2167,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
             ),
           ),
           const SizedBox(width: 10),
-          // Redesign button - Purple
+          // Ready Designs button - Purple
           Expanded(
             child: _buildActionButton(
               icon: LucideIcons.wand2,
-              label: l10n.redesign,
+              label: l10n.readyDesigns,
               color: const Color(0xFF9C27B0), // Purple
-              onTap: _showStyleSelector,
+              onTap: _showReadyDesignsModal,
               buttonKey: _redesignKey,
             ),
           ),
