@@ -494,5 +494,23 @@
   "categoryKidsBedroom": "Quarto infantil",
   "categoryBathroom": "Banheiro",
   "categoryLivingRoom": "Sala de estar",
-  "categoryMasterBedroom": "Quarto principal"
+  "categoryMasterBedroom": "Quarto principal",
+
+  "useDesignQuestion": "Usar este design?",
+  "yes": "Sim",
+  "no": "Não",
+
+  "featureCarouselTitle1": "Design com IA",
+  "featureCarouselSubtitle1": "✨ REDESIGN INTELIGENTE",
+  "featureCarouselDesc1": "Transforme qualquer cômodo com IA de ponta. Basta enviar uma foto e veja seu espaço ganhar vida com designs profissionais.",
+
+  "featureCarouselTitle2": "Possibilidades Infinitas",
+  "featureCarouselSubtitle2": "🎨 ESTILOS E CORES",
+  "featureCarouselDesc2": "Do minimalismo moderno ao boêmio aconchegante — explore dezenas de estilos de design e paletas de cores adaptadas ao seu gosto.",
+
+  "featureCarouselTitle3": "Resultados Instantâneos",
+  "featureCarouselSubtitle3": "⚡ SEGUNDOS, NÃO HORAS",
+  "featureCarouselDesc3": "O que costumava levar horas para designers agora acontece em segundos. Obtenha transformações impressionantes de antes e depois instantaneamente.",
+
+  "getStarted": "Começar"
 }

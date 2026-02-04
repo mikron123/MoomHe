@@ -496,5 +496,23 @@
   "categoryKidsBedroom": "חדר ילדים",
   "categoryBathroom": "חדר אמבטיה",
   "categoryLivingRoom": "סלון",
-  "categoryMasterBedroom": "חדר שינה ראשי"
+  "categoryMasterBedroom": "חדר שינה ראשי",
+
+  "useDesignQuestion": "להשתמש בעיצוב הזה?",
+  "yes": "כן",
+  "no": "לא",
+
+  "featureCarouselTitle1": "עיצוב מונע בינה מלאכותית",
+  "featureCarouselSubtitle1": "✨ עיצוב מחדש חכם",
+  "featureCarouselDesc1": "שנו כל חדר עם AI מתקדם. פשוט העלו תמונה וצפו בחלל שלכם מתעורר לחיים עם עיצובים ברמה מקצועית.",
+
+  "featureCarouselTitle2": "אפשרויות אינסופיות",
+  "featureCarouselSubtitle2": "🎨 סגנונות וצבעים",
+  "featureCarouselDesc2": "ממינימליזם מודרני ועד בוהמי נעים - גלו עשרות סגנונות עיצוב ופלטות צבעים המותאמות לטעם שלכם.",
+
+  "featureCarouselTitle3": "תוצאות מיידיות",
+  "featureCarouselSubtitle3": "⚡ שניות, לא שעות",
+  "featureCarouselDesc3": "מה שנהג לקחת למעצבים שעות קורה עכשיו בשניות. קבלו שינויים מדהימים של לפני ואחרי מיד.",
+
+  "getStarted": "בואו נתחיל"
 }

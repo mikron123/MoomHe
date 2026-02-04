@@ -2544,6 +2544,96 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Master Bedroom'**
   String get categoryMasterBedroom;
+
+  /// No description provided for @useDesignQuestion.
+  ///
+  /// In en, this message translates to:
+  /// **'Use this design?'**
+  String get useDesignQuestion;
+
+  /// No description provided for @yes.
+  ///
+  /// In en, this message translates to:
+  /// **'Yes'**
+  String get yes;
+
+  /// No description provided for @no.
+  ///
+  /// In en, this message translates to:
+  /// **'No'**
+  String get no;
+
+  /// No description provided for @featureCarouselTitle1.
+  ///
+  /// In en, this message translates to:
+  /// **'AI-Powered Design'**
+  String get featureCarouselTitle1;
+
+  /// No description provided for @featureCarouselSubtitle1.
+  ///
+  /// In en, this message translates to:
+  /// **'✨ INTELLIGENT REDESIGN'**
+  String get featureCarouselSubtitle1;
+
+  /// No description provided for @featureCarouselDesc1.
+  ///
+  /// In en, this message translates to:
+  /// **'Transform any room with cutting-edge AI. Simply upload a photo and watch your space come alive with professional-grade designs.'**
+  String get featureCarouselDesc1;
+
+  /// No description provided for @featureCarouselTitle2.
+  ///
+  /// In en, this message translates to:
+  /// **'Endless Possibilities'**
+  String get featureCarouselTitle2;
+
+  /// No description provided for @featureCarouselSubtitle2.
+  ///
+  /// In en, this message translates to:
+  /// **'🎨 STYLES & COLORS'**
+  String get featureCarouselSubtitle2;
+
+  /// No description provided for @featureCarouselDesc2.
+  ///
+  /// In en, this message translates to:
+  /// **'From modern minimalist to cozy bohemian — explore dozens of design styles and color palettes tailored to your taste.'**
+  String get featureCarouselDesc2;
+
+  /// No description provided for @featureCarouselTitle3.
+  ///
+  /// In en, this message translates to:
+  /// **'Instant Results'**
+  String get featureCarouselTitle3;
+
+  /// No description provided for @featureCarouselSubtitle3.
+  ///
+  /// In en, this message translates to:
+  /// **'⚡ SECONDS, NOT HOURS'**
+  String get featureCarouselSubtitle3;
+
+  /// No description provided for @featureCarouselDesc3.
+  ///
+  /// In en, this message translates to:
+  /// **'What used to take designers hours now happens in seconds. Get stunning before & after transformations instantly.'**
+  String get featureCarouselDesc3;
+
+  /// No description provided for @getStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Get Started'**
+  String get getStarted;
+
+  /// No description provided for @freeTrialDays.
+  ///
+  /// In en, this message translates to:
+  /// **'{days} Days Free Trial'**
+  String freeTrialDays(int days);
+
+  /// No description provided for @thenPrice.
+  ///
+  /// In en, this message translates to:
+  /// **'then {price}/month'**
+  String thenPrice(Object price);
 }
 
 class _AppLocalizationsDelegate

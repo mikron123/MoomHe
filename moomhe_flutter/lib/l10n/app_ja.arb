@@ -494,5 +494,23 @@
   "categoryKidsBedroom": "子供部屋",
   "categoryBathroom": "バスルーム",
   "categoryLivingRoom": "リビングルーム",
-  "categoryMasterBedroom": "主寝室"
+  "categoryMasterBedroom": "主寝室",
+
+  "useDesignQuestion": "このデザインを使用しますか？",
+  "yes": "はい",
+  "no": "いいえ",
+
+  "featureCarouselTitle1": "AIパワードデザイン",
+  "featureCarouselSubtitle1": "✨ インテリジェントリデザイン",
+  "featureCarouselDesc1": "最先端のAIでどんな部屋も変身させましょう。写真をアップロードするだけで、プロ級のデザインで空間が生まれ変わります。",
+
+  "featureCarouselTitle2": "無限の可能性",
+  "featureCarouselSubtitle2": "🎨 スタイル＆カラー",
+  "featureCarouselDesc2": "モダンミニマリストから居心地の良いボヘミアンまで — あなたの好みに合わせた数十のデザインスタイルとカラーパレットを探索しましょう。",
+
+  "featureCarouselTitle3": "即座の結果",
+  "featureCarouselSubtitle3": "⚡ 数時間ではなく数秒",
+  "featureCarouselDesc3": "以前はデザイナーに何時間もかかっていたことが、今では数秒で実現。見事なビフォーアフターの変身を即座に手に入れましょう。",
+
+  "getStarted": "始める"
 }

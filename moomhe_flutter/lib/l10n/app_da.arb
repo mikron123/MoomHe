@@ -494,5 +494,23 @@
   "categoryKidsBedroom": "Børneværelse",
   "categoryBathroom": "Badeværelse",
   "categoryLivingRoom": "Stue",
-  "categoryMasterBedroom": "Hovedsoveværelse"
+  "categoryMasterBedroom": "Hovedsoveværelse",
+
+  "useDesignQuestion": "Brug dette design?",
+  "yes": "Ja",
+  "no": "Nej",
+
+  "featureCarouselTitle1": "AI-Drevet Design",
+  "featureCarouselSubtitle1": "✨ INTELLIGENT REDESIGN",
+  "featureCarouselDesc1": "Forvandl ethvert rum med banebrydende AI. Upload blot et foto og se dit rum blive levende med professionelle designs.",
+
+  "featureCarouselTitle2": "Uendelige Muligheder",
+  "featureCarouselSubtitle2": "🎨 STILARTER & FARVER",
+  "featureCarouselDesc2": "Fra moderne minimalisme til hyggelig boho — udforsk snesevis af designstilarter og farvepaletter tilpasset din smag.",
+
+  "featureCarouselTitle3": "Øjeblikkelige Resultater",
+  "featureCarouselSubtitle3": "⚡ SEKUNDER, IKKE TIMER",
+  "featureCarouselDesc3": "Det der plejede at tage designere timer sker nu på sekunder. Få fantastiske før og efter-forvandlinger med det samme.",
+
+  "getStarted": "Kom i gang"
 }

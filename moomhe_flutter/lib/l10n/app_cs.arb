@@ -494,5 +494,23 @@
   "categoryKidsBedroom": "Dětský pokoj",
   "categoryBathroom": "Koupelna",
   "categoryLivingRoom": "Obývací pokoj",
-  "categoryMasterBedroom": "Hlavní ložnice"
+  "categoryMasterBedroom": "Hlavní ložnice",
+
+  "useDesignQuestion": "Použít tento návrh?",
+  "yes": "Ano",
+  "no": "Ne",
+
+  "featureCarouselTitle1": "Design s umělou inteligencí",
+  "featureCarouselSubtitle1": "✨ INTELIGENTNÍ REDESIGN",
+  "featureCarouselDesc1": "Přeměňte jakýkoli pokoj pomocí špičkové AI. Stačí nahrát fotku a sledujte, jak váš prostor ožije profesionálními návrhy.",
+
+  "featureCarouselTitle2": "Nekonečné možnosti",
+  "featureCarouselSubtitle2": "🎨 STYLY A BARVY",
+  "featureCarouselDesc2": "Od moderního minimalismu po útulné boho — prozkoumejte desítky designových stylů a barevných palet přizpůsobených vašemu vkusu.",
+
+  "featureCarouselTitle3": "Okamžité výsledky",
+  "featureCarouselSubtitle3": "⚡ SEKUNDY, NE HODINY",
+  "featureCarouselDesc3": "To, co dříve trvalo designérům hodiny, se nyní děje během sekund. Získejte okamžitě úžasné proměny před a po.",
+
+  "getStarted": "Začít"
 }

@@ -494,5 +494,23 @@
   "categoryKidsBedroom": "Kinderkamer",
   "categoryBathroom": "Badkamer",
   "categoryLivingRoom": "Woonkamer",
-  "categoryMasterBedroom": "Hoofdslaapkamer"
+  "categoryMasterBedroom": "Hoofdslaapkamer",
+
+  "useDesignQuestion": "Dit ontwerp gebruiken?",
+  "yes": "Ja",
+  "no": "Nee",
+
+  "featureCarouselTitle1": "AI-Aangedreven Design",
+  "featureCarouselSubtitle1": "✨ INTELLIGENT HERONTWERP",
+  "featureCarouselDesc1": "Transformeer elke kamer met geavanceerde AI. Upload gewoon een foto en zie hoe uw ruimte tot leven komt met professionele ontwerpen.",
+
+  "featureCarouselTitle2": "Eindeloze Mogelijkheden",
+  "featureCarouselSubtitle2": "🎨 STIJLEN & KLEUREN",
+  "featureCarouselDesc2": "Van modern minimalisme tot gezellige boho — ontdek tientallen ontwerpstijlen en kleurenpaletten afgestemd op uw smaak.",
+
+  "featureCarouselTitle3": "Directe Resultaten",
+  "featureCarouselSubtitle3": "⚡ SECONDEN, GEEN UREN",
+  "featureCarouselDesc3": "Wat vroeger uren kostte voor ontwerpers, gebeurt nu in seconden. Krijg direct verbluffende voor en na transformaties.",
+
+  "getStarted": "Aan de slag"
 }

@@ -439,5 +439,23 @@
   "categoryKidsBedroom": "Chambre d'enfant",
   "categoryBathroom": "Salle de bain",
   "categoryLivingRoom": "Salon",
-  "categoryMasterBedroom": "Chambre principale"
+  "categoryMasterBedroom": "Chambre principale",
+
+  "useDesignQuestion": "Utiliser ce design ?",
+  "yes": "Oui",
+  "no": "Non",
+
+  "featureCarouselTitle1": "Design Propulsé par l'IA",
+  "featureCarouselSubtitle1": "✨ REDESIGN INTELLIGENT",
+  "featureCarouselDesc1": "Transformez n'importe quelle pièce avec une IA de pointe. Téléchargez simplement une photo et regardez votre espace prendre vie avec des designs professionnels.",
+
+  "featureCarouselTitle2": "Possibilités Infinies",
+  "featureCarouselSubtitle2": "🎨 STYLES ET COULEURS",
+  "featureCarouselDesc2": "Du minimalisme moderne au bohème cosy — explorez des dizaines de styles de design et de palettes de couleurs adaptés à vos goûts.",
+
+  "featureCarouselTitle3": "Résultats Instantanés",
+  "featureCarouselSubtitle3": "⚡ SECONDES, PAS DES HEURES",
+  "featureCarouselDesc3": "Ce qui prenait des heures aux designers se fait maintenant en quelques secondes. Obtenez des transformations avant/après époustouflantes instantanément.",
+
+  "getStarted": "Commencer"
 }

@@ -1259,4 +1259,56 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get categoryMasterBedroom => 'Hauptschlafzimmer';
+
+  @override
+  String get useDesignQuestion => 'Dieses Design verwenden?';
+
+  @override
+  String get yes => 'Ja';
+
+  @override
+  String get no => 'Nein';
+
+  @override
+  String get featureCarouselTitle1 => 'KI-gestütztes Design';
+
+  @override
+  String get featureCarouselSubtitle1 => '✨ INTELLIGENTES REDESIGN';
+
+  @override
+  String get featureCarouselDesc1 =>
+      'Verwandeln Sie jeden Raum mit modernster KI. Laden Sie einfach ein Foto hoch und sehen Sie, wie Ihr Raum mit professionellen Designs zum Leben erwacht.';
+
+  @override
+  String get featureCarouselTitle2 => 'Endlose Möglichkeiten';
+
+  @override
+  String get featureCarouselSubtitle2 => '🎨 STILE & FARBEN';
+
+  @override
+  String get featureCarouselDesc2 =>
+      'Von modernem Minimalismus bis hin zu gemütlichem Boho — entdecken Sie Dutzende von Designstilen und Farbpaletten nach Ihrem Geschmack.';
+
+  @override
+  String get featureCarouselTitle3 => 'Sofortige Ergebnisse';
+
+  @override
+  String get featureCarouselSubtitle3 => '⚡ SEKUNDEN, NICHT STUNDEN';
+
+  @override
+  String get featureCarouselDesc3 =>
+      'Was Designer früher Stunden kostete, geschieht jetzt in Sekunden. Erhalten Sie sofort atemberaubende Vorher-Nachher-Transformationen.';
+
+  @override
+  String get getStarted => 'Loslegen';
+
+  @override
+  String freeTrialDays(int days) {
+    return '$days Days Free Trial';
+  }
+
+  @override
+  String thenPrice(Object price) {
+    return 'then $price/month';
+  }
 }

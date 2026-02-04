@@ -1259,4 +1259,56 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get categoryMasterBedroom => 'Quarto principal';
+
+  @override
+  String get useDesignQuestion => 'Usar este design?';
+
+  @override
+  String get yes => 'Sim';
+
+  @override
+  String get no => 'Não';
+
+  @override
+  String get featureCarouselTitle1 => 'Design com IA';
+
+  @override
+  String get featureCarouselSubtitle1 => '✨ REDESIGN INTELIGENTE';
+
+  @override
+  String get featureCarouselDesc1 =>
+      'Transforme qualquer cômodo com IA de ponta. Basta enviar uma foto e veja seu espaço ganhar vida com designs profissionais.';
+
+  @override
+  String get featureCarouselTitle2 => 'Possibilidades Infinitas';
+
+  @override
+  String get featureCarouselSubtitle2 => '🎨 ESTILOS E CORES';
+
+  @override
+  String get featureCarouselDesc2 =>
+      'Do minimalismo moderno ao boêmio aconchegante — explore dezenas de estilos de design e paletas de cores adaptadas ao seu gosto.';
+
+  @override
+  String get featureCarouselTitle3 => 'Resultados Instantâneos';
+
+  @override
+  String get featureCarouselSubtitle3 => '⚡ SEGUNDOS, NÃO HORAS';
+
+  @override
+  String get featureCarouselDesc3 =>
+      'O que costumava levar horas para designers agora acontece em segundos. Obtenha transformações impressionantes de antes e depois instantaneamente.';
+
+  @override
+  String get getStarted => 'Começar';
+
+  @override
+  String freeTrialDays(int days) {
+    return '$days Days Free Trial';
+  }
+
+  @override
+  String thenPrice(Object price) {
+    return 'then $price/month';
+  }
 }

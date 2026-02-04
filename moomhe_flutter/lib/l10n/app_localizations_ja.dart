@@ -1238,4 +1238,56 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get categoryMasterBedroom => '主寝室';
+
+  @override
+  String get useDesignQuestion => 'このデザインを使用しますか？';
+
+  @override
+  String get yes => 'はい';
+
+  @override
+  String get no => 'いいえ';
+
+  @override
+  String get featureCarouselTitle1 => 'AIパワードデザイン';
+
+  @override
+  String get featureCarouselSubtitle1 => '✨ インテリジェントリデザイン';
+
+  @override
+  String get featureCarouselDesc1 =>
+      '最先端のAIでどんな部屋も変身させましょう。写真をアップロードするだけで、プロ級のデザインで空間が生まれ変わります。';
+
+  @override
+  String get featureCarouselTitle2 => '無限の可能性';
+
+  @override
+  String get featureCarouselSubtitle2 => '🎨 スタイル＆カラー';
+
+  @override
+  String get featureCarouselDesc2 =>
+      'モダンミニマリストから居心地の良いボヘミアンまで — あなたの好みに合わせた数十のデザインスタイルとカラーパレットを探索しましょう。';
+
+  @override
+  String get featureCarouselTitle3 => '即座の結果';
+
+  @override
+  String get featureCarouselSubtitle3 => '⚡ 数時間ではなく数秒';
+
+  @override
+  String get featureCarouselDesc3 =>
+      '以前はデザイナーに何時間もかかっていたことが、今では数秒で実現。見事なビフォーアフターの変身を即座に手に入れましょう。';
+
+  @override
+  String get getStarted => '始める';
+
+  @override
+  String freeTrialDays(int days) {
+    return '$days Days Free Trial';
+  }
+
+  @override
+  String thenPrice(Object price) {
+    return 'then $price/month';
+  }
 }

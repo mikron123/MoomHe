@@ -1232,6 +1232,55 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get categoryMasterBedroom => '主卧室';
+
+  @override
+  String get useDesignQuestion => '使用此设计？';
+
+  @override
+  String get yes => '是';
+
+  @override
+  String get no => '否';
+
+  @override
+  String get featureCarouselTitle1 => 'AI驱动设计';
+
+  @override
+  String get featureCarouselSubtitle1 => '✨ 智能重新设计';
+
+  @override
+  String get featureCarouselDesc1 => '用尖端AI改造任何房间。只需上传照片，即可看到您的空间以专业级设计焕然一新。';
+
+  @override
+  String get featureCarouselTitle2 => '无限可能';
+
+  @override
+  String get featureCarouselSubtitle2 => '🎨 风格与色彩';
+
+  @override
+  String get featureCarouselDesc2 => '从现代简约到舒适波西米亚——探索数十种设计风格和配色方案，满足您的品味。';
+
+  @override
+  String get featureCarouselTitle3 => '即时结果';
+
+  @override
+  String get featureCarouselSubtitle3 => '⚡ 秒级而非小时级';
+
+  @override
+  String get featureCarouselDesc3 => '曾经设计师需要几小时的工作现在几秒钟即可完成。立即获得令人惊叹的前后对比效果。';
+
+  @override
+  String get getStarted => '开始使用';
+
+  @override
+  String freeTrialDays(int days) {
+    return '$days Days Free Trial';
+  }
+
+  @override
+  String thenPrice(Object price) {
+    return 'then $price/month';
+  }
 }
 
 /// The translations for Chinese, as used in Hong Kong (`zh_HK`).
@@ -2455,4 +2504,43 @@ class AppLocalizationsZhHk extends AppLocalizationsZh {
 
   @override
   String get categoryMasterBedroom => '主人房';
+
+  @override
+  String get useDesignQuestion => '使用此設計？';
+
+  @override
+  String get yes => '是';
+
+  @override
+  String get no => '否';
+
+  @override
+  String get featureCarouselTitle1 => 'AI驅動設計';
+
+  @override
+  String get featureCarouselSubtitle1 => '✨ 智能重新設計';
+
+  @override
+  String get featureCarouselDesc1 => '用尖端AI改造任何房間。只需上傳相片，即可睇到您嘅空間以專業級設計煥然一新。';
+
+  @override
+  String get featureCarouselTitle2 => '無限可能';
+
+  @override
+  String get featureCarouselSubtitle2 => '🎨 風格與色彩';
+
+  @override
+  String get featureCarouselDesc2 => '由現代簡約到舒適波希米亞——探索數十種設計風格同配色方案，滿足您嘅品味。';
+
+  @override
+  String get featureCarouselTitle3 => '即時結果';
+
+  @override
+  String get featureCarouselSubtitle3 => '⚡ 秒級而非小時級';
+
+  @override
+  String get featureCarouselDesc3 => '以前設計師要幾個鐘嘅工作而家幾秒就搞掂。即刻獲得令人驚嘆嘅前後對比效果。';
+
+  @override
+  String get getStarted => '開始使用';
 }

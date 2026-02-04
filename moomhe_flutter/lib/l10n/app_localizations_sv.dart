@@ -1251,4 +1251,56 @@ class AppLocalizationsSv extends AppLocalizations {
 
   @override
   String get categoryMasterBedroom => 'Huvudsovrum';
+
+  @override
+  String get useDesignQuestion => 'Använd denna design?';
+
+  @override
+  String get yes => 'Ja';
+
+  @override
+  String get no => 'Nej';
+
+  @override
+  String get featureCarouselTitle1 => 'AI-Driven Design';
+
+  @override
+  String get featureCarouselSubtitle1 => '✨ INTELLIGENT OMDESIGN';
+
+  @override
+  String get featureCarouselDesc1 =>
+      'Förvandla vilket rum som helst med banbrytande AI. Ladda bara upp ett foto och se ditt utrymme vakna till liv med professionella designer.';
+
+  @override
+  String get featureCarouselTitle2 => 'Oändliga Möjligheter';
+
+  @override
+  String get featureCarouselSubtitle2 => '🎨 STILAR & FÄRGER';
+
+  @override
+  String get featureCarouselDesc2 =>
+      'Från modern minimalism till mysig boho — utforska dussintals designstilar och färgpaletter anpassade efter din smak.';
+
+  @override
+  String get featureCarouselTitle3 => 'Omedelbara Resultat';
+
+  @override
+  String get featureCarouselSubtitle3 => '⚡ SEKUNDER, INTE TIMMAR';
+
+  @override
+  String get featureCarouselDesc3 =>
+      'Det som tidigare tog designers timmar händer nu på sekunder. Få fantastiska före och efter-förvandlingar direkt.';
+
+  @override
+  String get getStarted => 'Kom igång';
+
+  @override
+  String freeTrialDays(int days) {
+    return '$days Days Free Trial';
+  }
+
+  @override
+  String thenPrice(Object price) {
+    return 'then $price/month';
+  }
 }

@@ -439,5 +439,23 @@
   "categoryKidsBedroom": "Dormitorio infantil",
   "categoryBathroom": "Baño",
   "categoryLivingRoom": "Sala de estar",
-  "categoryMasterBedroom": "Dormitorio principal"
+  "categoryMasterBedroom": "Dormitorio principal",
+
+  "useDesignQuestion": "¿Usar este diseño?",
+  "yes": "Sí",
+  "no": "No",
+
+  "featureCarouselTitle1": "Diseño con IA",
+  "featureCarouselSubtitle1": "✨ REDISEÑO INTELIGENTE",
+  "featureCarouselDesc1": "Transforma cualquier habitación con IA de vanguardia. Simplemente sube una foto y observa cómo tu espacio cobra vida con diseños profesionales.",
+
+  "featureCarouselTitle2": "Posibilidades Infinitas",
+  "featureCarouselSubtitle2": "🎨 ESTILOS Y COLORES",
+  "featureCarouselDesc2": "Desde el minimalismo moderno hasta el bohemio acogedor — explora docenas de estilos de diseño y paletas de colores adaptadas a tu gusto.",
+
+  "featureCarouselTitle3": "Resultados Instantáneos",
+  "featureCarouselSubtitle3": "⚡ SEGUNDOS, NO HORAS",
+  "featureCarouselDesc3": "Lo que antes tomaba horas a los diseñadores ahora sucede en segundos. Obtén transformaciones impresionantes de antes y después al instante.",
+
+  "getStarted": "Comenzar"
 }

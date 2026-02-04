@@ -494,5 +494,23 @@
   "categoryKidsBedroom": "Barnrum",
   "categoryBathroom": "Badrum",
   "categoryLivingRoom": "Vardagsrum",
-  "categoryMasterBedroom": "Huvudsovrum"
+  "categoryMasterBedroom": "Huvudsovrum",
+
+  "useDesignQuestion": "Använd denna design?",
+  "yes": "Ja",
+  "no": "Nej",
+
+  "featureCarouselTitle1": "AI-Driven Design",
+  "featureCarouselSubtitle1": "✨ INTELLIGENT OMDESIGN",
+  "featureCarouselDesc1": "Förvandla vilket rum som helst med banbrytande AI. Ladda bara upp ett foto och se ditt utrymme vakna till liv med professionella designer.",
+
+  "featureCarouselTitle2": "Oändliga Möjligheter",
+  "featureCarouselSubtitle2": "🎨 STILAR & FÄRGER",
+  "featureCarouselDesc2": "Från modern minimalism till mysig boho — utforska dussintals designstilar och färgpaletter anpassade efter din smak.",
+
+  "featureCarouselTitle3": "Omedelbara Resultat",
+  "featureCarouselSubtitle3": "⚡ SEKUNDER, INTE TIMMAR",
+  "featureCarouselDesc3": "Det som tidigare tog designers timmar händer nu på sekunder. Få fantastiska före och efter-förvandlingar direkt.",
+
+  "getStarted": "Kom igång"
 }

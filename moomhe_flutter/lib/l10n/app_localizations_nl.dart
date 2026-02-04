@@ -1256,4 +1256,56 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get categoryMasterBedroom => 'Hoofdslaapkamer';
+
+  @override
+  String get useDesignQuestion => 'Dit ontwerp gebruiken?';
+
+  @override
+  String get yes => 'Ja';
+
+  @override
+  String get no => 'Nee';
+
+  @override
+  String get featureCarouselTitle1 => 'AI-Aangedreven Design';
+
+  @override
+  String get featureCarouselSubtitle1 => '✨ INTELLIGENT HERONTWERP';
+
+  @override
+  String get featureCarouselDesc1 =>
+      'Transformeer elke kamer met geavanceerde AI. Upload gewoon een foto en zie hoe uw ruimte tot leven komt met professionele ontwerpen.';
+
+  @override
+  String get featureCarouselTitle2 => 'Eindeloze Mogelijkheden';
+
+  @override
+  String get featureCarouselSubtitle2 => '🎨 STIJLEN & KLEUREN';
+
+  @override
+  String get featureCarouselDesc2 =>
+      'Van modern minimalisme tot gezellige boho — ontdek tientallen ontwerpstijlen en kleurenpaletten afgestemd op uw smaak.';
+
+  @override
+  String get featureCarouselTitle3 => 'Directe Resultaten';
+
+  @override
+  String get featureCarouselSubtitle3 => '⚡ SECONDEN, GEEN UREN';
+
+  @override
+  String get featureCarouselDesc3 =>
+      'Wat vroeger uren kostte voor ontwerpers, gebeurt nu in seconden. Krijg direct verbluffende voor en na transformaties.';
+
+  @override
+  String get getStarted => 'Aan de slag';
+
+  @override
+  String freeTrialDays(int days) {
+    return '$days Days Free Trial';
+  }
+
+  @override
+  String thenPrice(Object price) {
+    return 'then $price/month';
+  }
 }

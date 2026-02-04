@@ -1253,4 +1253,56 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String get categoryMasterBedroom => 'Hlavní ložnice';
+
+  @override
+  String get useDesignQuestion => 'Použít tento návrh?';
+
+  @override
+  String get yes => 'Ano';
+
+  @override
+  String get no => 'Ne';
+
+  @override
+  String get featureCarouselTitle1 => 'Design s umělou inteligencí';
+
+  @override
+  String get featureCarouselSubtitle1 => '✨ INTELIGENTNÍ REDESIGN';
+
+  @override
+  String get featureCarouselDesc1 =>
+      'Přeměňte jakýkoli pokoj pomocí špičkové AI. Stačí nahrát fotku a sledujte, jak váš prostor ožije profesionálními návrhy.';
+
+  @override
+  String get featureCarouselTitle2 => 'Nekonečné možnosti';
+
+  @override
+  String get featureCarouselSubtitle2 => '🎨 STYLY A BARVY';
+
+  @override
+  String get featureCarouselDesc2 =>
+      'Od moderního minimalismu po útulné boho — prozkoumejte desítky designových stylů a barevných palet přizpůsobených vašemu vkusu.';
+
+  @override
+  String get featureCarouselTitle3 => 'Okamžité výsledky';
+
+  @override
+  String get featureCarouselSubtitle3 => '⚡ SEKUNDY, NE HODINY';
+
+  @override
+  String get featureCarouselDesc3 =>
+      'To, co dříve trvalo designérům hodiny, se nyní děje během sekund. Získejte okamžitě úžasné proměny před a po.';
+
+  @override
+  String get getStarted => 'Začít';
+
+  @override
+  String freeTrialDays(int days) {
+    return '$days Days Free Trial';
+  }
+
+  @override
+  String thenPrice(Object price) {
+    return 'then $price/month';
+  }
 }

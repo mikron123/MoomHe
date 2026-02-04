@@ -1258,4 +1258,56 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get categoryMasterBedroom => 'Sypialnia główna';
+
+  @override
+  String get useDesignQuestion => 'Użyć tego projektu?';
+
+  @override
+  String get yes => 'Tak';
+
+  @override
+  String get no => 'Nie';
+
+  @override
+  String get featureCarouselTitle1 => 'Projektowanie z AI';
+
+  @override
+  String get featureCarouselSubtitle1 => '✨ INTELIGENTNE PRZEPROJEKTOWANIE';
+
+  @override
+  String get featureCarouselDesc1 =>
+      'Przekształć każdy pokój za pomocą najnowocześniejszej AI. Po prostu prześlij zdjęcie i obserwuj, jak Twoja przestrzeń ożywa dzięki profesjonalnym projektom.';
+
+  @override
+  String get featureCarouselTitle2 => 'Nieskończone Możliwości';
+
+  @override
+  String get featureCarouselSubtitle2 => '🎨 STYLE I KOLORY';
+
+  @override
+  String get featureCarouselDesc2 =>
+      'Od nowoczesnego minimalizmu po przytulny boho — odkryj dziesiątki stylów projektowych i palet kolorów dopasowanych do Twojego gustu.';
+
+  @override
+  String get featureCarouselTitle3 => 'Natychmiastowe Rezultaty';
+
+  @override
+  String get featureCarouselSubtitle3 => '⚡ SEKUNDY, NIE GODZINY';
+
+  @override
+  String get featureCarouselDesc3 =>
+      'To, co kiedyś zajmowało projektantom godziny, teraz dzieje się w sekundy. Otrzymaj natychmiast oszałamiające transformacje przed i po.';
+
+  @override
+  String get getStarted => 'Rozpocznij';
+
+  @override
+  String freeTrialDays(int days) {
+    return '$days Days Free Trial';
+  }
+
+  @override
+  String thenPrice(Object price) {
+    return 'then $price/month';
+  }
 }

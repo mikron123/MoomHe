@@ -494,5 +494,23 @@
   "categoryKidsBedroom": "Παιδικό υπνοδωμάτιο",
   "categoryBathroom": "Μπάνιο",
   "categoryLivingRoom": "Σαλόνι",
-  "categoryMasterBedroom": "Κύρια κρεβατοκάμαρα"
+  "categoryMasterBedroom": "Κύρια κρεβατοκάμαρα",
+
+  "useDesignQuestion": "Χρήση αυτού του σχεδίου;",
+  "yes": "Ναι",
+  "no": "Όχι",
+
+  "featureCarouselTitle1": "Σχεδίαση με τεχνητή νοημοσύνη",
+  "featureCarouselSubtitle1": "✨ ΕΞΥΠΝΟΣ ΕΠΑΝΑΣΧΕΔΙΑΣΜΟΣ",
+  "featureCarouselDesc1": "Μεταμορφώστε οποιοδήποτε δωμάτιο με προηγμένη AI. Απλά ανεβάστε μια φωτογραφία και δείτε τον χώρο σας να ζωντανεύει με επαγγελματικά σχέδια.",
+
+  "featureCarouselTitle2": "Ατελείωτες Δυνατότητες",
+  "featureCarouselSubtitle2": "🎨 ΣΤΥΛ & ΧΡΩΜΑΤΑ",
+  "featureCarouselDesc2": "Από μοντέρνο μινιμαλισμό έως άνετο boho — εξερευνήστε δεκάδες στυλ σχεδιασμού και παλέτες χρωμάτων προσαρμοσμένες στο γούστο σας.",
+
+  "featureCarouselTitle3": "Άμεσα Αποτελέσματα",
+  "featureCarouselSubtitle3": "⚡ ΔΕΥΤΕΡΟΛΕΠΤΑ, ΟΧΙ ΩΡΕΣ",
+  "featureCarouselDesc3": "Αυτό που κάποτε απαιτούσε ώρες από σχεδιαστές τώρα γίνεται σε δευτερόλεπτα. Αποκτήστε εκπληκτικές μεταμορφώσεις πριν και μετά αμέσως.",
+
+  "getStarted": "Ξεκινήστε"
 }

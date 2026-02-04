@@ -1255,4 +1255,56 @@ class AppLocalizationsLt extends AppLocalizations {
 
   @override
   String get categoryMasterBedroom => 'Pagrindinis miegamasis';
+
+  @override
+  String get useDesignQuestion => 'Naudoti šį dizainą?';
+
+  @override
+  String get yes => 'Taip';
+
+  @override
+  String get no => 'Ne';
+
+  @override
+  String get featureCarouselTitle1 => 'Dizainas su dirbtinio intelekto pagalba';
+
+  @override
+  String get featureCarouselSubtitle1 => '✨ PROTINGAS PERDIZAINAS';
+
+  @override
+  String get featureCarouselDesc1 =>
+      'Pertvarkykite bet kurį kambarį naudodami pažangiausią AI. Tiesiog įkelkite nuotrauką ir stebėkite, kaip jūsų erdvė atgyja su profesionaliais dizainais.';
+
+  @override
+  String get featureCarouselTitle2 => 'Begalinės galimybės';
+
+  @override
+  String get featureCarouselSubtitle2 => '🎨 STILIAI IR SPALVOS';
+
+  @override
+  String get featureCarouselDesc2 =>
+      'Nuo modernaus minimalizmo iki jaukaus boho — tyrinėkite dešimtis dizaino stilių ir spalvų paletių, pritaikytų jūsų skoniui.';
+
+  @override
+  String get featureCarouselTitle3 => 'Momentiniai rezultatai';
+
+  @override
+  String get featureCarouselSubtitle3 => '⚡ SEKUNDĖS, NE VALANDOS';
+
+  @override
+  String get featureCarouselDesc3 =>
+      'Tai, kas anksčiau dizaineriams užtrukdavo valandas, dabar vyksta per sekundes. Gaukite nuostabius prieš ir po pavertimus iš karto.';
+
+  @override
+  String get getStarted => 'Pradėti';
+
+  @override
+  String freeTrialDays(int days) {
+    return '$days Days Free Trial';
+  }
+
+  @override
+  String thenPrice(Object price) {
+    return 'then $price/month';
+  }
 }

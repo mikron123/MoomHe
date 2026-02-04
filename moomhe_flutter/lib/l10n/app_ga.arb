@@ -494,5 +494,23 @@
   "categoryKidsBedroom": "Seomra leapa páistí",
   "categoryBathroom": "Seomra folctha",
   "categoryLivingRoom": "Seomra suí",
-  "categoryMasterBedroom": "Príomhsheomra codlata"
+  "categoryMasterBedroom": "Príomhsheomra codlata",
+
+  "useDesignQuestion": "Úsáid an dearadh seo?",
+  "yes": "Tá",
+  "no": "Níl",
+
+  "featureCarouselTitle1": "Dearadh le hIntleacht Shaorga",
+  "featureCarouselSubtitle1": "✨ ATHDEARADH CLISTE",
+  "featureCarouselDesc1": "Athraigh aon seomra le AI ceannródaíoch. Níl le déanamh ach grianghraf a uaslódáil agus féach ar do spás ag teacht beo le dearaí gairmiúla.",
+
+  "featureCarouselTitle2": "Deiseanna Gan Teorainn",
+  "featureCarouselSubtitle2": "🎨 STÍLEANNA & DATHANNA",
+  "featureCarouselDesc2": "Ó mhinimalachas nua-aimseartha go boho cluthar — déan iniúchadh ar na scórtha stíleanna deartha agus pailéid dathanna atá curtha in oiriúint do do bhlas.",
+
+  "featureCarouselTitle3": "Torthaí Láithreach",
+  "featureCarouselSubtitle3": "⚡ SOICINDÍ, NÍ UAIREANTA",
+  "featureCarouselDesc3": "An rud a thógadh uaireanta ó dhearthóirí tá sé ag tarlú anois in soicindí. Faigh claochluithe roimh agus i ndiaidh iontach láithreach.",
+
+  "getStarted": "Tosaigh"
 }

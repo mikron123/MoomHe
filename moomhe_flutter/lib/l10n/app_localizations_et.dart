@@ -1256,4 +1256,56 @@ class AppLocalizationsEt extends AppLocalizations {
 
   @override
   String get categoryMasterBedroom => 'Põhimagamistuba';
+
+  @override
+  String get useDesignQuestion => 'Kasuta seda disaini?';
+
+  @override
+  String get yes => 'Jah';
+
+  @override
+  String get no => 'Ei';
+
+  @override
+  String get featureCarouselTitle1 => 'Tehisintellektiga disain';
+
+  @override
+  String get featureCarouselSubtitle1 => '✨ INTELLIGENTNE ÜMBERKUJUNDAMINE';
+
+  @override
+  String get featureCarouselDesc1 =>
+      'Muutke iga tuba tipptasemel tehisintellektiga. Laadige lihtsalt üles foto ja vaadake, kuidas teie ruum ärkab ellu professionaalsete kujundustega.';
+
+  @override
+  String get featureCarouselTitle2 => 'Lõputud võimalused';
+
+  @override
+  String get featureCarouselSubtitle2 => '🎨 STIILID JA VÄRVID';
+
+  @override
+  String get featureCarouselDesc2 =>
+      'Kaasaegsest minimalismist hubse boho-ni — avastage kümneid disainistiile ja värvipalette, mis on kohandatud teie maitsele.';
+
+  @override
+  String get featureCarouselTitle3 => 'Kohesed tulemused';
+
+  @override
+  String get featureCarouselSubtitle3 => '⚡ SEKUNDID, MITTE TUNNID';
+
+  @override
+  String get featureCarouselDesc3 =>
+      'See, mis varem võttis disaineritel tunde, juhtub nüüd sekunditega. Saate koheselt vapustavaid enne ja pärast muutusi.';
+
+  @override
+  String get getStarted => 'Alusta';
+
+  @override
+  String freeTrialDays(int days) {
+    return '$days Days Free Trial';
+  }
+
+  @override
+  String thenPrice(Object price) {
+    return 'then $price/month';
+  }
 }

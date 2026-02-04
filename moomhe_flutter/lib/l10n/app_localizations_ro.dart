@@ -1260,4 +1260,56 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get categoryMasterBedroom => 'Dormitor principal';
+
+  @override
+  String get useDesignQuestion => 'Folosiți acest design?';
+
+  @override
+  String get yes => 'Da';
+
+  @override
+  String get no => 'Nu';
+
+  @override
+  String get featureCarouselTitle1 => 'Design cu inteligență artificială';
+
+  @override
+  String get featureCarouselSubtitle1 => '✨ REDESIGN INTELIGENT';
+
+  @override
+  String get featureCarouselDesc1 =>
+      'Transformați orice cameră cu AI de ultimă generație. Încărcați pur și simplu o fotografie și priviți cum spațiul dvs. prinde viață cu design-uri profesionale.';
+
+  @override
+  String get featureCarouselTitle2 => 'Posibilități nelimitate';
+
+  @override
+  String get featureCarouselSubtitle2 => '🎨 STILURI ȘI CULORI';
+
+  @override
+  String get featureCarouselDesc2 =>
+      'De la minimalismul modern la boho confortabil — explorați zeci de stiluri de design și palete de culori adaptate gusturilor dvs.';
+
+  @override
+  String get featureCarouselTitle3 => 'Rezultate instantanee';
+
+  @override
+  String get featureCarouselSubtitle3 => '⚡ SECUNDE, NU ORE';
+
+  @override
+  String get featureCarouselDesc3 =>
+      'Ceea ce obișnuia să dureze ore pentru designeri se întâmplă acum în secunde. Obțineți transformări uimitoare înainte și după instantaneu.';
+
+  @override
+  String get getStarted => 'Începeți';
+
+  @override
+  String freeTrialDays(int days) {
+    return '$days Days Free Trial';
+  }
+
+  @override
+  String thenPrice(Object price) {
+    return 'then $price/month';
+  }
 }

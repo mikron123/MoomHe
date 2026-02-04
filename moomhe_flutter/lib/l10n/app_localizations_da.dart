@@ -1253,4 +1253,56 @@ class AppLocalizationsDa extends AppLocalizations {
 
   @override
   String get categoryMasterBedroom => 'Hovedsoveværelse';
+
+  @override
+  String get useDesignQuestion => 'Brug dette design?';
+
+  @override
+  String get yes => 'Ja';
+
+  @override
+  String get no => 'Nej';
+
+  @override
+  String get featureCarouselTitle1 => 'AI-Drevet Design';
+
+  @override
+  String get featureCarouselSubtitle1 => '✨ INTELLIGENT REDESIGN';
+
+  @override
+  String get featureCarouselDesc1 =>
+      'Forvandl ethvert rum med banebrydende AI. Upload blot et foto og se dit rum blive levende med professionelle designs.';
+
+  @override
+  String get featureCarouselTitle2 => 'Uendelige Muligheder';
+
+  @override
+  String get featureCarouselSubtitle2 => '🎨 STILARTER & FARVER';
+
+  @override
+  String get featureCarouselDesc2 =>
+      'Fra moderne minimalisme til hyggelig boho — udforsk snesevis af designstilarter og farvepaletter tilpasset din smag.';
+
+  @override
+  String get featureCarouselTitle3 => 'Øjeblikkelige Resultater';
+
+  @override
+  String get featureCarouselSubtitle3 => '⚡ SEKUNDER, IKKE TIMER';
+
+  @override
+  String get featureCarouselDesc3 =>
+      'Det der plejede at tage designere timer sker nu på sekunder. Få fantastiske før og efter-forvandlinger med det samme.';
+
+  @override
+  String get getStarted => 'Kom i gang';
+
+  @override
+  String freeTrialDays(int days) {
+    return '$days Days Free Trial';
+  }
+
+  @override
+  String thenPrice(Object price) {
+    return 'then $price/month';
+  }
 }

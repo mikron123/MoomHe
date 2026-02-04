@@ -1257,4 +1257,56 @@ class AppLocalizationsFi extends AppLocalizations {
 
   @override
   String get categoryMasterBedroom => 'Päämakamihuone';
+
+  @override
+  String get useDesignQuestion => 'Käytä tätä suunnittelua?';
+
+  @override
+  String get yes => 'Kyllä';
+
+  @override
+  String get no => 'Ei';
+
+  @override
+  String get featureCarouselTitle1 => 'Tekoälyavusteinen Suunnittelu';
+
+  @override
+  String get featureCarouselSubtitle1 => '✨ ÄLYKÄS UUDELLEENSUUNNITTELU';
+
+  @override
+  String get featureCarouselDesc1 =>
+      'Muuta mikä tahansa huone huipputason tekoälyllä. Lataa vain kuva ja katso, kuinka tilasi herää eloon ammattimaisilla malleilla.';
+
+  @override
+  String get featureCarouselTitle2 => 'Rajattomat Mahdollisuudet';
+
+  @override
+  String get featureCarouselSubtitle2 => '🎨 TYYLIT & VÄRIT';
+
+  @override
+  String get featureCarouselDesc2 =>
+      'Modernista minimalismista kodikkaaseen bohoon — tutustu kymmeniin suunnittelutyyleihin ja väripaletteihin makusi mukaan.';
+
+  @override
+  String get featureCarouselTitle3 => 'Välittömät Tulokset';
+
+  @override
+  String get featureCarouselSubtitle3 => '⚡ SEKUNTEJA, EI TUNTEJA';
+
+  @override
+  String get featureCarouselDesc3 =>
+      'Se mikä ennen vei suunnittelijoilta tunteja, tapahtuu nyt sekunneissa. Saat upeita ennen ja jälkeen -muutoksia välittömästi.';
+
+  @override
+  String get getStarted => 'Aloita';
+
+  @override
+  String freeTrialDays(int days) {
+    return '$days Days Free Trial';
+  }
+
+  @override
+  String thenPrice(Object price) {
+    return 'then $price/month';
+  }
 }

@@ -1264,4 +1264,56 @@ class AppLocalizationsGa extends AppLocalizations {
 
   @override
   String get categoryMasterBedroom => 'Príomhsheomra codlata';
+
+  @override
+  String get useDesignQuestion => 'Úsáid an dearadh seo?';
+
+  @override
+  String get yes => 'Tá';
+
+  @override
+  String get no => 'Níl';
+
+  @override
+  String get featureCarouselTitle1 => 'Dearadh le hIntleacht Shaorga';
+
+  @override
+  String get featureCarouselSubtitle1 => '✨ ATHDEARADH CLISTE';
+
+  @override
+  String get featureCarouselDesc1 =>
+      'Athraigh aon seomra le AI ceannródaíoch. Níl le déanamh ach grianghraf a uaslódáil agus féach ar do spás ag teacht beo le dearaí gairmiúla.';
+
+  @override
+  String get featureCarouselTitle2 => 'Deiseanna Gan Teorainn';
+
+  @override
+  String get featureCarouselSubtitle2 => '🎨 STÍLEANNA & DATHANNA';
+
+  @override
+  String get featureCarouselDesc2 =>
+      'Ó mhinimalachas nua-aimseartha go boho cluthar — déan iniúchadh ar na scórtha stíleanna deartha agus pailéid dathanna atá curtha in oiriúint do do bhlas.';
+
+  @override
+  String get featureCarouselTitle3 => 'Torthaí Láithreach';
+
+  @override
+  String get featureCarouselSubtitle3 => '⚡ SOICINDÍ, NÍ UAIREANTA';
+
+  @override
+  String get featureCarouselDesc3 =>
+      'An rud a thógadh uaireanta ó dhearthóirí tá sé ag tarlú anois in soicindí. Faigh claochluithe roimh agus i ndiaidh iontach láithreach.';
+
+  @override
+  String get getStarted => 'Tosaigh';
+
+  @override
+  String freeTrialDays(int days) {
+    return '$days Days Free Trial';
+  }
+
+  @override
+  String thenPrice(Object price) {
+    return 'then $price/month';
+  }
 }

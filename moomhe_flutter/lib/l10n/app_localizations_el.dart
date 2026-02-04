@@ -1266,4 +1266,56 @@ class AppLocalizationsEl extends AppLocalizations {
 
   @override
   String get categoryMasterBedroom => 'Κύρια κρεβατοκάμαρα';
+
+  @override
+  String get useDesignQuestion => 'Χρήση αυτού του σχεδίου;';
+
+  @override
+  String get yes => 'Ναι';
+
+  @override
+  String get no => 'Όχι';
+
+  @override
+  String get featureCarouselTitle1 => 'Σχεδίαση με τεχνητή νοημοσύνη';
+
+  @override
+  String get featureCarouselSubtitle1 => '✨ ΕΞΥΠΝΟΣ ΕΠΑΝΑΣΧΕΔΙΑΣΜΟΣ';
+
+  @override
+  String get featureCarouselDesc1 =>
+      'Μεταμορφώστε οποιοδήποτε δωμάτιο με προηγμένη AI. Απλά ανεβάστε μια φωτογραφία και δείτε τον χώρο σας να ζωντανεύει με επαγγελματικά σχέδια.';
+
+  @override
+  String get featureCarouselTitle2 => 'Ατελείωτες Δυνατότητες';
+
+  @override
+  String get featureCarouselSubtitle2 => '🎨 ΣΤΥΛ & ΧΡΩΜΑΤΑ';
+
+  @override
+  String get featureCarouselDesc2 =>
+      'Από μοντέρνο μινιμαλισμό έως άνετο boho — εξερευνήστε δεκάδες στυλ σχεδιασμού και παλέτες χρωμάτων προσαρμοσμένες στο γούστο σας.';
+
+  @override
+  String get featureCarouselTitle3 => 'Άμεσα Αποτελέσματα';
+
+  @override
+  String get featureCarouselSubtitle3 => '⚡ ΔΕΥΤΕΡΟΛΕΠΤΑ, ΟΧΙ ΩΡΕΣ';
+
+  @override
+  String get featureCarouselDesc3 =>
+      'Αυτό που κάποτε απαιτούσε ώρες από σχεδιαστές τώρα γίνεται σε δευτερόλεπτα. Αποκτήστε εκπληκτικές μεταμορφώσεις πριν και μετά αμέσως.';
+
+  @override
+  String get getStarted => 'Ξεκινήστε';
+
+  @override
+  String freeTrialDays(int days) {
+    return '$days Days Free Trial';
+  }
+
+  @override
+  String thenPrice(Object price) {
+    return 'then $price/month';
+  }
 }

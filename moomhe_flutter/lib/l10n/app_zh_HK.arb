@@ -494,5 +494,23 @@
   "categoryKidsBedroom": "兒童睡房",
   "categoryBathroom": "浴室",
   "categoryLivingRoom": "客廳",
-  "categoryMasterBedroom": "主人房"
+  "categoryMasterBedroom": "主人房",
+
+  "useDesignQuestion": "使用此設計？",
+  "yes": "是",
+  "no": "否",
+
+  "featureCarouselTitle1": "AI驅動設計",
+  "featureCarouselSubtitle1": "✨ 智能重新設計",
+  "featureCarouselDesc1": "用尖端AI改造任何房間。只需上傳相片，即可睇到您嘅空間以專業級設計煥然一新。",
+
+  "featureCarouselTitle2": "無限可能",
+  "featureCarouselSubtitle2": "🎨 風格與色彩",
+  "featureCarouselDesc2": "由現代簡約到舒適波希米亞——探索數十種設計風格同配色方案，滿足您嘅品味。",
+
+  "featureCarouselTitle3": "即時結果",
+  "featureCarouselSubtitle3": "⚡ 秒級而非小時級",
+  "featureCarouselDesc3": "以前設計師要幾個鐘嘅工作而家幾秒就搞掂。即刻獲得令人驚嘆嘅前後對比效果。",
+
+  "getStarted": "開始使用"
 }

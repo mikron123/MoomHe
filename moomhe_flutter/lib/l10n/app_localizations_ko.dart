@@ -1237,4 +1237,56 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get categoryMasterBedroom => '안방';
+
+  @override
+  String get useDesignQuestion => '이 디자인을 사용하시겠습니까?';
+
+  @override
+  String get yes => '예';
+
+  @override
+  String get no => '아니오';
+
+  @override
+  String get featureCarouselTitle1 => 'AI 기반 디자인';
+
+  @override
+  String get featureCarouselSubtitle1 => '✨ 지능형 리디자인';
+
+  @override
+  String get featureCarouselDesc1 =>
+      '최첨단 AI로 모든 공간을 변화시키세요. 사진을 업로드하기만 하면 전문적인 디자인으로 공간이 살아납니다.';
+
+  @override
+  String get featureCarouselTitle2 => '무한한 가능성';
+
+  @override
+  String get featureCarouselSubtitle2 => '🎨 스타일 & 컬러';
+
+  @override
+  String get featureCarouselDesc2 =>
+      '모던 미니멀리즘부터 아늑한 보헤미안까지 — 취향에 맞춘 수십 가지 디자인 스타일과 컬러 팔레트를 탐색하세요.';
+
+  @override
+  String get featureCarouselTitle3 => '즉각적인 결과';
+
+  @override
+  String get featureCarouselSubtitle3 => '⚡ 몇 시간이 아닌 몇 초';
+
+  @override
+  String get featureCarouselDesc3 =>
+      '이전에는 디자이너에게 몇 시간이 걸렸던 작업이 이제 몇 초 만에 완료됩니다. 놀라운 전후 변신을 즉시 받아보세요.';
+
+  @override
+  String get getStarted => '시작하기';
+
+  @override
+  String freeTrialDays(int days) {
+    return '$days Days Free Trial';
+  }
+
+  @override
+  String thenPrice(Object price) {
+    return 'then $price/month';
+  }
 }

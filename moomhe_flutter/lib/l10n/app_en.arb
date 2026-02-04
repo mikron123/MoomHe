@@ -496,5 +496,33 @@
   "categoryKidsBedroom": "Kids Bedroom",
   "categoryBathroom": "Bathroom",
   "categoryLivingRoom": "Living Room",
-  "categoryMasterBedroom": "Master Bedroom"
+  "categoryMasterBedroom": "Master Bedroom",
+
+  "useDesignQuestion": "Use this design?",
+  "yes": "Yes",
+  "no": "No",
+
+  "featureCarouselTitle1": "AI-Powered Design",
+  "featureCarouselSubtitle1": "✨ INTELLIGENT REDESIGN",
+  "featureCarouselDesc1": "Transform any room with cutting-edge AI. Simply upload a photo and watch your space come alive with professional-grade designs.",
+
+  "featureCarouselTitle2": "Endless Possibilities",
+  "featureCarouselSubtitle2": "🎨 STYLES & COLORS",
+  "featureCarouselDesc2": "From modern minimalist to cozy bohemian — explore dozens of design styles and color palettes tailored to your taste.",
+
+  "featureCarouselTitle3": "Instant Results",
+  "featureCarouselSubtitle3": "⚡ SECONDS, NOT HOURS",
+  "featureCarouselDesc3": "What used to take designers hours now happens in seconds. Get stunning before & after transformations instantly.",
+
+  "getStarted": "Get Started",
+
+  "freeTrialDays": "{days} Days Free Trial",
+  "@freeTrialDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "thenPrice": "then {price}/month"
 }

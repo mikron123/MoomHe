@@ -494,5 +494,23 @@
   "categoryKidsBedroom": "Kinderzimmer",
   "categoryBathroom": "Badezimmer",
   "categoryLivingRoom": "Wohnzimmer",
-  "categoryMasterBedroom": "Hauptschlafzimmer"
+  "categoryMasterBedroom": "Hauptschlafzimmer",
+
+  "useDesignQuestion": "Dieses Design verwenden?",
+  "yes": "Ja",
+  "no": "Nein",
+
+  "featureCarouselTitle1": "KI-gestütztes Design",
+  "featureCarouselSubtitle1": "✨ INTELLIGENTES REDESIGN",
+  "featureCarouselDesc1": "Verwandeln Sie jeden Raum mit modernster KI. Laden Sie einfach ein Foto hoch und sehen Sie, wie Ihr Raum mit professionellen Designs zum Leben erwacht.",
+
+  "featureCarouselTitle2": "Endlose Möglichkeiten",
+  "featureCarouselSubtitle2": "🎨 STILE & FARBEN",
+  "featureCarouselDesc2": "Von modernem Minimalismus bis hin zu gemütlichem Boho — entdecken Sie Dutzende von Designstilen und Farbpaletten nach Ihrem Geschmack.",
+
+  "featureCarouselTitle3": "Sofortige Ergebnisse",
+  "featureCarouselSubtitle3": "⚡ SEKUNDEN, NICHT STUNDEN",
+  "featureCarouselDesc3": "Was Designer früher Stunden kostete, geschieht jetzt in Sekunden. Erhalten Sie sofort atemberaubende Vorher-Nachher-Transformationen.",
+
+  "getStarted": "Loslegen"
 }

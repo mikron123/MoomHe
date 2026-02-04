@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_colors.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/onboarding_overlay.dart';
+import '../widgets/feature_carousel.dart';
 import '../modals/mobile_menu_modal.dart';
 import '../modals/style_selector_modal.dart';
 import '../modals/color_palette_modal.dart';
@@ -74,8 +75,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
   bool _isLoggedIn = false;
 
   // UI state
+  bool _showFeatureCarousel = false;
   bool _showOnboarding = false;
   bool _showReadyDesigns = false;
+  bool _hasShownStartupPaywall = false;
   late AnimationController _processingController;
   late AnimationController _shimmerController;
   late AnimationController _pulseController;
@@ -206,18 +209,53 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
       final hasSeenOnboarding = prefs.getBool(_onboardingShownKey) ?? false;
       
       if (!hasSeenOnboarding && mounted) {
-        // Show onboarding on first launch
-        setState(() => _showOnboarding = true);
+        // Show feature carousel on first launch
+        setState(() => _showFeatureCarousel = true);
         
         // Mark onboarding as shown
         await prefs.setBool(_onboardingShownKey, true);
         
         // Track first open with onboarding
         _analytics.logFirstOpen();
+      } else {
+        // Not first launch - show paywall if no subscription
+        _showPaywallIfNeeded();
       }
     } catch (e) {
       print('Error checking first launch onboarding: $e');
     }
+  }
+
+  void _showPaywallIfNeeded() {
+    // Only show paywall once per app session and if user has no subscription
+    if (_hasShownStartupPaywall || _userSubscription > 0 || !mounted) return;
+    
+    _hasShownStartupPaywall = true;
+    
+    // Show paywall after a brief delay to ensure UI is ready
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        _analytics.logSubscriptionModalOpened(source: 'startup');
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            fullscreenDialog: true,
+            builder: (context) => SubscriptionModal(
+              currentSubscription: _userSubscription,
+              currentCredits: _userCredits,
+              onPurchaseComplete: () {
+                // Refresh user credits after purchase
+                _loadUserCredits();
+                
+                // If user is anonymous, prompt them to secure their purchase
+                if (_aiService.isAnonymous) {
+                  _showSecureAccountDialog();
+                }
+              },
+            ),
+          ),
+        );
+      }
+    });
   }
 
   Future<void> _loadHistory() async {
@@ -1532,17 +1570,34 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
               child: _buildProcessingOverlay(),
             ),
 
-          // Onboarding overlay
+          // Feature Carousel for first-time users
+          if (_showFeatureCarousel)
+            Positioned.fill(
+              child: FeatureCarousel(
+                onComplete: () {
+                  _analytics.logOnboardingComplete();
+                  setState(() => _showFeatureCarousel = false);
+                  // Show paywall after feature carousel completes
+                  _showPaywallIfNeeded();
+                },
+              ),
+            ),
+
+          // Onboarding overlay (for UI tutorial)
           if (_showOnboarding)
             OnboardingOverlay(
               steps: _getOnboardingSteps(context),
               onComplete: () {
                 _analytics.logOnboardingComplete();
                 setState(() => _showOnboarding = false);
+                // Show paywall after onboarding completes
+                _showPaywallIfNeeded();
               },
               onSkip: () {
                 _analytics.logOnboardingSkipped();
                 setState(() => _showOnboarding = false);
+                // Show paywall after onboarding is skipped
+                _showPaywallIfNeeded();
               },
             ),
 
@@ -1554,39 +1609,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
   }
 
   Widget _buildReadyDesignsOverlay() {
-    final screenHeight = MediaQuery.of(context).size.height;
-    
-    return Stack(
-      children: [
-        // Dark backdrop
-        if (_showReadyDesigns)
-          Positioned.fill(
-            child: GestureDetector(
-              onTap: _hideReadyDesignsModal,
-              child: AnimatedOpacity(
-                duration: const Duration(milliseconds: 200),
-                opacity: _showReadyDesigns ? 1.0 : 0.0,
-                child: Container(
-                  color: Colors.black.withValues(alpha: 0.5),
-                ),
-              ),
-            ),
-          ),
-        
-        // The modal itself - slides up from bottom
-        AnimatedPositioned(
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-          left: 0,
-          right: 0,
-          bottom: _showReadyDesigns ? 0 : -screenHeight,
-          height: screenHeight * 0.85,
-          child: ReadyDesignsModal(
-            onSelectDesign: _onReadyDesignSelected,
-            onClose: _hideReadyDesignsModal,
-          ),
+    // Keep modal persistent in tree to preserve state (selected category, scroll position)
+    return Positioned.fill(
+      child: Offstage(
+        offstage: !_showReadyDesigns,
+        child: ReadyDesignsModal(
+          onSelectDesign: _onReadyDesignSelected,
+          onClose: _hideReadyDesignsModal,
         ),
-      ],
+      ),
     );
   }
 

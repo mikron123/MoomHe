@@ -494,5 +494,23 @@
   "categoryKidsBedroom": "Dječja soba",
   "categoryBathroom": "Kupaonica",
   "categoryLivingRoom": "Dnevni boravak",
-  "categoryMasterBedroom": "Glavna spavaća soba"
+  "categoryMasterBedroom": "Glavna spavaća soba",
+
+  "useDesignQuestion": "Koristiti ovaj dizajn?",
+  "yes": "Da",
+  "no": "Ne",
+
+  "featureCarouselTitle1": "Dizajn pokretan umjetnom inteligencijom",
+  "featureCarouselSubtitle1": "✨ INTELIGENTNI REDIZAJN",
+  "featureCarouselDesc1": "Transformirajte bilo koju prostoriju uz naprednu AI. Jednostavno učitajte fotografiju i gledajte kako vaš prostor oživljava profesionalnim dizajnom.",
+
+  "featureCarouselTitle2": "Beskrajne mogućnosti",
+  "featureCarouselSubtitle2": "🎨 STILOVI I BOJE",
+  "featureCarouselDesc2": "Od modernog minimalizma do ugodnog boho stila — istražite desetke stilova dizajna i paleta boja prilagođenih vašem ukusu.",
+
+  "featureCarouselTitle3": "Trenutni rezultati",
+  "featureCarouselSubtitle3": "⚡ SEKUNDE, NE SATI",
+  "featureCarouselDesc3": "Ono što je nekad dizajnerima trebalo sate, sada se događa u sekundama. Dobijte nevjerojatne transformacije prije i poslije odmah.",
+
+  "getStarted": "Započni"
 }

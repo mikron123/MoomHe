@@ -494,5 +494,23 @@
   "categoryKidsBedroom": "Gyerekszoba",
   "categoryBathroom": "Fürdőszoba",
   "categoryLivingRoom": "Nappali",
-  "categoryMasterBedroom": "Főhálószoba"
+  "categoryMasterBedroom": "Főhálószoba",
+
+  "useDesignQuestion": "Használja ezt a dizájnt?",
+  "yes": "Igen",
+  "no": "Nem",
+
+  "featureCarouselTitle1": "MI-vezérelt tervezés",
+  "featureCarouselSubtitle1": "✨ INTELLIGENS ÚJRATERVEZÉS",
+  "featureCarouselDesc1": "Alakítson át bármely szobát élvonalbeli MI-vel. Egyszerűen töltsön fel egy fotót, és nézze, ahogy tere professzionális dizájnnal kel életre.",
+
+  "featureCarouselTitle2": "Végtelen lehetőségek",
+  "featureCarouselSubtitle2": "🎨 STÍLUSOK ÉS SZÍNEK",
+  "featureCarouselDesc2": "A modern minimalizmustól a hangulatos bohémig — fedezzen fel tucatnyi tervezési stílust és színpalettát az ízlésének megfelelően.",
+
+  "featureCarouselTitle3": "Azonnali eredmények",
+  "featureCarouselSubtitle3": "⚡ MÁSODPERCEK, NEM ÓRÁK",
+  "featureCarouselDesc3": "Ami korábban órákat vett igénybe a tervezőktől, most másodpercek alatt megtörténik. Kapjon lenyűgöző előtte-utána átalakulásokat azonnal.",
+
+  "getStarted": "Kezdjük"
 }

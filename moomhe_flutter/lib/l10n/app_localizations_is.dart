@@ -1260,4 +1260,56 @@ class AppLocalizationsIs extends AppLocalizations {
 
   @override
   String get categoryMasterBedroom => 'Aðal svefnherbergi';
+
+  @override
+  String get useDesignQuestion => 'Nota þessa hönnun?';
+
+  @override
+  String get yes => 'Já';
+
+  @override
+  String get no => 'Nei';
+
+  @override
+  String get featureCarouselTitle1 => 'Gervigreind hönnun';
+
+  @override
+  String get featureCarouselSubtitle1 => '✨ SNJÖLL ENDURHÖNNUN';
+
+  @override
+  String get featureCarouselDesc1 =>
+      'Umbreyttu hvaða herbergi sem er með háþróaðri gervigreind. Hladdu bara upp mynd og horfðu á rýmið þitt vakna til lífsins með faglegum hönnunum.';
+
+  @override
+  String get featureCarouselTitle2 => 'Endalausir möguleikar';
+
+  @override
+  String get featureCarouselSubtitle2 => '🎨 STÍLAR OG LITIR';
+
+  @override
+  String get featureCarouselDesc2 =>
+      'Frá nútímalegum mínimalisma til notalegrar boho — kannaðu tugi af hönnunarstílum og litapöllum sem henta þínum smekk.';
+
+  @override
+  String get featureCarouselTitle3 => 'Tafarlausar niðurstöður';
+
+  @override
+  String get featureCarouselSubtitle3 => '⚡ SEKÚNDUR, EKKI KLUKKUSTUNDIR';
+
+  @override
+  String get featureCarouselDesc3 =>
+      'Það sem áður tók hönnuði klukkustundir gerist nú á sekúndum. Fáðu ótrúlegar fyrir og eftir umbreytingar samstundis.';
+
+  @override
+  String get getStarted => 'Byrja';
+
+  @override
+  String freeTrialDays(int days) {
+    return '$days Days Free Trial';
+  }
+
+  @override
+  String thenPrice(Object price) {
+    return 'then $price/month';
+  }
 }

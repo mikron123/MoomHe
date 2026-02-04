@@ -494,5 +494,23 @@
   "categoryKidsBedroom": "Vaikų miegamasis",
   "categoryBathroom": "Vonios kambarys",
   "categoryLivingRoom": "Svetainė",
-  "categoryMasterBedroom": "Pagrindinis miegamasis"
+  "categoryMasterBedroom": "Pagrindinis miegamasis",
+
+  "useDesignQuestion": "Naudoti šį dizainą?",
+  "yes": "Taip",
+  "no": "Ne",
+
+  "featureCarouselTitle1": "Dizainas su dirbtinio intelekto pagalba",
+  "featureCarouselSubtitle1": "✨ PROTINGAS PERDIZAINAS",
+  "featureCarouselDesc1": "Pertvarkykite bet kurį kambarį naudodami pažangiausią AI. Tiesiog įkelkite nuotrauką ir stebėkite, kaip jūsų erdvė atgyja su profesionaliais dizainais.",
+
+  "featureCarouselTitle2": "Begalinės galimybės",
+  "featureCarouselSubtitle2": "🎨 STILIAI IR SPALVOS",
+  "featureCarouselDesc2": "Nuo modernaus minimalizmo iki jaukaus boho — tyrinėkite dešimtis dizaino stilių ir spalvų paletių, pritaikytų jūsų skoniui.",
+
+  "featureCarouselTitle3": "Momentiniai rezultatai",
+  "featureCarouselSubtitle3": "⚡ SEKUNDĖS, NE VALANDOS",
+  "featureCarouselDesc3": "Tai, kas anksčiau dizaineriams užtrukdavo valandas, dabar vyksta per sekundes. Gaukite nuostabius prieš ir po pavertimus iš karto.",
+
+  "getStarted": "Pradėti"
 }

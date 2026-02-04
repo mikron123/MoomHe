@@ -494,5 +494,23 @@
   "categoryKidsBedroom": "Lastenhuone",
   "categoryBathroom": "Kylpyhuone",
   "categoryLivingRoom": "Olohuone",
-  "categoryMasterBedroom": "Päämakamihuone"
+  "categoryMasterBedroom": "Päämakamihuone",
+
+  "useDesignQuestion": "Käytä tätä suunnittelua?",
+  "yes": "Kyllä",
+  "no": "Ei",
+
+  "featureCarouselTitle1": "Tekoälyavusteinen Suunnittelu",
+  "featureCarouselSubtitle1": "✨ ÄLYKÄS UUDELLEENSUUNNITTELU",
+  "featureCarouselDesc1": "Muuta mikä tahansa huone huipputason tekoälyllä. Lataa vain kuva ja katso, kuinka tilasi herää eloon ammattimaisilla malleilla.",
+
+  "featureCarouselTitle2": "Rajattomat Mahdollisuudet",
+  "featureCarouselSubtitle2": "🎨 TYYLIT & VÄRIT",
+  "featureCarouselDesc2": "Modernista minimalismista kodikkaaseen bohoon — tutustu kymmeniin suunnittelutyyleihin ja väripaletteihin makusi mukaan.",
+
+  "featureCarouselTitle3": "Välittömät Tulokset",
+  "featureCarouselSubtitle3": "⚡ SEKUNTEJA, EI TUNTEJA",
+  "featureCarouselDesc3": "Se mikä ennen vei suunnittelijoilta tunteja, tapahtuu nyt sekunneissa. Saat upeita ennen ja jälkeen -muutoksia välittömästi.",
+
+  "getStarted": "Aloita"
 }

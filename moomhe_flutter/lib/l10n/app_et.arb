@@ -494,5 +494,23 @@
   "categoryKidsBedroom": "Lastetuba",
   "categoryBathroom": "Vannituba",
   "categoryLivingRoom": "Elutuba",
-  "categoryMasterBedroom": "Põhimagamistuba"
+  "categoryMasterBedroom": "Põhimagamistuba",
+
+  "useDesignQuestion": "Kasuta seda disaini?",
+  "yes": "Jah",
+  "no": "Ei",
+
+  "featureCarouselTitle1": "Tehisintellektiga disain",
+  "featureCarouselSubtitle1": "✨ INTELLIGENTNE ÜMBERKUJUNDAMINE",
+  "featureCarouselDesc1": "Muutke iga tuba tipptasemel tehisintellektiga. Laadige lihtsalt üles foto ja vaadake, kuidas teie ruum ärkab ellu professionaalsete kujundustega.",
+
+  "featureCarouselTitle2": "Lõputud võimalused",
+  "featureCarouselSubtitle2": "🎨 STIILID JA VÄRVID",
+  "featureCarouselDesc2": "Kaasaegsest minimalismist hubse boho-ni — avastage kümneid disainistiile ja värvipalette, mis on kohandatud teie maitsele.",
+
+  "featureCarouselTitle3": "Kohesed tulemused",
+  "featureCarouselSubtitle3": "⚡ SEKUNDID, MITTE TUNNID",
+  "featureCarouselDesc3": "See, mis varem võttis disaineritel tunde, juhtub nüüd sekunditega. Saate koheselt vapustavaid enne ja pärast muutusi.",
+
+  "getStarted": "Alusta"
 }

@@ -93,7 +93,7 @@ const CachedThumbnail = ({ src, alt, className }) => {
 
   if (loading) {
     return (
-      <div className={`${className} flex items-center justify-center bg-gradient-to-br from-white/5 to-transparent`}>
+      <div className={`${className} flex items-center justify-center bg-white/5`}>
         <div className="w-7 h-7 border-2 border-secondary-400/30 border-t-secondary-400 rounded-full animate-spin" />
       </div>
     );
@@ -101,7 +101,7 @@ const CachedThumbnail = ({ src, alt, className }) => {
 
   if (error || !imageSrc) {
     return (
-      <div className={`${className} flex items-center justify-center bg-gradient-to-br from-white/5 to-transparent`}>
+      <div className={`${className} flex items-center justify-center bg-white/5`}>
         <ImageIcon className="w-8 h-8 text-gray-600" />
       </div>
     );
@@ -116,7 +116,7 @@ const CachedThumbnail = ({ src, alt, className }) => {
   );
 };
 
-// Premium Design Card component
+// Flat Design Card component
 const DesignCard = ({ design, onClick }) => {
   const [isPressed, setIsPressed] = useState(false);
 
@@ -127,12 +127,12 @@ const DesignCard = ({ design, onClick }) => {
       onMouseUp={() => setIsPressed(false)}
       onMouseLeave={() => setIsPressed(false)}
       className={`
-        rounded-2xl overflow-hidden 
-        bg-gradient-to-br from-white/[0.08] to-white/[0.02] 
+        rounded-xl overflow-hidden 
+        bg-white/[0.05]
         border transition-all duration-200 group
         ${isPressed 
-          ? 'border-secondary-400/50 scale-[0.97] shadow-xl shadow-secondary-500/20' 
-          : 'border-white/[0.1] hover:border-secondary-400/40 hover:shadow-xl hover:shadow-secondary-500/15 hover:scale-[1.02]'
+          ? 'border-secondary-400/50 scale-[0.98]' 
+          : 'border-white/[0.1] hover:border-secondary-400/40 hover:bg-white/[0.08]'
         }
       `}
     >
@@ -142,19 +142,15 @@ const DesignCard = ({ design, onClick }) => {
           alt={design.title}
           className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
         />
-        {/* Top shine effect */}
-        <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-white/10 to-transparent pointer-events-none" />
-        {/* Bottom gradient overlay */}
-        <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/70 via-black/30 to-transparent pointer-events-none" />
         {/* Press overlay */}
         {isPressed && (
           <div className="absolute inset-0 bg-secondary-400/10 pointer-events-none" />
         )}
       </div>
-      {/* Title section with glass effect */}
-      <div className="p-3.5 bg-white/[0.03] backdrop-blur-sm border-t border-white/[0.08] flex items-center gap-2">
-        <p className="text-sm text-white font-semibold truncate flex-1 tracking-tight">{design.title}</p>
-        <div className="w-6 h-6 rounded-md bg-secondary-400/20 flex items-center justify-center flex-shrink-0">
+      {/* Title section - flat style */}
+      <div className="p-3 bg-white/[0.03] border-t border-white/[0.08] flex items-center gap-2">
+        <p className="text-sm text-white font-medium truncate flex-1">{design.title}</p>
+        <div className="w-6 h-6 rounded-md bg-secondary-400/15 flex items-center justify-center flex-shrink-0">
           <ArrowRight className="w-3.5 h-3.5 text-secondary-300" />
         </div>
       </div>
@@ -189,7 +185,7 @@ const getLocalizedCategoryLabel = (category, t) => {
   }
 };
 
-// Category chip component
+// Category chip component - flat style
 const CategoryChip = ({ category, isActive, onClick, t }) => {
   const label = getLocalizedCategoryLabel(category, t);
   
@@ -198,9 +194,9 @@ const CategoryChip = ({ category, isActive, onClick, t }) => {
       onClick={onClick}
       className={`
         px-5 py-2.5 rounded-full text-sm font-medium whitespace-nowrap 
-        transition-all duration-250 ease-out
+        transition-all duration-200
         ${isActive
-          ? 'bg-gradient-to-r from-secondary-500 to-secondary-600 text-white shadow-lg shadow-secondary-500/35 border-1.5 border-secondary-400/50 scale-[1.02]'
+          ? 'bg-secondary-500 text-white border border-secondary-400/50'
           : 'bg-white/[0.04] text-gray-400 hover:bg-white/[0.08] hover:text-gray-200 border border-white/[0.08]'
         }
       `}
@@ -274,7 +270,7 @@ const ReadyDesignsModal = ({ isOpen, onClose, onSelectDesign }) => {
       try {
         const itemsQuery = query(
           collection(db, 'preDesigns', activeCategory, 'items'),
-          orderBy('createdAt', 'desc')
+          orderBy('createdAt', 'asc')
         );
         const snapshot = await getDocs(itemsQuery);
         
@@ -322,14 +318,13 @@ const ReadyDesignsModal = ({ isOpen, onClose, onSelectDesign }) => {
         onClick={onClose}
       />
 
-      {/* Modal Container */}
+      {/* Modal Container - flat style */}
       <div 
         className={`
           relative w-[92vw] max-w-6xl h-[88vh] flex flex-col
-          rounded-3xl overflow-hidden
-          bg-gradient-to-b from-[#1A2744] to-[#0F172A]
-          shadow-2xl shadow-primary-500/10
-          border border-white/[0.08]
+          rounded-2xl overflow-hidden
+          bg-[#141D2E]
+          border border-white/[0.1]
           transition-all duration-300 ease-out
           ${isOpen 
             ? 'scale-100 translate-y-0' 
@@ -337,26 +332,9 @@ const ReadyDesignsModal = ({ isOpen, onClose, onSelectDesign }) => {
           }
         `}
       >
-        {/* Decorative background elements */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          {/* Top right orb */}
-          <div 
-            className="absolute -top-24 -right-12 w-64 h-64 rounded-full"
-            style={{
-              background: 'radial-gradient(circle, rgba(181,146,89,0.15) 0%, transparent 70%)'
-            }}
-          />
-          {/* Left orb */}
-          <div 
-            className="absolute top-48 -left-20 w-52 h-52 rounded-full"
-            style={{
-              background: 'radial-gradient(circle, rgba(115,149,189,0.1) 0%, transparent 70%)'
-            }}
-          />
-        </div>
 
-        {/* Header */}
-        <div className="relative px-6 pt-5 pb-4 border-b border-white/[0.06]">
+        {/* Header - flat style */}
+        <div className="relative px-6 pt-5 pb-4 border-b border-white/[0.08]">
           {/* Drag handle */}
           <div className="flex justify-center mb-4">
             <div className="w-10 h-1 rounded-full bg-white/20" />
@@ -364,12 +342,12 @@ const ReadyDesignsModal = ({ isOpen, onClose, onSelectDesign }) => {
           
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3.5">
-              {/* Icon container */}
-              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-secondary-400/20 to-secondary-600/10 border border-secondary-400/30 flex items-center justify-center">
+              {/* Icon container - flat */}
+              <div className="w-11 h-11 rounded-lg bg-secondary-400/15 border border-secondary-400/25 flex items-center justify-center">
                 <LayoutGrid className="w-5 h-5 text-secondary-300" />
               </div>
-              {/* Title with gradient */}
-              <h2 className="text-2xl font-semibold tracking-tight bg-gradient-to-r from-white to-secondary-200 bg-clip-text text-transparent">
+              {/* Title - flat */}
+              <h2 className="text-2xl font-semibold tracking-tight text-white">
                 {t('readyDesigns')}
               </h2>
             </div>
@@ -377,7 +355,7 @@ const ReadyDesignsModal = ({ isOpen, onClose, onSelectDesign }) => {
             {/* Close button */}
             <button 
               onClick={onClose}
-              className="w-10 h-10 rounded-xl bg-white/[0.05] border border-white/[0.08] flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/[0.1] transition-all duration-200"
+              className="w-10 h-10 rounded-lg bg-white/[0.05] border border-white/[0.08] flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/[0.1] transition-all duration-200"
             >
               <X className="w-5 h-5" />
             </button>
@@ -423,8 +401,8 @@ const ReadyDesignsModal = ({ isOpen, onClose, onSelectDesign }) => {
         >
           {loadingDesigns ? (
             <div className="flex flex-col items-center justify-center h-full text-gray-400">
-              {/* Premium loading state */}
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-secondary-400/15 to-secondary-600/8 border border-secondary-400/20 flex items-center justify-center mb-5">
+              {/* Flat loading state */}
+              <div className="w-16 h-16 rounded-xl bg-secondary-400/10 border border-secondary-400/20 flex items-center justify-center mb-5">
                 <div className="w-8 h-8 border-[2.5px] border-secondary-400/30 border-t-secondary-400 rounded-full animate-spin" />
               </div>
               <p className="text-gray-400 font-medium">{t('loadingDesigns') || 'Loading designs...'}</p>
@@ -453,8 +431,8 @@ const ReadyDesignsModal = ({ isOpen, onClose, onSelectDesign }) => {
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-gray-400">
-              {/* Empty state */}
-              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-white/[0.06] to-white/[0.02] border border-white/[0.08] flex items-center justify-center mb-5">
+              {/* Empty state - flat */}
+              <div className="w-20 h-20 rounded-xl bg-white/[0.05] border border-white/[0.08] flex items-center justify-center mb-5">
                 <ImageIcon className="w-9 h-9 text-gray-600" />
               </div>
               <p className="text-white font-semibold text-lg mb-1.5">{t('comingSoon') || 'Coming soon...'}</p>

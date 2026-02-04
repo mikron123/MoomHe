@@ -494,5 +494,23 @@
   "categoryKidsBedroom": "Camera dei bambini",
   "categoryBathroom": "Bagno",
   "categoryLivingRoom": "Soggiorno",
-  "categoryMasterBedroom": "Camera da letto principale"
+  "categoryMasterBedroom": "Camera da letto principale",
+
+  "useDesignQuestion": "Usare questo design?",
+  "yes": "Sì",
+  "no": "No",
+
+  "featureCarouselTitle1": "Design con IA",
+  "featureCarouselSubtitle1": "✨ REDESIGN INTELLIGENTE",
+  "featureCarouselDesc1": "Trasforma qualsiasi stanza con l'IA all'avanguardia. Carica semplicemente una foto e guarda il tuo spazio prendere vita con design professionali.",
+
+  "featureCarouselTitle2": "Possibilità Infinite",
+  "featureCarouselSubtitle2": "🎨 STILI E COLORI",
+  "featureCarouselDesc2": "Dal minimalismo moderno al bohémien accogliente — esplora dozzine di stili di design e palette di colori su misura per i tuoi gusti.",
+
+  "featureCarouselTitle3": "Risultati Istantanei",
+  "featureCarouselSubtitle3": "⚡ SECONDI, NON ORE",
+  "featureCarouselDesc3": "Quello che prima richiedeva ore ai designer ora avviene in secondi. Ottieni trasformazioni prima e dopo mozzafiato istantaneamente.",
+
+  "getStarted": "Inizia"
 }

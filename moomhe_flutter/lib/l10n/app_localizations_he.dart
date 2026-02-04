@@ -1242,4 +1242,56 @@ class AppLocalizationsHe extends AppLocalizations {
 
   @override
   String get categoryMasterBedroom => 'חדר שינה ראשי';
+
+  @override
+  String get useDesignQuestion => 'להשתמש בעיצוב הזה?';
+
+  @override
+  String get yes => 'כן';
+
+  @override
+  String get no => 'לא';
+
+  @override
+  String get featureCarouselTitle1 => 'עיצוב מונע בינה מלאכותית';
+
+  @override
+  String get featureCarouselSubtitle1 => '✨ עיצוב מחדש חכם';
+
+  @override
+  String get featureCarouselDesc1 =>
+      'שנו כל חדר עם AI מתקדם. פשוט העלו תמונה וצפו בחלל שלכם מתעורר לחיים עם עיצובים ברמה מקצועית.';
+
+  @override
+  String get featureCarouselTitle2 => 'אפשרויות אינסופיות';
+
+  @override
+  String get featureCarouselSubtitle2 => '🎨 סגנונות וצבעים';
+
+  @override
+  String get featureCarouselDesc2 =>
+      'ממינימליזם מודרני ועד בוהמי נעים - גלו עשרות סגנונות עיצוב ופלטות צבעים המותאמות לטעם שלכם.';
+
+  @override
+  String get featureCarouselTitle3 => 'תוצאות מיידיות';
+
+  @override
+  String get featureCarouselSubtitle3 => '⚡ שניות, לא שעות';
+
+  @override
+  String get featureCarouselDesc3 =>
+      'מה שנהג לקחת למעצבים שעות קורה עכשיו בשניות. קבלו שינויים מדהימים של לפני ואחרי מיד.';
+
+  @override
+  String get getStarted => 'בואו נתחיל';
+
+  @override
+  String freeTrialDays(int days) {
+    return '$days Days Free Trial';
+  }
+
+  @override
+  String thenPrice(Object price) {
+    return 'then $price/month';
+  }
 }

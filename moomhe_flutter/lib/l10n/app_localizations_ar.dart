@@ -1249,4 +1249,56 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get categoryMasterBedroom => 'غرفة النوم الرئيسية';
+
+  @override
+  String get useDesignQuestion => 'استخدام هذا التصميم؟';
+
+  @override
+  String get yes => 'نعم';
+
+  @override
+  String get no => 'لا';
+
+  @override
+  String get featureCarouselTitle1 => 'تصميم مدعوم بالذكاء الاصطناعي';
+
+  @override
+  String get featureCarouselSubtitle1 => '✨ إعادة تصميم ذكية';
+
+  @override
+  String get featureCarouselDesc1 =>
+      'حوّل أي غرفة باستخدام الذكاء الاصطناعي المتطور. ما عليك سوى تحميل صورة ومشاهدة مساحتك تنبض بالحياة بتصاميم احترافية.';
+
+  @override
+  String get featureCarouselTitle2 => 'إمكانيات لا نهائية';
+
+  @override
+  String get featureCarouselSubtitle2 => '🎨 أنماط وألوان';
+
+  @override
+  String get featureCarouselDesc2 =>
+      'من البساطة الحديثة إلى البوهيمية المريحة - استكشف عشرات أنماط التصميم ولوحات الألوان المصممة حسب ذوقك.';
+
+  @override
+  String get featureCarouselTitle3 => 'نتائج فورية';
+
+  @override
+  String get featureCarouselSubtitle3 => '⚡ ثوانٍ وليس ساعات';
+
+  @override
+  String get featureCarouselDesc3 =>
+      'ما كان يستغرق ساعات من المصممين يحدث الآن في ثوانٍ. احصل على تحولات مذهلة قبل وبعد فوراً.';
+
+  @override
+  String get getStarted => 'ابدأ الآن';
+
+  @override
+  String freeTrialDays(int days) {
+    return '$days Days Free Trial';
+  }
+
+  @override
+  String thenPrice(Object price) {
+    return 'then $price/month';
+  }
 }

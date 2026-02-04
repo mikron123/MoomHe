@@ -494,5 +494,23 @@
   "categoryKidsBedroom": "საბავშვო საძინებელი",
   "categoryBathroom": "აბაზანა",
   "categoryLivingRoom": "მისაღები ოთახი",
-  "categoryMasterBedroom": "მთავარი საძინებელი"
+  "categoryMasterBedroom": "მთავარი საძინებელი",
+
+  "useDesignQuestion": "გამოიყენოთ ეს დიზაინი?",
+  "yes": "დიახ",
+  "no": "არა",
+
+  "featureCarouselTitle1": "ხელოვნური ინტელექტით მართული დიზაინი",
+  "featureCarouselSubtitle1": "✨ ჭკვიანი ხელახალი დიზაინი",
+  "featureCarouselDesc1": "გარდაქმენით ნებისმიერი ოთახი უახლესი AI-ით. უბრალოდ ატვირთეთ ფოტო და უყურეთ როგორ ცოცხლდება თქვენი სივრცე პროფესიონალური დიზაინებით.",
+
+  "featureCarouselTitle2": "უსასრულო შესაძლებლობები",
+  "featureCarouselSubtitle2": "🎨 სტილები და ფერები",
+  "featureCarouselDesc2": "თანამედროვე მინიმალიზმიდან მყუდრო ბოჰომდე — გამოიკვლიეთ ათეულობით დიზაინის სტილი და ფერთა პალიტრა თქვენი გემოვნებისთვის.",
+
+  "featureCarouselTitle3": "მყისიერი შედეგები",
+  "featureCarouselSubtitle3": "⚡ წამები, არა საათები",
+  "featureCarouselDesc3": "რაც ადრე დიზაინერებს საათებს სჭირდებოდა, ახლა წამებში ხდება. მიიღეთ საოცარი გარდაქმნები მანამდე და მერე მყისიერად.",
+
+  "getStarted": "დაწყება"
 }

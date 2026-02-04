@@ -494,5 +494,23 @@
   "categoryKidsBedroom": "Dormitor pentru copii",
   "categoryBathroom": "Baie",
   "categoryLivingRoom": "Living",
-  "categoryMasterBedroom": "Dormitor principal"
+  "categoryMasterBedroom": "Dormitor principal",
+
+  "useDesignQuestion": "Folosiți acest design?",
+  "yes": "Da",
+  "no": "Nu",
+
+  "featureCarouselTitle1": "Design cu inteligență artificială",
+  "featureCarouselSubtitle1": "✨ REDESIGN INTELIGENT",
+  "featureCarouselDesc1": "Transformați orice cameră cu AI de ultimă generație. Încărcați pur și simplu o fotografie și priviți cum spațiul dvs. prinde viață cu design-uri profesionale.",
+
+  "featureCarouselTitle2": "Posibilități nelimitate",
+  "featureCarouselSubtitle2": "🎨 STILURI ȘI CULORI",
+  "featureCarouselDesc2": "De la minimalismul modern la boho confortabil — explorați zeci de stiluri de design și palete de culori adaptate gusturilor dvs.",
+
+  "featureCarouselTitle3": "Rezultate instantanee",
+  "featureCarouselSubtitle3": "⚡ SECUNDE, NU ORE",
+  "featureCarouselDesc3": "Ceea ce obișnuia să dureze ore pentru designeri se întâmplă acum în secunde. Obțineți transformări uimitoare înainte și după instantaneu.",
+
+  "getStarted": "Începeți"
 }

@@ -494,5 +494,23 @@
   "categoryKidsBedroom": "Barnasvefnherbergi",
   "categoryBathroom": "Baðherbergi",
   "categoryLivingRoom": "Stofa",
-  "categoryMasterBedroom": "Aðal svefnherbergi"
+  "categoryMasterBedroom": "Aðal svefnherbergi",
+
+  "useDesignQuestion": "Nota þessa hönnun?",
+  "yes": "Já",
+  "no": "Nei",
+
+  "featureCarouselTitle1": "Gervigreind hönnun",
+  "featureCarouselSubtitle1": "✨ SNJÖLL ENDURHÖNNUN",
+  "featureCarouselDesc1": "Umbreyttu hvaða herbergi sem er með háþróaðri gervigreind. Hladdu bara upp mynd og horfðu á rýmið þitt vakna til lífsins með faglegum hönnunum.",
+
+  "featureCarouselTitle2": "Endalausir möguleikar",
+  "featureCarouselSubtitle2": "🎨 STÍLAR OG LITIR",
+  "featureCarouselDesc2": "Frá nútímalegum mínimalisma til notalegrar boho — kannaðu tugi af hönnunarstílum og litapöllum sem henta þínum smekk.",
+
+  "featureCarouselTitle3": "Tafarlausar niðurstöður",
+  "featureCarouselSubtitle3": "⚡ SEKÚNDUR, EKKI KLUKKUSTUNDIR",
+  "featureCarouselDesc3": "Það sem áður tók hönnuði klukkustundir gerist nú á sekúndum. Fáðu ótrúlegar fyrir og eftir umbreytingar samstundis.",
+
+  "getStarted": "Byrja"
 }

@@ -1249,4 +1249,56 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get categoryMasterBedroom => 'Master Bedroom';
+
+  @override
+  String get useDesignQuestion => 'Use this design?';
+
+  @override
+  String get yes => 'Yes';
+
+  @override
+  String get no => 'No';
+
+  @override
+  String get featureCarouselTitle1 => 'AI-Powered Design';
+
+  @override
+  String get featureCarouselSubtitle1 => '✨ INTELLIGENT REDESIGN';
+
+  @override
+  String get featureCarouselDesc1 =>
+      'Transform any room with cutting-edge AI. Simply upload a photo and watch your space come alive with professional-grade designs.';
+
+  @override
+  String get featureCarouselTitle2 => 'Endless Possibilities';
+
+  @override
+  String get featureCarouselSubtitle2 => '🎨 STYLES & COLORS';
+
+  @override
+  String get featureCarouselDesc2 =>
+      'From modern minimalist to cozy bohemian — explore dozens of design styles and color palettes tailored to your taste.';
+
+  @override
+  String get featureCarouselTitle3 => 'Instant Results';
+
+  @override
+  String get featureCarouselSubtitle3 => '⚡ SECONDS, NOT HOURS';
+
+  @override
+  String get featureCarouselDesc3 =>
+      'What used to take designers hours now happens in seconds. Get stunning before & after transformations instantly.';
+
+  @override
+  String get getStarted => 'Get Started';
+
+  @override
+  String freeTrialDays(int days) {
+    return '$days Days Free Trial';
+  }
+
+  @override
+  String thenPrice(Object price) {
+    return 'then $price/month';
+  }
 }

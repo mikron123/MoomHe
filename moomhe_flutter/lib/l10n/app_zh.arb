@@ -494,5 +494,23 @@
   "categoryKidsBedroom": "儿童卧室",
   "categoryBathroom": "浴室",
   "categoryLivingRoom": "客厅",
-  "categoryMasterBedroom": "主卧室"
+  "categoryMasterBedroom": "主卧室",
+
+  "useDesignQuestion": "使用此设计？",
+  "yes": "是",
+  "no": "否",
+
+  "featureCarouselTitle1": "AI驱动设计",
+  "featureCarouselSubtitle1": "✨ 智能重新设计",
+  "featureCarouselDesc1": "用尖端AI改造任何房间。只需上传照片，即可看到您的空间以专业级设计焕然一新。",
+
+  "featureCarouselTitle2": "无限可能",
+  "featureCarouselSubtitle2": "🎨 风格与色彩",
+  "featureCarouselDesc2": "从现代简约到舒适波西米亚——探索数十种设计风格和配色方案，满足您的品味。",
+
+  "featureCarouselTitle3": "即时结果",
+  "featureCarouselSubtitle3": "⚡ 秒级而非小时级",
+  "featureCarouselDesc3": "曾经设计师需要几小时的工作现在几秒钟即可完成。立即获得令人惊叹的前后对比效果。",
+
+  "getStarted": "开始使用"
 }

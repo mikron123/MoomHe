@@ -1254,4 +1254,56 @@ class AppLocalizationsSl extends AppLocalizations {
 
   @override
   String get categoryMasterBedroom => 'Glavna spalnica';
+
+  @override
+  String get useDesignQuestion => 'Uporabiti ta dizajn?';
+
+  @override
+  String get yes => 'Da';
+
+  @override
+  String get no => 'Ne';
+
+  @override
+  String get featureCarouselTitle1 => 'Oblikovanje z umetno inteligenco';
+
+  @override
+  String get featureCarouselSubtitle1 => '✨ INTELIGENTNO PREOBLIKOVANJE';
+
+  @override
+  String get featureCarouselDesc1 =>
+      'Preoblikujte katerikoli prostor z najsodobnejšo umetno inteligenco. Preprosto naložite fotografijo in opazujte, kako vaš prostor oživi s profesionalnimi dizajni.';
+
+  @override
+  String get featureCarouselTitle2 => 'Neskončne možnosti';
+
+  @override
+  String get featureCarouselSubtitle2 => '🎨 SLOGI IN BARVE';
+
+  @override
+  String get featureCarouselDesc2 =>
+      'Od sodobnega minimalizma do udobnega boho — raziščite na desetine oblikovalskih slogov in barvnih palet, prilagojenih vašemu okusu.';
+
+  @override
+  String get featureCarouselTitle3 => 'Takojšnji rezultati';
+
+  @override
+  String get featureCarouselSubtitle3 => '⚡ SEKUNDE, NE URE';
+
+  @override
+  String get featureCarouselDesc3 =>
+      'Kar je včasih oblikovalcem vzelo ure, se zdaj zgodi v sekundah. Takoj pridobite osupljive preobrazbe pred in po.';
+
+  @override
+  String get getStarted => 'Začni';
+
+  @override
+  String freeTrialDays(int days) {
+    return '$days Days Free Trial';
+  }
+
+  @override
+  String thenPrice(Object price) {
+    return 'then $price/month';
+  }
 }

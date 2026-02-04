@@ -134,6 +134,9 @@ class _ReadyDesignsModalState extends State<ReadyDesignsModal>
   bool _loadingDesigns = false;
   bool _downloadingDesign = false;
 
+  // Preview confirmation state
+  DesignItem? _previewingDesign;
+
   // Scroll controllers - state persists because widget stays in tree
   final ScrollController _categoryScrollController = ScrollController();
   final ScrollController _gridScrollController = ScrollController();
@@ -213,7 +216,7 @@ class _ReadyDesignsModalState extends State<ReadyDesignsModal>
           .collection('preDesigns')
           .doc(categoryId)
           .collection('items')
-          .orderBy('createdAt', descending: true)
+          .orderBy('createdAt', descending: false)
           .get();
 
       final designs =
@@ -252,6 +255,29 @@ class _ReadyDesignsModalState extends State<ReadyDesignsModal>
     }
 
     _loadDesigns(category.id);
+  }
+
+  void _showPreview(DesignItem design) {
+    setState(() {
+      _previewingDesign = design;
+    });
+  }
+
+  void _hidePreview() {
+    setState(() {
+      _previewingDesign = null;
+    });
+  }
+
+  void _confirmDesign() {
+    if (_previewingDesign != null) {
+      final design = _previewingDesign!;
+      _hidePreview();
+      // Small delay to allow Hero animation to complete
+      Future.delayed(const Duration(milliseconds: 150), () {
+        _handleDesignSelect(design);
+      });
+    }
   }
 
   Future<void> _handleDesignSelect(DesignItem design) async {
@@ -321,31 +347,10 @@ class _ReadyDesignsModalState extends State<ReadyDesignsModal>
     final l10n = AppLocalizations.of(context)!;
 
     return Container(
-      decoration: BoxDecoration(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            const Color(0xFF1A2744),
-            AppColors.background,
-          ],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary500.withValues(alpha: 0.15),
-            blurRadius: 40,
-            offset: const Offset(0, -10),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      color: const Color(0xFF141D2E),
+      child: SafeArea(
         child: Stack(
           children: [
-            // Decorative background elements
-            _buildBackgroundDecoration(),
-
             // Main content
             Column(
               children: [
@@ -364,140 +369,169 @@ class _ReadyDesignsModalState extends State<ReadyDesignsModal>
 
             // Loading overlay when downloading
             if (_downloadingDesign) _buildLoadingOverlay(l10n),
+
+            // Preview confirmation overlay
+            if (_previewingDesign != null) _buildPreviewOverlay(l10n),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildBackgroundDecoration() {
-    return Positioned.fill(
-      child: Stack(
-        children: [
-          // Top gradient orb
-          Positioned(
-            top: -100,
-            right: -50,
-            child: Container(
-              width: 250,
-              height: 250,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    AppColors.secondary400.withValues(alpha: 0.15),
-                    AppColors.secondary400.withValues(alpha: 0.0),
+  Widget _buildPreviewOverlay(AppLocalizations l10n) {
+    final design = _previewingDesign!;
+    
+    return GestureDetector(
+      onTap: _hidePreview,
+      child: Container(
+        color: Colors.black.withValues(alpha: 0.85),
+        child: SafeArea(
+          child: Column(
+            children: [
+              // Top spacing
+              const Spacer(flex: 1),
+              
+              // Hero animated image
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Hero(
+                  tag: 'design_preview_${design.id}',
+                  child: AspectRatio(
+                    aspectRatio: 16 / 9,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: CachedNetworkImage(
+                        imageUrl: design.thumbnailUrl,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => Container(
+                          color: Colors.white.withValues(alpha: 0.05),
+                          child: const Center(
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        ),
+                        errorWidget: (context, url, error) => Container(
+                          color: Colors.white.withValues(alpha: 0.05),
+                          child: const Icon(LucideIcons.imageOff, color: Colors.white54),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              
+              const SizedBox(height: 32),
+              
+              // Title
+              Text(
+                design.title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              
+              const SizedBox(height: 12),
+              
+              // "Use design?" text
+              Text(
+                l10n.useDesignQuestion,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.white.withValues(alpha: 0.7),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              
+              const SizedBox(height: 32),
+              
+              // Yes/No buttons
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 40),
+                child: Row(
+                  children: [
+                    // No button
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: _hidePreview,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.2),
+                            ),
+                          ),
+                          child: Text(
+                            l10n.no,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                    ),
+                    
+                    const SizedBox(width: 16),
+                    
+                    // Yes button
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: _confirmDesign,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          decoration: BoxDecoration(
+                            color: AppColors.secondary500,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            l10n.yes,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
-            ),
+              
+              // Bottom spacing
+              const Spacer(flex: 2),
+            ],
           ),
-          // Left gradient orb
-          Positioned(
-            top: 200,
-            left: -80,
-            child: Container(
-              width: 200,
-              height: 200,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    AppColors.primary500.withValues(alpha: 0.1),
-                    AppColors.primary500.withValues(alpha: 0.0),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 
+
   Widget _buildHeader(AppLocalizations l10n) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(24, 16, 16, 16),
+      padding: const EdgeInsets.fromLTRB(20, 12, 16, 12),
       decoration: BoxDecoration(
         border: Border(
           bottom: BorderSide(
-            color: Colors.white.withValues(alpha: 0.06),
+            color: Colors.white.withValues(alpha: 0.08),
           ),
         ),
       ),
       child: Row(
         children: [
-          // Drag handle indicator
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Drag handle
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    margin: const EdgeInsets.only(bottom: 16),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                Row(
-                  children: [
-                    // Icon with gradient background
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            AppColors.secondary400.withValues(alpha: 0.2),
-                            AppColors.secondary600.withValues(alpha: 0.1),
-                          ],
-                        ),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: AppColors.secondary400.withValues(alpha: 0.3),
-                        ),
-                      ),
-                      child: Icon(
-                        LucideIcons.layoutGrid,
-                        color: AppColors.secondary300,
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    // Title with gradient
-                    ShaderMask(
-                      shaderCallback: (bounds) => LinearGradient(
-                        colors: [
-                          Colors.white,
-                          AppColors.secondary200,
-                        ],
-                      ).createShader(bounds),
-                      child: Text(
-                        l10n.readyDesigns,
-                        style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                          letterSpacing: -0.5,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          // Close button
+          // Back/Close button
           Container(
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(10),
               border: Border.all(
                 color: Colors.white.withValues(alpha: 0.08),
               ),
@@ -514,6 +548,19 @@ class _ReadyDesignsModalState extends State<ReadyDesignsModal>
                 LucideIcons.x,
                 color: AppColors.textMuted,
                 size: 20,
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+          // Title
+          Expanded(
+            child: Text(
+              l10n.readyDesigns,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+                letterSpacing: -0.5,
               ),
             ),
           ),
@@ -597,37 +644,17 @@ class _ReadyDesignsModalState extends State<ReadyDesignsModal>
     return GestureDetector(
       onTap: () => _onCategoryTap(category),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
+        duration: const Duration(milliseconds: 200),
         curve: Curves.easeOutCubic,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         decoration: BoxDecoration(
-          gradient: isActive
-              ? LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    AppColors.secondary500,
-                    AppColors.secondary600,
-                  ],
-                )
-              : null,
-          color: isActive ? null : Colors.white.withValues(alpha: 0.04),
+          color: isActive ? AppColors.secondary500 : Colors.white.withValues(alpha: 0.04),
           borderRadius: BorderRadius.circular(25),
           border: Border.all(
             color: isActive
                 ? AppColors.secondary400.withValues(alpha: 0.5)
                 : Colors.white.withValues(alpha: 0.08),
-            width: isActive ? 1.5 : 1,
           ),
-          boxShadow: isActive
-              ? [
-                  BoxShadow(
-                    color: AppColors.secondary500.withValues(alpha: 0.35),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ]
-              : null,
         ),
         child: Text(
           category.getLocalizedLabel(l10n),
@@ -635,7 +662,6 @@ class _ReadyDesignsModalState extends State<ReadyDesignsModal>
             fontSize: 14,
             fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
             color: isActive ? Colors.white : AppColors.textMuted,
-            letterSpacing: isActive ? 0.3 : 0,
           ),
         ),
       ),
@@ -665,7 +691,7 @@ class _ReadyDesignsModalState extends State<ReadyDesignsModal>
         final design = _currentDesigns[index];
         return _DesignCard(
           design: design,
-          onTap: () => _handleDesignSelect(design),
+          onTap: () => _showPreview(design),
           index: index,
         );
       },
@@ -677,21 +703,14 @@ class _ReadyDesignsModalState extends State<ReadyDesignsModal>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Custom loading animation
+          // Flat loading container
           Container(
             width: 56,
             height: 56,
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  AppColors.secondary400.withValues(alpha: 0.15),
-                  AppColors.secondary600.withValues(alpha: 0.08),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(16),
+              color: AppColors.secondary400.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(14),
               border: Border.all(
                 color: AppColors.secondary400.withValues(alpha: 0.2),
               ),
@@ -724,15 +743,8 @@ class _ReadyDesignsModalState extends State<ReadyDesignsModal>
             width: 80,
             height: 80,
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Colors.white.withValues(alpha: 0.06),
-                  Colors.white.withValues(alpha: 0.02),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(20),
+              color: Colors.white.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(14),
               border: Border.all(
                 color: Colors.white.withValues(alpha: 0.08),
               ),
@@ -775,24 +787,11 @@ class _ReadyDesignsModalState extends State<ReadyDesignsModal>
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 28),
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    AppColors.surface.withValues(alpha: 0.95),
-                    AppColors.background.withValues(alpha: 0.95),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(20),
+                color: AppColors.surface.withValues(alpha: 0.95),
+                borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color: AppColors.secondary400.withValues(alpha: 0.3),
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.secondary500.withValues(alpha: 0.2),
-                    blurRadius: 30,
-                  ),
-                ],
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -824,7 +823,7 @@ class _ReadyDesignsModalState extends State<ReadyDesignsModal>
   }
 }
 
-/// Premium design card with animations
+/// Flat design card with animations
 class _DesignCard extends StatefulWidget {
   final DesignItem design;
   final VoidCallback onTap;
@@ -853,7 +852,7 @@ class _DesignCardState extends State<_DesignCard>
       vsync: this,
       duration: const Duration(milliseconds: 150),
     );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.96).animate(
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.98).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
     );
   }
@@ -896,37 +895,16 @@ class _DesignCardState extends State<_DesignCard>
         onTap: widget.onTap,
         child: Container(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Colors.white.withValues(alpha: 0.08),
-                Colors.white.withValues(alpha: 0.02),
-              ],
-            ),
+            borderRadius: BorderRadius.circular(12),
+            color: Colors.white.withValues(alpha: 0.05),
             border: Border.all(
               color: _isPressed
                   ? AppColors.secondary400.withValues(alpha: 0.5)
                   : Colors.white.withValues(alpha: 0.1),
-              width: _isPressed ? 1.5 : 1,
             ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.2),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-              if (_isPressed)
-                BoxShadow(
-                  color: AppColors.secondary400.withValues(alpha: 0.15),
-                  blurRadius: 20,
-                  offset: const Offset(0, 4),
-                ),
-            ],
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(15),
+            borderRadius: BorderRadius.circular(11),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -935,50 +913,15 @@ class _DesignCardState extends State<_DesignCard>
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      // Main image
-                      CachedNetworkImage(
-                        imageUrl: widget.design.thumbnailUrl,
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) => _buildPlaceholder(),
-                        errorWidget: (context, url, error) =>
-                            _buildErrorWidget(),
-                      ),
-                      // Gradient overlay
-                      Positioned(
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
-                        height: 80,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                Colors.transparent,
-                                Colors.black.withValues(alpha: 0.7),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      // Top shine effect
-                      Positioned(
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        height: 60,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                Colors.white.withValues(alpha: 0.15),
-                                Colors.transparent,
-                              ],
-                            ),
-                          ),
+                      // Main image with Hero
+                      Hero(
+                        tag: 'design_preview_${widget.design.id}',
+                        child: CachedNetworkImage(
+                          imageUrl: widget.design.thumbnailUrl,
+                          fit: BoxFit.cover,
+                          placeholder: (context, url) => _buildPlaceholder(),
+                          errorWidget: (context, url, error) =>
+                              _buildErrorWidget(),
                         ),
                       ),
                       // Press indicator
@@ -991,53 +934,49 @@ class _DesignCardState extends State<_DesignCard>
                     ],
                   ),
                 ),
-                // Title section with glass effect
-                ClipRRect(
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.05),
-                        border: Border(
-                          top: BorderSide(
-                            color: Colors.white.withValues(alpha: 0.1),
-                          ),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              widget.design.title,
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
-                                letterSpacing: 0.2,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              color:
-                                  AppColors.secondary400.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Icon(
-                              LucideIcons.arrowRight,
-                              size: 14,
-                              color: AppColors.secondary300,
-                            ),
-                          ),
-                        ],
+                // Title section - flat style
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.03),
+                    border: Border(
+                      top: BorderSide(
+                        color: Colors.white.withValues(alpha: 0.08),
                       ),
                     ),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          widget.design.title,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color:
+                              AppColors.secondary400.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Icon(
+                          Directionality.of(context) == TextDirection.rtl
+                              ? LucideIcons.arrowLeft
+                              : LucideIcons.arrowRight,
+                          size: 14,
+                          color: AppColors.secondary300,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -1050,16 +989,7 @@ class _DesignCardState extends State<_DesignCard>
 
   Widget _buildPlaceholder() {
     return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppColors.surfaceHighlight,
-            AppColors.surface,
-          ],
-        ),
-      ),
+      color: Colors.white.withValues(alpha: 0.05),
       child: Center(
         child: SizedBox(
           width: 28,

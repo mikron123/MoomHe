@@ -494,5 +494,23 @@
   "categoryKidsBedroom": "Otroška soba",
   "categoryBathroom": "Kopalnica",
   "categoryLivingRoom": "Dnevna soba",
-  "categoryMasterBedroom": "Glavna spalnica"
+  "categoryMasterBedroom": "Glavna spalnica",
+
+  "useDesignQuestion": "Uporabiti ta dizajn?",
+  "yes": "Da",
+  "no": "Ne",
+
+  "featureCarouselTitle1": "Oblikovanje z umetno inteligenco",
+  "featureCarouselSubtitle1": "✨ INTELIGENTNO PREOBLIKOVANJE",
+  "featureCarouselDesc1": "Preoblikujte katerikoli prostor z najsodobnejšo umetno inteligenco. Preprosto naložite fotografijo in opazujte, kako vaš prostor oživi s profesionalnimi dizajni.",
+
+  "featureCarouselTitle2": "Neskončne možnosti",
+  "featureCarouselSubtitle2": "🎨 SLOGI IN BARVE",
+  "featureCarouselDesc2": "Od sodobnega minimalizma do udobnega boho — raziščite na desetine oblikovalskih slogov in barvnih palet, prilagojenih vašemu okusu.",
+
+  "featureCarouselTitle3": "Takojšnji rezultati",
+  "featureCarouselSubtitle3": "⚡ SEKUNDE, NE URE",
+  "featureCarouselDesc3": "Kar je včasih oblikovalcem vzelo ure, se zdaj zgodi v sekundah. Takoj pridobite osupljive preobrazbe pred in po.",
+
+  "getStarted": "Začni"
 }

@@ -1257,4 +1257,56 @@ class AppLocalizationsHu extends AppLocalizations {
 
   @override
   String get categoryMasterBedroom => 'Főhálószoba';
+
+  @override
+  String get useDesignQuestion => 'Használja ezt a dizájnt?';
+
+  @override
+  String get yes => 'Igen';
+
+  @override
+  String get no => 'Nem';
+
+  @override
+  String get featureCarouselTitle1 => 'MI-vezérelt tervezés';
+
+  @override
+  String get featureCarouselSubtitle1 => '✨ INTELLIGENS ÚJRATERVEZÉS';
+
+  @override
+  String get featureCarouselDesc1 =>
+      'Alakítson át bármely szobát élvonalbeli MI-vel. Egyszerűen töltsön fel egy fotót, és nézze, ahogy tere professzionális dizájnnal kel életre.';
+
+  @override
+  String get featureCarouselTitle2 => 'Végtelen lehetőségek';
+
+  @override
+  String get featureCarouselSubtitle2 => '🎨 STÍLUSOK ÉS SZÍNEK';
+
+  @override
+  String get featureCarouselDesc2 =>
+      'A modern minimalizmustól a hangulatos bohémig — fedezzen fel tucatnyi tervezési stílust és színpalettát az ízlésének megfelelően.';
+
+  @override
+  String get featureCarouselTitle3 => 'Azonnali eredmények';
+
+  @override
+  String get featureCarouselSubtitle3 => '⚡ MÁSODPERCEK, NEM ÓRÁK';
+
+  @override
+  String get featureCarouselDesc3 =>
+      'Ami korábban órákat vett igénybe a tervezőktől, most másodpercek alatt megtörténik. Kapjon lenyűgöző előtte-utána átalakulásokat azonnal.';
+
+  @override
+  String get getStarted => 'Kezdjük';
+
+  @override
+  String freeTrialDays(int days) {
+    return '$days Days Free Trial';
+  }
+
+  @override
+  String thenPrice(Object price) {
+    return 'then $price/month';
+  }
 }
