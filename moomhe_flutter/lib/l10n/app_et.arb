@@ -512,5 +512,15 @@
   "featureCarouselSubtitle3": "⚡ SEKUNDID, MITTE TUNNID",
   "featureCarouselDesc3": "See, mis varem võttis disaineritel tunde, juhtub nüüd sekunditega. Saate koheselt vapustavaid enne ja pärast muutusi.",
 
-  "getStarted": "Alusta"
+  "getStarted": "Alusta",
+
+  "freeTrialDays": "{days} päeva tasuta prooviperiood",
+  "@freeTrialDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "thenPrice": "seejärel {price}/kuu"
 }

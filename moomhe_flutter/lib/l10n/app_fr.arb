@@ -457,5 +457,15 @@
   "featureCarouselSubtitle3": "⚡ SECONDES, PAS DES HEURES",
   "featureCarouselDesc3": "Ce qui prenait des heures aux designers se fait maintenant en quelques secondes. Obtenez des transformations avant/après époustouflantes instantanément.",
 
-  "getStarted": "Commencer"
+  "getStarted": "Commencer",
+
+  "freeTrialDays": "{days} jours d'essai gratuit",
+  "@freeTrialDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "thenPrice": "puis {price}/mois"
 }

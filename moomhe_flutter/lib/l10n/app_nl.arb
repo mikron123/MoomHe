@@ -512,5 +512,15 @@
   "featureCarouselSubtitle3": "⚡ SECONDEN, GEEN UREN",
   "featureCarouselDesc3": "Wat vroeger uren kostte voor ontwerpers, gebeurt nu in seconden. Krijg direct verbluffende voor en na transformaties.",
 
-  "getStarted": "Aan de slag"
+  "getStarted": "Aan de slag",
+
+  "freeTrialDays": "{days} dagen gratis proefperiode",
+  "@freeTrialDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "thenPrice": "daarna {price}/maand"
 }

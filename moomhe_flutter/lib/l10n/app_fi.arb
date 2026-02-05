@@ -512,5 +512,15 @@
   "featureCarouselSubtitle3": "⚡ SEKUNTEJA, EI TUNTEJA",
   "featureCarouselDesc3": "Se mikä ennen vei suunnittelijoilta tunteja, tapahtuu nyt sekunneissa. Saat upeita ennen ja jälkeen -muutoksia välittömästi.",
 
-  "getStarted": "Aloita"
+  "getStarted": "Aloita",
+
+  "freeTrialDays": "{days} päivän ilmainen kokeilu",
+  "@freeTrialDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "thenPrice": "sitten {price}/kuukausi"
 }

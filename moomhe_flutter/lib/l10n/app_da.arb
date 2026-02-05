@@ -512,5 +512,15 @@
   "featureCarouselSubtitle3": "⚡ SEKUNDER, IKKE TIMER",
   "featureCarouselDesc3": "Det der plejede at tage designere timer sker nu på sekunder. Få fantastiske før og efter-forvandlinger med det samme.",
 
-  "getStarted": "Kom i gang"
+  "getStarted": "Kom i gang",
+
+  "freeTrialDays": "{days} dages gratis prøveperiode",
+  "@freeTrialDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "thenPrice": "derefter {price}/måned"
 }

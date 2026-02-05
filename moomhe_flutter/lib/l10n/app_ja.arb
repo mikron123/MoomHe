@@ -512,5 +512,15 @@
   "featureCarouselSubtitle3": "⚡ 数時間ではなく数秒",
   "featureCarouselDesc3": "以前はデザイナーに何時間もかかっていたことが、今では数秒で実現。見事なビフォーアフターの変身を即座に手に入れましょう。",
 
-  "getStarted": "始める"
+  "getStarted": "始める",
+
+  "freeTrialDays": "{days}日間無料トライアル",
+  "@freeTrialDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "thenPrice": "その後 {price}/月"
 }

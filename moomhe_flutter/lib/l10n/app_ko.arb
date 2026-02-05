@@ -512,5 +512,15 @@
   "featureCarouselSubtitle3": "⚡ 몇 시간이 아닌 몇 초",
   "featureCarouselDesc3": "이전에는 디자이너에게 몇 시간이 걸렸던 작업이 이제 몇 초 만에 완료됩니다. 놀라운 전후 변신을 즉시 받아보세요.",
 
-  "getStarted": "시작하기"
+  "getStarted": "시작하기",
+
+  "freeTrialDays": "{days}일 무료 체험",
+  "@freeTrialDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "thenPrice": "이후 {price}/월"
 }

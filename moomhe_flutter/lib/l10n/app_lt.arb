@@ -512,5 +512,15 @@
   "featureCarouselSubtitle3": "⚡ SEKUNDĖS, NE VALANDOS",
   "featureCarouselDesc3": "Tai, kas anksčiau dizaineriams užtrukdavo valandas, dabar vyksta per sekundes. Gaukite nuostabius prieš ir po pavertimus iš karto.",
 
-  "getStarted": "Pradėti"
+  "getStarted": "Pradėti",
+
+  "freeTrialDays": "{days} dienų nemokamas bandomasis laikotarpis",
+  "@freeTrialDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "thenPrice": "po to {price}/mėn."
 }

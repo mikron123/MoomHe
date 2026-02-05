@@ -512,5 +512,15 @@
   "featureCarouselSubtitle3": "⚡ MÁSODPERCEK, NEM ÓRÁK",
   "featureCarouselDesc3": "Ami korábban órákat vett igénybe a tervezőktől, most másodpercek alatt megtörténik. Kapjon lenyűgöző előtte-utána átalakulásokat azonnal.",
 
-  "getStarted": "Kezdjük"
+  "getStarted": "Kezdjük",
+
+  "freeTrialDays": "{days} napos ingyenes próbaidőszak",
+  "@freeTrialDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "thenPrice": "aztán {price}/hónap"
 }

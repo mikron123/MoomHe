@@ -512,5 +512,15 @@
   "featureCarouselSubtitle3": "⚡ SOICINDÍ, NÍ UAIREANTA",
   "featureCarouselDesc3": "An rud a thógadh uaireanta ó dhearthóirí tá sé ag tarlú anois in soicindí. Faigh claochluithe roimh agus i ndiaidh iontach láithreach.",
 
-  "getStarted": "Tosaigh"
+  "getStarted": "Tosaigh",
+
+  "freeTrialDays": "{days} lá triail saor in aisce",
+  "@freeTrialDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "thenPrice": "ansin {price}/mí"
 }

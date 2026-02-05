@@ -512,5 +512,15 @@
   "featureCarouselSubtitle3": "⚡ SECUNDE, NU ORE",
   "featureCarouselDesc3": "Ceea ce obișnuia să dureze ore pentru designeri se întâmplă acum în secunde. Obțineți transformări uimitoare înainte și după instantaneu.",
 
-  "getStarted": "Începeți"
+  "getStarted": "Începeți",
+
+  "freeTrialDays": "{days} zile de încercare gratuită",
+  "@freeTrialDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "thenPrice": "apoi {price}/lună"
 }

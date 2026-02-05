@@ -512,5 +512,15 @@
   "featureCarouselSubtitle3": "⚡ 秒级而非小时级",
   "featureCarouselDesc3": "曾经设计师需要几小时的工作现在几秒钟即可完成。立即获得令人惊叹的前后对比效果。",
 
-  "getStarted": "开始使用"
+  "getStarted": "开始使用",
+
+  "freeTrialDays": "{days}天免费试用",
+  "@freeTrialDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "thenPrice": "之后 {price}/月"
 }

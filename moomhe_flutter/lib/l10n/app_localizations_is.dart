@@ -1305,11 +1305,11 @@ class AppLocalizationsIs extends AppLocalizations {
 
   @override
   String freeTrialDays(int days) {
-    return '$days Days Free Trial';
+    return '$days daga ókeypis prufutímabil';
   }
 
   @override
   String thenPrice(Object price) {
-    return 'then $price/month';
+    return 'síðan $price/mánuð';
   }
 }

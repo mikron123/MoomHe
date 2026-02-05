@@ -1302,11 +1302,11 @@ class AppLocalizationsHu extends AppLocalizations {
 
   @override
   String freeTrialDays(int days) {
-    return '$days Days Free Trial';
+    return '$days napos ingyenes próbaidőszak';
   }
 
   @override
   String thenPrice(Object price) {
-    return 'then $price/month';
+    return 'aztán $price/hónap';
   }
 }

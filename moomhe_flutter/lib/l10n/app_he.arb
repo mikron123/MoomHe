@@ -514,5 +514,15 @@
   "featureCarouselSubtitle3": "⚡ שניות, לא שעות",
   "featureCarouselDesc3": "מה שנהג לקחת למעצבים שעות קורה עכשיו בשניות. קבלו שינויים מדהימים של לפני ואחרי מיד.",
 
-  "getStarted": "בואו נתחיל"
+  "getStarted": "בואו נתחיל",
+
+  "freeTrialDays": "{days} ימים ניסיון חינם",
+  "@freeTrialDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "thenPrice": "ואז {price}/חודש"
 }

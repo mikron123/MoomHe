@@ -1309,11 +1309,11 @@ class AppLocalizationsGa extends AppLocalizations {
 
   @override
   String freeTrialDays(int days) {
-    return '$days Days Free Trial';
+    return '$days lá triail saor in aisce';
   }
 
   @override
   String thenPrice(Object price) {
-    return 'then $price/month';
+    return 'ansin $price/mí';
   }
 }

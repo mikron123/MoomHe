@@ -1051,7 +1051,12 @@ class _SubscriptionModalState extends State<SubscriptionModal> with TickerProvid
                             ),
                             if (!isCurrentPlan) ...[
                               const SizedBox(width: 6),
-                              const Icon(LucideIcons.arrowRight, size: 18, color: Colors.white),
+                              Directionality.of(context) == TextDirection.rtl
+                                  ? Transform.flip(
+                                      flipX: true,
+                                      child: const Icon(LucideIcons.arrowRight, size: 18, color: Colors.white),
+                                    )
+                                  : const Icon(LucideIcons.arrowRight, size: 18, color: Colors.white),
                             ],
                           ],
                         ),
@@ -1364,7 +1369,12 @@ class _SubscriptionModalState extends State<SubscriptionModal> with TickerProvid
                             ),
                             if (!isCurrentPlan) ...[
                               const SizedBox(width: 8),
-                              const Icon(LucideIcons.arrowRight, size: 20, color: Colors.white),
+                              Directionality.of(context) == TextDirection.rtl
+                                  ? Transform.flip(
+                                      flipX: true,
+                                      child: const Icon(LucideIcons.arrowRight, size: 20, color: Colors.white),
+                                    )
+                                  : const Icon(LucideIcons.arrowRight, size: 20, color: Colors.white),
                             ],
                           ],
                         ),

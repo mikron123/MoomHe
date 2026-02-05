@@ -1282,11 +1282,11 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String freeTrialDays(int days) {
-    return '$days Days Free Trial';
+    return '$days일 무료 체험';
   }
 
   @override
   String thenPrice(Object price) {
-    return 'then $price/month';
+    return '이후 $price/월';
   }
 }

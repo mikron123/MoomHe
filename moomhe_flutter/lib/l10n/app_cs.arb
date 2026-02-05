@@ -512,5 +512,15 @@
   "featureCarouselSubtitle3": "⚡ SEKUNDY, NE HODINY",
   "featureCarouselDesc3": "To, co dříve trvalo designérům hodiny, se nyní děje během sekund. Získejte okamžitě úžasné proměny před a po.",
 
-  "getStarted": "Začít"
+  "getStarted": "Začít",
+
+  "freeTrialDays": "{days} dní zdarma",
+  "@freeTrialDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "thenPrice": "poté {price}/měsíc"
 }

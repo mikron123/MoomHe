@@ -30,7 +30,7 @@
     const ADMIN_UID = 'OBAc1IAmd8fPhOJyKFl0PXx5Kqu1';
     
     // Current tab state
-    let currentTab = 'history';
+    let currentTab = 'users';
     let selectedCategory = null;
     let categoriesData = [];
 
@@ -189,6 +189,7 @@
           loginSection.classList.add('hidden');
           adminSection.classList.remove('hidden');
           userInfo.textContent = `מחובר כ: ${user.email}`;
+          await loadPremiumUsers();
           await loadGenerationStats();
           await loadHistory();
           await loadCategories();
@@ -830,61 +831,159 @@
           usersMap.set(docSnap.id, { id: docSnap.id, ...docSnap.data() });
         });
         
-        const users = Array.from(usersMap.values());
+        // Filter out users with subscriptionCanceled: true
+        let users = Array.from(usersMap.values()).filter(user => !user.subscriptionCanceled);
+        
+        // Remove duplicates by lastPurchaseId - keep the one with email if both exist
+        const purchaseIdMap = new Map();
+        users.forEach(user => {
+          if (!user.lastPurchaseId) return; // Skip users without purchase ID
+          
+          const existingUser = purchaseIdMap.get(user.lastPurchaseId);
+          if (!existingUser) {
+            purchaseIdMap.set(user.lastPurchaseId, user);
+          } else {
+            // If current user has email and existing doesn't, replace
+            if (user.email && !existingUser.email) {
+              purchaseIdMap.set(user.lastPurchaseId, user);
+            }
+            // Otherwise keep the existing one (which may have email or neither has)
+          }
+        });
+        
+        // Rebuild users array: users without purchaseId + deduplicated users with purchaseId
+        const usersWithoutPurchaseId = users.filter(user => !user.lastPurchaseId);
+        const deduplicatedUsersWithPurchaseId = Array.from(purchaseIdMap.values());
+        users = [...usersWithoutPurchaseId, ...deduplicatedUsersWithPurchaseId];
         
         if (users.length === 0) {
           usersList.innerHTML = '<div class="text-gray-400 text-center py-8">אין משתמשים עם מנוי או קרדיטים</div>';
           return;
         }
 
-        // Sort by subscription desc, then credits desc
+        // Helper function to get purchase date from user
+        function getUserPurchaseDate(user) {
+          if (user.subscriptionUpdatedAt?.toDate) return user.subscriptionUpdatedAt.toDate();
+          if (user.purchaseDate?.toDate) return user.purchaseDate.toDate();
+          if (user.lastPaymentDate?.toDate) return user.lastPaymentDate.toDate();
+          if (user.subscribedAt?.toDate) return user.subscribedAt.toDate();
+          if (user.createdAt?.toDate) return user.createdAt.toDate();
+          return null;
+        }
+        
+        // Sort by subscriptionUpdatedAt descending (most recent first)
         users.sort((a, b) => {
-          if ((b.subscription || 0) !== (a.subscription || 0)) {
-            return (b.subscription || 0) - (a.subscription || 0);
-          }
-          return (b.credits || 0) - (a.credits || 0);
+          const dateA = a.subscriptionUpdatedAt?.toDate?.() || null;
+          const dateB = b.subscriptionUpdatedAt?.toDate?.() || null;
+          
+          // Users with dates come before users without
+          if (dateA && !dateB) return -1;
+          if (!dateA && dateB) return 1;
+          if (!dateA && !dateB) return 0;
+          
+          // Sort by date descending (most recent first)
+          return dateB.getTime() - dateA.getTime();
         });
 
         // Calculate MRR - only for users with valid payment source
+        // New pricing from Feb 5, 2026: subscription 1=₪30, 2=₪90, 3=₪180
+        // Old pricing (before Feb 5, 2026): 450 credits=₪100, 200=₪50, 50=₪20, 40=₪15
+        const newPricingCutoff = new Date('2026-02-05T00:00:00');
+        
         let mrr = 0;
         let paidUsersCount = 0;
-        const mrrBreakdown = { 450: 0, 200: 0, 50: 0, 40: 0 };
+        // Old pricing breakdown (by credits)
+        const oldMrrBreakdown = { 450: 0, 200: 0, 50: 0, 40: 0 };
+        // New pricing breakdown (by subscription tier)
+        const newMrrBreakdown = { 1: 0, 2: 0, 3: 0 };
         
         users.forEach((user) => {
           // Only count users with lastPaymentEvent or lastPurchaseId
           if (!user.lastPaymentEvent && !user.lastPurchaseId) return;
           
-          const credits = user.credits || 0;
-          if (credits >= 450) {
-            mrr += 100;
-            mrrBreakdown[450]++;
-            paidUsersCount++;
-          } else if (credits >= 200) {
-            mrr += 50;
-            mrrBreakdown[200]++;
-            paidUsersCount++;
-          } else if (credits >= 50) {
-            mrr += 20;
-            mrrBreakdown[50]++;
-            paidUsersCount++;
-          } else if (credits >= 40) {
-            mrr += 15;
-            mrrBreakdown[40]++;
-            paidUsersCount++;
+          // Determine purchase date - check various possible timestamp fields
+          let purchaseDate = null;
+          if (user.purchaseDate?.toDate) {
+            purchaseDate = user.purchaseDate.toDate();
+          } else if (user.lastPaymentDate?.toDate) {
+            purchaseDate = user.lastPaymentDate.toDate();
+          } else if (user.subscribedAt?.toDate) {
+            purchaseDate = user.subscribedAt.toDate();
+          } else if (user.createdAt?.toDate) {
+            purchaseDate = user.createdAt.toDate();
+          }
+          
+          const isNewPricing = purchaseDate && purchaseDate >= newPricingCutoff;
+          
+          if (isNewPricing) {
+            // New subscription-based pricing (Feb 5, 2026 and later)
+            const subscription = user.subscription || 0;
+            if (subscription === 3) {
+              mrr += 180;
+              newMrrBreakdown[3]++;
+              paidUsersCount++;
+            } else if (subscription === 2) {
+              mrr += 90;
+              newMrrBreakdown[2]++;
+              paidUsersCount++;
+            } else if (subscription === 1) {
+              mrr += 30;
+              newMrrBreakdown[1]++;
+              paidUsersCount++;
+            }
+          } else {
+            // Old credit-based pricing (before Feb 5, 2026)
+            const credits = user.credits || 0;
+            if (credits >= 450) {
+              mrr += 100;
+              oldMrrBreakdown[450]++;
+              paidUsersCount++;
+            } else if (credits >= 200) {
+              mrr += 50;
+              oldMrrBreakdown[200]++;
+              paidUsersCount++;
+            } else if (credits >= 50) {
+              mrr += 20;
+              oldMrrBreakdown[50]++;
+              paidUsersCount++;
+            } else if (credits >= 40) {
+              mrr += 15;
+              oldMrrBreakdown[40]++;
+              paidUsersCount++;
+            }
           }
         });
 
         // Update MRR display
         document.getElementById('mrr-total').textContent = `₪${mrr}`;
         document.getElementById('mrr-users').textContent = `${paidUsersCount} משלמים`;
-        document.getElementById('mrr-breakdown').innerHTML = `
-          <span class="text-purple-300">450: ${mrrBreakdown[450]}</span>
-          <span class="text-blue-300">200: ${mrrBreakdown[200]}</span>
-          <span class="text-emerald-300">50: ${mrrBreakdown[50]}</span>
-          <span class="text-yellow-300">40: ${mrrBreakdown[40]}</span>
-        `;
+        
+        // Show both old and new pricing breakdowns
+        const hasNewPricing = newMrrBreakdown[1] + newMrrBreakdown[2] + newMrrBreakdown[3] > 0;
+        const hasOldPricing = oldMrrBreakdown[450] + oldMrrBreakdown[200] + oldMrrBreakdown[50] + oldMrrBreakdown[40] > 0;
+        
+        let breakdownHtml = '';
+        if (hasNewPricing) {
+          breakdownHtml += `<div class="mb-1"><span class="text-xs text-gray-500">חדש (מ-5/2/26):</span> `;
+          breakdownHtml += `<span class="text-pink-300">Sub3: ${newMrrBreakdown[3]}</span> `;
+          breakdownHtml += `<span class="text-purple-300">Sub2: ${newMrrBreakdown[2]}</span> `;
+          breakdownHtml += `<span class="text-indigo-300">Sub1: ${newMrrBreakdown[1]}</span></div>`;
+        }
+        if (hasOldPricing) {
+          breakdownHtml += `<div><span class="text-xs text-gray-500">ישן:</span> `;
+          breakdownHtml += `<span class="text-purple-300">450: ${oldMrrBreakdown[450]}</span> `;
+          breakdownHtml += `<span class="text-blue-300">200: ${oldMrrBreakdown[200]}</span> `;
+          breakdownHtml += `<span class="text-emerald-300">50: ${oldMrrBreakdown[50]}</span> `;
+          breakdownHtml += `<span class="text-yellow-300">40: ${oldMrrBreakdown[40]}</span></div>`;
+        }
+        if (!hasNewPricing && !hasOldPricing) {
+          breakdownHtml = '<span class="text-gray-500">אין נתונים</span>';
+        }
+        document.getElementById('mrr-breakdown').innerHTML = breakdownHtml;
 
         // Render users
+        const newPricingCutoffForDisplay = new Date('2026-02-05T00:00:00');
+        
         users.forEach((user) => {
           const userEl = document.createElement('div');
           userEl.className = 'bg-gray-800/50 rounded-xl border border-gray-700/50 p-4 hover:border-purple-500/30 transition-all';
@@ -894,6 +993,30 @@
           
           const canceledAt = user.canceledAt?.toDate?.();
           const canceledStr = canceledAt ? canceledAt.toLocaleDateString('he-IL') : null;
+          
+          // Get purchase date
+          const purchaseDate = getUserPurchaseDate(user);
+          const purchaseDateStr = purchaseDate ? purchaseDate.toLocaleDateString('he-IL') + ' ' + purchaseDate.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) : 'לא ידוע';
+          const isNewPricingUser = purchaseDate && purchaseDate >= newPricingCutoffForDisplay;
+          
+          // Calculate price for this user
+          let userPrice = 0;
+          if (user.lastPaymentEvent || user.lastPurchaseId) {
+            if (isNewPricingUser) {
+              // New subscription-based pricing
+              const subscription = user.subscription || 0;
+              if (subscription === 3) userPrice = 180;
+              else if (subscription === 2) userPrice = 90;
+              else if (subscription === 1) userPrice = 30;
+            } else {
+              // Old credit-based pricing
+              const credits = user.credits || 0;
+              if (credits >= 450) userPrice = 100;
+              else if (credits >= 200) userPrice = 50;
+              else if (credits >= 50) userPrice = 20;
+              else if (credits >= 40) userPrice = 15;
+            }
+          }
           
           const subscriptionLabels = {
             0: 'ללא מנוי',
@@ -918,17 +1041,23 @@
                     📋
                   </button>
                   <span class="text-xs px-2 py-0.5 rounded font-medium ${paymentSourceColor}">${paymentSource}</span>
+                  ${isNewPricingUser ? '<span class="text-xs px-2 py-0.5 rounded font-medium text-pink-400 bg-pink-500/20">תמחור חדש</span>' : ''}
                 </div>
                 ${user.email ? `<p class="text-sm text-gray-300 mb-1">📧 ${user.email}</p>` : ''}
                 <div class="flex flex-wrap gap-3 text-xs text-gray-400">
                   <span>📱 ${user.deviceBrand || 'Unknown'}</span>
                   <span>🕐 ${lastActiveStr}</span>
                 </div>
+                <p class="text-xs ${isNewPricingUser ? 'text-pink-400' : 'text-emerald-400'} mt-1">💳 רכישה: ${purchaseDateStr}</p>
                 ${user.lastPurchaseId ? `<p class="text-xs text-orange-400 mt-1">🧾 ${user.lastPurchaseId}</p>` : ''}
                 ${canceledStr ? `<p class="text-xs text-red-400 mt-2">❌ בוטל ב: ${canceledStr}</p>` : ''}
               </div>
               <div class="flex flex-col items-end gap-2">
                 <div class="flex items-center gap-3">
+                  <div class="text-center">
+                    <p class="text-lg font-bold ${userPrice > 0 ? 'text-green-400' : 'text-gray-500'}">₪${userPrice}</p>
+                    <p class="text-xs text-gray-500">מחיר</p>
+                  </div>
                   <div class="text-center">
                     <p class="text-lg font-bold ${user.subscription > 0 ? 'text-emerald-400' : 'text-gray-500'}">${subscriptionLabels[user.subscription] || user.subscription}</p>
                     <p class="text-xs text-gray-500">מנוי</p>
@@ -1099,7 +1228,7 @@
         <button 
           id="history-tab-btn"
           onclick="switchTab('history')"
-          class="bg-purple-600 text-white px-6 py-2.5 rounded-xl font-medium transition-all hover:opacity-90"
+          class="bg-gray-800 text-white px-6 py-2.5 rounded-xl font-medium transition-all hover:opacity-90"
         >
           📊 היסטוריית יצירות
         </button>
@@ -1113,7 +1242,7 @@
         <button 
           id="users-tab-btn"
           onclick="switchTab('users')"
-          class="bg-gray-800 text-white px-6 py-2.5 rounded-xl font-medium transition-all hover:opacity-90"
+          class="bg-purple-600 text-white px-6 py-2.5 rounded-xl font-medium transition-all hover:opacity-90"
         >
           👥 ניהול משתמשים
         </button>
@@ -1124,7 +1253,7 @@
     <main class="max-w-7xl mx-auto px-4 py-6">
       
       <!-- History Tab Content -->
-      <div id="history-tab-content">
+      <div id="history-tab-content" class="hidden">
         
         <!-- Generation Stats Chart -->
         <div id="generation-chart-container" class="bg-gray-800/50 rounded-2xl border border-gray-700/50 p-6 mb-6">
@@ -1306,7 +1435,7 @@
       </div>
 
       <!-- Users Tab Content -->
-      <div id="users-tab-content" class="hidden">
+      <div id="users-tab-content">
         <!-- MRR Summary -->
         <div class="bg-gradient-to-r from-emerald-900/30 to-blue-900/30 rounded-2xl border border-emerald-500/30 p-6 mb-6">
           <div class="flex items-center justify-between">
@@ -1323,7 +1452,8 @@
                 <span class="text-emerald-300">50: 0</span>
                 <span class="text-yellow-300">40: 0</span>
               </div>
-              <p class="text-xs text-gray-500 mt-2">450=₪100 | 200=₪50 | 50=₪20 | 40=₪15</p>
+              <p class="text-xs text-gray-500 mt-2">חדש (מ-5/2/26): Sub1=₪30 | Sub2=₪90 | Sub3=₪180</p>
+              <p class="text-xs text-gray-500">ישן: 450=₪100 | 200=₪50 | 50=₪20 | 40=₪15</p>
             </div>
           </div>
         </div>

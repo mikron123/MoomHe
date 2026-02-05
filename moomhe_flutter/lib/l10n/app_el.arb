@@ -512,5 +512,15 @@
   "featureCarouselSubtitle3": "⚡ ΔΕΥΤΕΡΟΛΕΠΤΑ, ΟΧΙ ΩΡΕΣ",
   "featureCarouselDesc3": "Αυτό που κάποτε απαιτούσε ώρες από σχεδιαστές τώρα γίνεται σε δευτερόλεπτα. Αποκτήστε εκπληκτικές μεταμορφώσεις πριν και μετά αμέσως.",
 
-  "getStarted": "Ξεκινήστε"
+  "getStarted": "Ξεκινήστε",
+
+  "freeTrialDays": "{days} ημέρες δωρεάν δοκιμή",
+  "@freeTrialDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "thenPrice": "μετά {price}/μήνα"
 }

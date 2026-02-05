@@ -476,11 +476,20 @@ class _FeatureCarouselState extends State<FeatureCarousel>
                 ),
               ),
               const SizedBox(width: 8),
-              Icon(
-                isLastSlide ? LucideIcons.arrowRight : LucideIcons.chevronRight,
-                color: Colors.white,
-                size: 22,
-              ),
+              Directionality.of(context) == TextDirection.rtl
+                  ? Transform.flip(
+                      flipX: true,
+                      child: Icon(
+                        isLastSlide ? LucideIcons.arrowRight : LucideIcons.chevronRight,
+                        color: Colors.white,
+                        size: 22,
+                      ),
+                    )
+                  : Icon(
+                      isLastSlide ? LucideIcons.arrowRight : LucideIcons.chevronRight,
+                      color: Colors.white,
+                      size: 22,
+                    ),
             ],
           ),
         ),

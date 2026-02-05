@@ -512,5 +512,15 @@
   "featureCarouselSubtitle3": "⚡ SEKUNDEN, NICHT STUNDEN",
   "featureCarouselDesc3": "Was Designer früher Stunden kostete, geschieht jetzt in Sekunden. Erhalten Sie sofort atemberaubende Vorher-Nachher-Transformationen.",
 
-  "getStarted": "Loslegen"
+  "getStarted": "Loslegen",
+
+  "freeTrialDays": "{days} Tage kostenlos testen",
+  "@freeTrialDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "thenPrice": "dann {price}/Monat"
 }

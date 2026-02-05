@@ -512,5 +512,15 @@
   "featureCarouselSubtitle3": "⚡ SEKUNDY, NIE GODZINY",
   "featureCarouselDesc3": "To, co kiedyś zajmowało projektantom godziny, teraz dzieje się w sekundy. Otrzymaj natychmiast oszałamiające transformacje przed i po.",
 
-  "getStarted": "Rozpocznij"
+  "getStarted": "Rozpocznij",
+
+  "freeTrialDays": "{days} dni bezpłatnego okresu próbnego",
+  "@freeTrialDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "thenPrice": "potem {price}/miesiąc"
 }

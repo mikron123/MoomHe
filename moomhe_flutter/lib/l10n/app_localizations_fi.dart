@@ -1302,11 +1302,11 @@ class AppLocalizationsFi extends AppLocalizations {
 
   @override
   String freeTrialDays(int days) {
-    return '$days Days Free Trial';
+    return '$days päivän ilmainen kokeilu';
   }
 
   @override
   String thenPrice(Object price) {
-    return 'then $price/month';
+    return 'sitten $price/kuukausi';
   }
 }

@@ -1274,12 +1274,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String freeTrialDays(int days) {
-    return '$days Days Free Trial';
+    return '$days天免费试用';
   }
 
   @override
   String thenPrice(Object price) {
-    return 'then $price/month';
+    return '之后 $price/月';
   }
 }
 
@@ -2543,4 +2543,14 @@ class AppLocalizationsZhHk extends AppLocalizationsZh {
 
   @override
   String get getStarted => '開始使用';
+
+  @override
+  String freeTrialDays(int days) {
+    return '$days日免費試用';
+  }
+
+  @override
+  String thenPrice(Object price) {
+    return '之後 $price/月';
+  }
 }

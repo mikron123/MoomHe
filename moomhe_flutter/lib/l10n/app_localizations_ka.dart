@@ -1301,11 +1301,11 @@ class AppLocalizationsKa extends AppLocalizations {
 
   @override
   String freeTrialDays(int days) {
-    return '$days Days Free Trial';
+    return '$days დღე უფასო საცდელი პერიოდი';
   }
 
   @override
   String thenPrice(Object price) {
-    return 'then $price/month';
+    return 'შემდეგ $price/თვე';
   }
 }

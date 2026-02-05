@@ -512,5 +512,15 @@
   "featureCarouselSubtitle3": "⚡ SEKUNDE, NE URE",
   "featureCarouselDesc3": "Kar je včasih oblikovalcem vzelo ure, se zdaj zgodi v sekundah. Takoj pridobite osupljive preobrazbe pred in po.",
 
-  "getStarted": "Začni"
+  "getStarted": "Začni",
+
+  "freeTrialDays": "{days} dni brezplačnega preizkusa",
+  "@freeTrialDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "thenPrice": "nato {price}/mesec"
 }

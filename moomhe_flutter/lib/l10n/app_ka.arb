@@ -512,5 +512,15 @@
   "featureCarouselSubtitle3": "⚡ წამები, არა საათები",
   "featureCarouselDesc3": "რაც ადრე დიზაინერებს საათებს სჭირდებოდა, ახლა წამებში ხდება. მიიღეთ საოცარი გარდაქმნები მანამდე და მერე მყისიერად.",
 
-  "getStarted": "დაწყება"
+  "getStarted": "დაწყება",
+
+  "freeTrialDays": "{days} დღე უფასო საცდელი პერიოდი",
+  "@freeTrialDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "thenPrice": "შემდეგ {price}/თვე"
 }

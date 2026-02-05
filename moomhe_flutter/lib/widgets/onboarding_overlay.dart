@@ -260,10 +260,18 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
                                   style: IconButton.styleFrom(
                                     backgroundColor: Colors.white.withValues(alpha: 0.1),
                                   ),
-                                  icon: const Icon(
-                                    LucideIcons.chevronLeft,
-                                    color: Colors.white,
-                                  ),
+                                  icon: Directionality.of(context) == TextDirection.rtl
+                                      ? Transform.flip(
+                                          flipX: true,
+                                          child: const Icon(
+                                            LucideIcons.chevronLeft,
+                                            color: Colors.white,
+                                          ),
+                                        )
+                                      : const Icon(
+                                          LucideIcons.chevronLeft,
+                                          color: Colors.white,
+                                        ),
                                 ),
                               const SizedBox(width: 8),
                               ElevatedButton(
@@ -291,13 +299,26 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
                                       ),
                                     ),
                                     const SizedBox(width: 4),
-                                    Icon(
-                                      _currentStep < widget.steps.length - 1
-                                          ? LucideIcons.chevronRight
-                                          : LucideIcons.check,
-                                      size: 18,
-                                      color: Colors.white,
-                                    ),
+                                    _currentStep < widget.steps.length - 1
+                                        ? (Directionality.of(context) == TextDirection.rtl
+                                            ? Transform.flip(
+                                                flipX: true,
+                                                child: const Icon(
+                                                  LucideIcons.chevronRight,
+                                                  size: 18,
+                                                  color: Colors.white,
+                                                ),
+                                              )
+                                            : const Icon(
+                                                LucideIcons.chevronRight,
+                                                size: 18,
+                                                color: Colors.white,
+                                              ))
+                                        : const Icon(
+                                            LucideIcons.check,
+                                            size: 18,
+                                            color: Colors.white,
+                                          ),
                                   ],
                                 ),
                               ),

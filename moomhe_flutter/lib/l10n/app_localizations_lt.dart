@@ -1300,11 +1300,11 @@ class AppLocalizationsLt extends AppLocalizations {
 
   @override
   String freeTrialDays(int days) {
-    return '$days Days Free Trial';
+    return '$days dienų nemokamas bandomasis laikotarpis';
   }
 
   @override
   String thenPrice(Object price) {
-    return 'then $price/month';
+    return 'po to $price/mėn.';
   }
 }
