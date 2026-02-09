@@ -524,5 +524,28 @@
       }
     }
   },
-  "thenPrice": "ואז {price}/חודש"
+  "thenPrice": "ואז {price}/חודש",
+  
+  "yearly": "שנתי",
+  "monthly": "חודשי",
+  "perYear": "/שנה",
+  "savePercent": "חסכו {percent}%",
+  "@savePercent": {
+    "placeholders": {
+      "percent": {"type": "int"}
+    }
+  },
+  "billedAnnually": "תשלום שנתי",
+  "justPricePerMonth": "רק {price}/חודש",
+  "@justPricePerMonth": {
+    "placeholders": {
+      "price": {"type": "String"}
+    }
+  },
+  "wasPrice": "היה {price}",
+  "@wasPrice": {
+    "placeholders": {
+      "price": {"type": "String"}
+    }
+  }
 }

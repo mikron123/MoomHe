@@ -1308,4 +1308,31 @@ class AppLocalizationsEt extends AppLocalizations {
   String thenPrice(Object price) {
     return 'seejärel $price/kuu';
   }
+
+  @override
+  String get yearly => 'Yearly';
+
+  @override
+  String get monthly => 'Monthly';
+
+  @override
+  String get perYear => '/year';
+
+  @override
+  String savePercent(int percent) {
+    return 'SAVE $percent%';
+  }
+
+  @override
+  String get billedAnnually => 'billed annually';
+
+  @override
+  String justPricePerMonth(String price) {
+    return 'Just $price/mo';
+  }
+
+  @override
+  String wasPrice(String price) {
+    return 'Was $price';
+  }
 }

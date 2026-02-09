@@ -1,3 +1,4 @@
 node_modules/
 .env
 *.log
+google-play-service-account.json

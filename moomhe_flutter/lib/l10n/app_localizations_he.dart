@@ -1294,4 +1294,31 @@ class AppLocalizationsHe extends AppLocalizations {
   String thenPrice(Object price) {
     return 'ואז $price/חודש';
   }
+
+  @override
+  String get yearly => 'שנתי';
+
+  @override
+  String get monthly => 'חודשי';
+
+  @override
+  String get perYear => '/שנה';
+
+  @override
+  String savePercent(int percent) {
+    return 'חסכו $percent%';
+  }
+
+  @override
+  String get billedAnnually => 'תשלום שנתי';
+
+  @override
+  String justPricePerMonth(String price) {
+    return 'רק $price/חודש';
+  }
+
+  @override
+  String wasPrice(String price) {
+    return 'היה $price';
+  }
 }

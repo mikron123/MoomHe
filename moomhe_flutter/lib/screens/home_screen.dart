@@ -19,6 +19,7 @@ import '../modals/image_modal.dart';
 import '../modals/auth_modal.dart';
 import '../modals/limit_reached_modal.dart';
 import '../modals/subscription_modal.dart';
+import '../modals/subscription_modal_v2.dart';
 import '../modals/coupon_modal.dart';
 import '../modals/contact_modal.dart';
 import '../modals/ai_error_modal.dart';
@@ -239,19 +240,33 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
         Navigator.of(context).push(
           MaterialPageRoute(
             fullscreenDialog: true,
-            builder: (context) => SubscriptionModal(
-              currentSubscription: _userSubscription,
-              currentCredits: _userCredits,
-              onPurchaseComplete: () {
-                // Refresh user credits after purchase
-                _loadUserCredits();
-                
-                // If user is anonymous, prompt them to secure their purchase
-                if (_aiService.isAnonymous) {
-                  _showSecureAccountDialog();
-                }
-              },
-            ),
+            builder: (context) => _usePaywallV2
+                ? SubscriptionModalV2(
+                    currentSubscription: _userSubscription,
+                    currentCredits: _userCredits,
+                    onPurchaseComplete: () {
+                      // Refresh user credits after purchase
+                      _loadUserCredits();
+                      
+                      // If user is anonymous, prompt them to secure their purchase
+                      if (_aiService.isAnonymous) {
+                        _showSecureAccountDialog();
+                      }
+                    },
+                  )
+                : SubscriptionModal(
+                    currentSubscription: _userSubscription,
+                    currentCredits: _userCredits,
+                    onPurchaseComplete: () {
+                      // Refresh user credits after purchase
+                      _loadUserCredits();
+                      
+                      // If user is anonymous, prompt them to secure their purchase
+                      if (_aiService.isAnonymous) {
+                        _showSecureAccountDialog();
+                      }
+                    },
+                  ),
           ),
         );
       }
@@ -1045,25 +1060,43 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
     );
   }
 
+  // Flag to use new paywall UI (v2 with monthly/yearly toggle)
+  // Set to true to test the new paywall, false to use the original
+  static const bool _usePaywallV2 = true;
+
   void _showSubscriptionModal() {
     // Track subscription modal opened
     _analytics.logSubscriptionModalOpened(source: 'menu');
     Navigator.of(context).push(
       MaterialPageRoute(
         fullscreenDialog: true,
-        builder: (context) => SubscriptionModal(
-          currentSubscription: _userSubscription,
-          currentCredits: _userCredits,
-          onPurchaseComplete: () {
-            // Refresh user credits after purchase
-            _loadUserCredits();
-            
-            // If user is anonymous, prompt them to secure their purchase
-            if (_aiService.isAnonymous) {
-              _showSecureAccountDialog();
-            }
-          },
-        ),
+        builder: (context) => _usePaywallV2
+            ? SubscriptionModalV2(
+                currentSubscription: _userSubscription,
+                currentCredits: _userCredits,
+                onPurchaseComplete: () {
+                  // Refresh user credits after purchase
+                  _loadUserCredits();
+                  
+                  // If user is anonymous, prompt them to secure their purchase
+                  if (_aiService.isAnonymous) {
+                    _showSecureAccountDialog();
+                  }
+                },
+              )
+            : SubscriptionModal(
+                currentSubscription: _userSubscription,
+                currentCredits: _userCredits,
+                onPurchaseComplete: () {
+                  // Refresh user credits after purchase
+                  _loadUserCredits();
+                  
+                  // If user is anonymous, prompt them to secure their purchase
+                  if (_aiService.isAnonymous) {
+                    _showSecureAccountDialog();
+                  }
+                },
+              ),
       ),
     );
   }

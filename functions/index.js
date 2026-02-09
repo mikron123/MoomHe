@@ -5,6 +5,8 @@ const admin = require('firebase-admin');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const sharp = require('sharp');
 const FormData = require('form-data');
+const { Environment } = require('app-store-server-library');
+const { SignedDataVerifier, VerificationException } = require('app-store-server-library/dist/jwt_verification');
 
 // Initialize Firebase Admin
 admin.initializeApp();
@@ -30,6 +32,140 @@ const PRODUCT_CREDITS = {
   'moomhe_business_monthly': { credits: 450, subscription: 3, period: 'monthly' },
   'moomhe_business_yearly': { credits: 450, subscription: 3, period: 'yearly' },
 };
+
+// Admin UID for control panel (must match ctrl.html)
+const ADMIN_UID = process.env.ADMIN_UID || 'OBAc1IAmd8fPhOJyKFl0PXx5Kqu1';
+
+// iOS App Store verification
+const IOS_BUNDLE_ID = process.env.IOS_BUNDLE_ID || 'com.kalromsystems.moomhe';
+const APPLE_ROOT_CA_G3_URL = 'https://www.apple.com/certificateauthority/AppleRootCA-G3.cer';
+const APPLE_SHARED_SECRET = process.env.APPLE_SHARED_SECRET; // For legacy receipt validation
+
+let appleRootCACache = null;
+
+async function getAppleRootCAs() {
+  if (appleRootCACache) return appleRootCACache;
+  try {
+    const res = await fetch(APPLE_ROOT_CA_G3_URL);
+    if (!res.ok) throw new Error(`Apple CA fetch failed: ${res.status}`);
+    const buf = Buffer.from(await res.arrayBuffer());
+    appleRootCACache = [buf];
+    return appleRootCACache;
+  } catch (e) {
+    logger.warn('[iOS verification] Could not fetch Apple Root CA:', e.message);
+    return null;
+  }
+}
+
+function isJWS(s) {
+  if (!s || typeof s !== 'string') return false;
+  const parts = s.split('.');
+  return parts.length === 3 && parts.every(p => p.length > 0);
+}
+
+async function verifyIOSWithJWS(verificationData, productId) {
+  const rootCAs = await getAppleRootCAs();
+  if (!rootCAs) throw new Error('Apple Root CA not available');
+  const enableOnlineChecks = false;
+  for (const env of [Environment.PRODUCTION, Environment.SANDBOX]) {
+    try {
+      const verifier = new SignedDataVerifier(rootCAs, enableOnlineChecks, env, IOS_BUNDLE_ID);
+      const decoded = await verifier.verifyAndDecodeTransaction(verificationData);
+      if (decoded.productId !== productId) {
+        throw new Error(`Product mismatch: expected ${productId}, got ${decoded.productId}`);
+      }
+      return { valid: true, decoded, environment: decoded.environment };
+    } catch (e) {
+      if (e instanceof VerificationException && e.status === 3) continue; // INVALID_ENVIRONMENT, try other
+      throw e;
+    }
+  }
+  throw new Error('Transaction could not be verified for Production or Sandbox');
+}
+
+async function verifyIOSWithReceipt(receiptBase64) {
+  const body = {
+    'receipt-data': receiptBase64,
+    'exclude-old-transactions': true,
+  };
+  if (APPLE_SHARED_SECRET) body.password = APPLE_SHARED_SECRET;
+  const urls = ['https://buy.itunes.apple.com/verifyReceipt', 'https://sandbox.itunes.apple.com/verifyReceipt'];
+  for (const url of urls) {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (data.status === 0) return { valid: true, receipt: data };
+    if (data.status === 21007) continue; // sandbox receipt sent to prod, try sandbox
+    if (data.status === 21008) continue; // prod receipt sent to sandbox
+    throw new Error(`Apple verifyReceipt failed: status ${data.status}`);
+  }
+  throw new Error('Receipt verification failed for both environments');
+}
+
+async function verifyIOSVerificationData(verificationData, productId) {
+  if (!verificationData) throw new Error('Missing verification data');
+  if (isJWS(verificationData)) {
+    return await verifyIOSWithJWS(verificationData, productId);
+  }
+  return await verifyIOSWithReceipt(verificationData);
+}
+
+// Google Play verification
+const ANDROID_PACKAGE_NAME = process.env.ANDROID_PACKAGE_NAME || 'com.kalromsystems.moomhe';
+const { google } = require('googleapis');
+const path = require('path');
+
+let androidPublisherClient = null;
+
+async function getAndroidPublisher() {
+  if (androidPublisherClient) return androidPublisherClient;
+  // Use explicit service account key for Google Play API
+  const keyFilePath = path.join(__dirname, 'google-play-service-account.json');
+  const auth = new google.auth.GoogleAuth({
+    keyFile: keyFilePath,
+    scopes: ['https://www.googleapis.com/auth/androidpublisher'],
+  });
+  androidPublisherClient = google.androidpublisher({ version: 'v3', auth });
+  return androidPublisherClient;
+}
+
+async function verifyGooglePlayPurchase(purchaseToken, productId) {
+  if (!purchaseToken) throw new Error('Missing purchase token');
+  const publisher = await getAndroidPublisher();
+  try {
+    const res = await publisher.purchases.subscriptions.get({
+      packageName: ANDROID_PACKAGE_NAME,
+      subscriptionId: productId,
+      token: purchaseToken,
+    });
+    const sub = res.data;
+    const expiryTimeMillis = parseInt(sub.expiryTimeMillis, 10);
+    const now = Date.now();
+    const isActive = expiryTimeMillis > now;
+    // paymentState: 0=pending, 1=received, 2=free trial, 3=deferred
+    // cancelReason: 0=user, 1=system, 2=replaced, 3=developer
+    return {
+      valid: true,
+      isActive,
+      expiresDate: new Date(expiryTimeMillis).toISOString(),
+      startTimeMillis: sub.startTimeMillis ? new Date(parseInt(sub.startTimeMillis, 10)).toISOString() : null,
+      autoRenewing: sub.autoRenewing || false,
+      paymentState: sub.paymentState,
+      cancelReason: sub.cancelReason,
+      orderId: sub.orderId,
+      productId,
+      environment: sub.purchaseType === 0 ? 'Sandbox' : 'Production',
+    };
+  } catch (e) {
+    if (e.code === 404 || (e.errors && e.errors[0] && e.errors[0].reason === 'subscriptionPurchaseNotFound')) {
+      throw new Error('Subscription purchase not found on Google Play');
+    }
+    throw new Error('Google Play verification failed: ' + (e.message || 'Unknown error'));
+  }
+}
 
 // Helper function to validate Firebase user token
 async function validateUserToken(authToken) {
@@ -1723,7 +1859,7 @@ exports.googlePlayWebhook = onRequest({ cors: true }, async (req, res) => {
           // Remove subscription access
           await db.collection('users').doc(userId).update({
             subscription: 0,
-            credits: 3, // Reset to free tier
+            credits: 0,
             subscriptionProductId: null,
             subscriptionExpired: true,
             subscriptionExpiredAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -2000,7 +2136,7 @@ exports.appStoreWebhook = onRequest({ cors: true }, async (req, res) => {
         // Subscription expired
         await db.collection('users').doc(userId).update({
           subscription: 0,
-          credits: 3, // Reset to free tier
+          credits: 0,
           subscriptionProductId: null,
           subscriptionExpired: true,
           subscriptionExpiredAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -2024,7 +2160,7 @@ exports.appStoreWebhook = onRequest({ cors: true }, async (req, res) => {
         // User was refunded
         await db.collection('users').doc(userId).update({
           subscription: 0,
-          credits: 3,
+          credits: 0,
           subscriptionProductId: null,
           subscriptionRefunded: true,
           subscriptionRefundedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -2037,7 +2173,7 @@ exports.appStoreWebhook = onRequest({ cors: true }, async (req, res) => {
         // Family sharing revoked or other revocation
         await db.collection('users').doc(userId).update({
           subscription: 0,
-          credits: 3,
+          credits: 0,
           subscriptionProductId: null,
           subscriptionRevoked: true,
           subscriptionRevokedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -2102,6 +2238,34 @@ exports.verifyPurchase = onRequest({ cors: true }, async (req, res) => {
     if (!productConfig) {
       res.status(400).json({ success: false, error: 'Unknown product' });
       return;
+    }
+
+    // Authenticate purchase with Apple for iOS
+    if (platform === 'ios') {
+      if (!verificationData) {
+        res.status(400).json({ success: false, error: 'Missing verification data for iOS' });
+        return;
+      }
+      try {
+        const result = await verifyIOSVerificationData(verificationData, productId);
+        logger.info(`[verifyPurchase] iOS purchase authenticated: productId=${result.decoded ? result.decoded.productId : productId}, env=${result.environment || 'receipt'}`);
+      } catch (e) {
+        logger.warn('[verifyPurchase] iOS verification failed:', e.message);
+        res.status(400).json({ success: false, error: 'Purchase could not be verified with Apple: ' + (e.message || 'Unknown error') });
+        return;
+      }
+    }
+
+    // Authenticate purchase with Google Play for Android (GPA orders)
+    if (platform === 'android' && verificationData) {
+      try {
+        const gpResult = await verifyGooglePlayPurchase(verificationData, productId);
+        logger.info(`[verifyPurchase] Android purchase authenticated: orderId=${gpResult.orderId}, active=${gpResult.isActive}, env=${gpResult.environment}`);
+      } catch (e) {
+        logger.warn('[verifyPurchase] Google Play verification failed:', e.message);
+        res.status(400).json({ success: false, error: 'Purchase could not be verified with Google Play: ' + (e.message || 'Unknown error') });
+        return;
+      }
     }
     
     // Store/update purchase record with originalTransactionId for webhook lookup
@@ -2198,6 +2362,163 @@ exports.verifyPurchase = onRequest({ cors: true }, async (req, res) => {
     
   } catch (error) {
     logger.error('[verifyPurchase] Error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ===========================================
+// Check Subscription Status (Admin only)
+// ===========================================
+// Called from ctrl.html to validate a user's receipt/token with Apple or Google Play
+exports.checkSubscriptionStatus = onRequest({ cors: true }, async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+  if (req.method !== 'POST' && req.method !== 'GET') {
+    res.status(405).json({ error: 'Method not allowed' });
+    return;
+  }
+  try {
+    const authToken = req.body?.authToken || (req.headers.authorization && req.headers.authorization.startsWith('Bearer ') ? req.headers.authorization.slice(7) : null);
+    const userId = req.body?.userId || req.query?.userId;
+    const purchaseId = req.body?.purchaseId || req.query?.purchaseId;
+    if (!authToken) {
+      res.status(401).json({ success: false, error: 'Missing auth token' });
+      return;
+    }
+    const decoded = await admin.auth().verifyIdToken(authToken);
+    if (decoded.uid !== ADMIN_UID) {
+      res.status(403).json({ success: false, error: 'Admin only' });
+      return;
+    }
+    if (!userId && !purchaseId) {
+      res.status(400).json({ success: false, error: 'Provide userId or purchaseId' });
+      return;
+    }
+    let purchaseDoc = null;
+    let purchaseIdResolved = purchaseId;
+    if (userId) {
+      const userDoc = await db.collection('users').doc(userId).get();
+      if (!userDoc.exists) {
+        res.status(404).json({ success: false, error: 'User not found' });
+        return;
+      }
+      purchaseIdResolved = userDoc.data().lastPurchaseId || purchaseId;
+      if (!purchaseIdResolved) {
+        return res.json({
+          success: true,
+          userId,
+          valid: null,
+          message: 'No purchase ID for this user',
+          subscription: userDoc.data().subscription,
+          subscriptionProductId: userDoc.data().subscriptionProductId,
+        });
+      }
+    }
+    purchaseDoc = await db.collection('purchases').doc(purchaseIdResolved).get();
+    if (!purchaseDoc.exists) {
+      return res.json({
+        success: true,
+        userId: userId || null,
+        purchaseId: purchaseIdResolved,
+        valid: null,
+        message: 'Purchase record not found',
+      });
+    }
+    const purchase = purchaseDoc.data();
+    if (!purchase.verificationData) {
+      return res.json({
+        success: true,
+        userId: purchase.userId,
+        purchaseId: purchaseIdResolved,
+        valid: null,
+        platform: purchase.platform || 'unknown',
+        message: 'No verification data stored for this purchase',
+      });
+    }
+    const productId = purchase.productId;
+
+    // Google Play verification (Android / GPA orders)
+    if (purchase.platform === 'android') {
+      try {
+        const gpResult = await verifyGooglePlayPurchase(purchase.verificationData, productId);
+        return res.json({
+          success: true,
+          userId: purchase.userId,
+          purchaseId: purchaseIdResolved,
+          valid: true,
+          productId,
+          platform: 'android',
+          orderId: gpResult.orderId,
+          environment: gpResult.environment,
+          expiresDate: gpResult.expiresDate,
+          isActive: gpResult.isActive,
+          autoRenewing: gpResult.autoRenewing,
+          paymentState: gpResult.paymentState,
+          cancelReason: gpResult.cancelReason,
+          purchaseDate: gpResult.startTimeMillis,
+        });
+      } catch (e) {
+        logger.warn('[checkSubscriptionStatus] Google Play verification failed:', e.message);
+        return res.json({
+          success: true,
+          userId: purchase.userId,
+          purchaseId: purchaseIdResolved,
+          platform: 'android',
+          valid: false,
+          error: e.message || 'Verification failed',
+        });
+      }
+    }
+
+    // iOS verification
+    if (purchase.platform === 'ios') {
+      try {
+        const result = await verifyIOSVerificationData(purchase.verificationData, productId);
+        const decodedTx = result.decoded;
+        const expiresDate = decodedTx?.expiresDate ? new Date(decodedTx.expiresDate) : null;
+        const now = new Date();
+        const isActive = expiresDate ? expiresDate > now : true;
+        return res.json({
+          success: true,
+          userId: purchase.userId,
+          purchaseId: purchaseIdResolved,
+          originalTransactionId: decodedTx?.originalTransactionId || purchase.originalTransactionId,
+          valid: true,
+          productId: decodedTx?.productId || productId,
+          platform: 'ios',
+          environment: result.environment || null,
+          expiresDate: expiresDate ? expiresDate.toISOString() : null,
+          isActive,
+          purchaseDate: decodedTx?.purchaseDate ? new Date(decodedTx.purchaseDate).toISOString() : null,
+        });
+      } catch (e) {
+        logger.warn('[checkSubscriptionStatus] iOS verification failed:', e.message);
+        return res.json({
+          success: true,
+          userId: purchase.userId,
+          purchaseId: purchaseIdResolved,
+          platform: 'ios',
+          valid: false,
+          error: e.message || 'Verification failed',
+        });
+      }
+    }
+
+    return res.json({
+      success: true,
+      userId: purchase.userId,
+      purchaseId: purchaseIdResolved,
+      valid: null,
+      platform: purchase.platform || 'unknown',
+      message: 'Unsupported platform for verification',
+    });
+  } catch (error) {
+    logger.error('[checkSubscriptionStatus] Error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -2480,7 +2801,7 @@ exports.deleteAccount = onRequest({ cors: true }, async (req, res) => {
 async function _resetToFreeTier(userId, reason) {
   await db.collection('users').doc(userId).update({
     subscription: 0,
-    credits: 3,
+    credits: 0,
     subscriptionProductId: null,
     subscriptionExpired: true,
     subscriptionExpiredAt: admin.firestore.FieldValue.serverTimestamp(),

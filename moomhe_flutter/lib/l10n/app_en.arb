@@ -524,5 +524,28 @@
       }
     }
   },
-  "thenPrice": "then {price}/month"
+  "thenPrice": "then {price}/month",
+  
+  "yearly": "Yearly",
+  "monthly": "Monthly",
+  "perYear": "/year",
+  "savePercent": "SAVE {percent}%",
+  "@savePercent": {
+    "placeholders": {
+      "percent": {"type": "int"}
+    }
+  },
+  "billedAnnually": "billed annually",
+  "justPricePerMonth": "Just {price}/mo",
+  "@justPricePerMonth": {
+    "placeholders": {
+      "price": {"type": "String"}
+    }
+  },
+  "wasPrice": "Was {price}",
+  "@wasPrice": {
+    "placeholders": {
+      "price": {"type": "String"}
+    }
+  }
 }

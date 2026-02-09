@@ -2634,6 +2634,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'then {price}/month'**
   String thenPrice(Object price);
+
+  /// No description provided for @yearly.
+  ///
+  /// In en, this message translates to:
+  /// **'Yearly'**
+  String get yearly;
+
+  /// No description provided for @monthly.
+  ///
+  /// In en, this message translates to:
+  /// **'Monthly'**
+  String get monthly;
+
+  /// No description provided for @perYear.
+  ///
+  /// In en, this message translates to:
+  /// **'/year'**
+  String get perYear;
+
+  /// No description provided for @savePercent.
+  ///
+  /// In en, this message translates to:
+  /// **'SAVE {percent}%'**
+  String savePercent(int percent);
+
+  /// No description provided for @billedAnnually.
+  ///
+  /// In en, this message translates to:
+  /// **'billed annually'**
+  String get billedAnnually;
+
+  /// No description provided for @justPricePerMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'Just {price}/mo'**
+  String justPricePerMonth(String price);
+
+  /// No description provided for @wasPrice.
+  ///
+  /// In en, this message translates to:
+  /// **'Was {price}'**
+  String wasPrice(String price);
 }
 
 class _AppLocalizationsDelegate

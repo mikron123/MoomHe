@@ -1281,6 +1281,33 @@ class AppLocalizationsZh extends AppLocalizations {
   String thenPrice(Object price) {
     return '之后 $price/月';
   }
+
+  @override
+  String get yearly => 'Yearly';
+
+  @override
+  String get monthly => 'Monthly';
+
+  @override
+  String get perYear => '/year';
+
+  @override
+  String savePercent(int percent) {
+    return 'SAVE $percent%';
+  }
+
+  @override
+  String get billedAnnually => 'billed annually';
+
+  @override
+  String justPricePerMonth(String price) {
+    return 'Just $price/mo';
+  }
+
+  @override
+  String wasPrice(String price) {
+    return 'Was $price';
+  }
 }
 
 /// The translations for Chinese, as used in Hong Kong (`zh_HK`).

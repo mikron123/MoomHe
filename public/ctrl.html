@@ -1040,6 +1040,15 @@
                   >
                     📋
                   </button>
+                  ${user.lastPurchaseId ? `
+                  <button 
+                    onclick="checkSubscriptionStatus('${user.id.replace(/'/g, "\\'")}')"
+                    class="text-xs bg-orange-600/30 hover:bg-orange-600/50 text-orange-400 px-2 py-0.5 rounded transition-all"
+                    title="בדוק תקפות מנוי אצל Apple"
+                  >
+                    ✓ סטטוס
+                  </button>
+                  ` : ''}
                   <span class="text-xs px-2 py-0.5 rounded font-medium ${paymentSourceColor}">${paymentSource}</span>
                   ${isNewPricingUser ? '<span class="text-xs px-2 py-0.5 rounded font-medium text-pink-400 bg-pink-500/20">תמחור חדש</span>' : ''}
                 </div>
@@ -1122,6 +1131,55 @@
         document.execCommand('copy');
         document.body.removeChild(textArea);
       }
+    };
+
+    // Check subscription validity with Apple (admin only)
+    const CHECK_STATUS_URL = 'https://us-central1-moomhe-6de30.cloudfunctions.net/checkSubscriptionStatus';
+    window.checkSubscriptionStatus = async (userId) => {
+      const modal = document.getElementById('subscription-status-modal');
+      const content = document.getElementById('subscription-status-content');
+      const closeBtn = document.getElementById('subscription-status-close');
+      if (!modal || !content) return;
+      content.innerHTML = '<div class="flex items-center justify-center py-8"><div class="w-8 h-8 border-4 border-orange-500/30 border-t-orange-500 rounded-full animate-spin"></div></div>';
+      modal.classList.remove('hidden');
+      try {
+        const token = await auth.currentUser.getIdToken();
+        const res = await fetch(CHECK_STATUS_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId, authToken: token })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          content.innerHTML = `<div class="p-4 text-red-400"><p class="font-semibold">שגיאה</p><p class="text-sm mt-2">${data.error || res.status}</p></div>`;
+          return;
+        }
+        let html = '<div class="p-4 text-right space-y-2">';
+        html += `<p class="text-lg font-semibold text-white border-b border-gray-600 pb-2">סטטוס תקפות מנוי</p>`;
+        const storeName = data.platform === 'android' ? 'Google Play' : 'Apple';
+        if (data.valid === true) {
+          html += `<p class="text-emerald-400">✓ תקף אצל ${storeName}</p>`;
+          html += `<p class="text-xs text-gray-400">מנוי: ${data.productId || '-'}</p>`;
+          html += `<p class="text-xs text-gray-400">סביבה: ${data.environment || '-'}</p>`;
+          if (data.expiresDate) html += `<p class="text-xs text-gray-400">פג תוקף: ${new Date(data.expiresDate).toLocaleString('he-IL')}</p>`;
+          if (typeof data.isActive !== 'undefined') html += `<p class="text-xs ${data.isActive ? 'text-emerald-400' : 'text-amber-400'}">${data.isActive ? 'פעיל' : 'לא פעיל'}</p>`;
+          if (data.originalTransactionId) html += `<p class="text-xs text-gray-500 truncate" title="${data.originalTransactionId}">מזהה Apple: ${data.originalTransactionId}</p>`;
+          if (data.orderId) html += `<p class="text-xs text-gray-500 truncate" title="${data.orderId}">הזמנה: ${data.orderId}</p>`;
+          if (typeof data.autoRenewing !== 'undefined') html += `<p class="text-xs ${data.autoRenewing ? 'text-emerald-400' : 'text-amber-400'}">חידוש אוטומטי: ${data.autoRenewing ? 'כן' : 'לא'}</p>`;
+        } else if (data.valid === false) {
+          html += `<p class="text-red-400">✗ לא תקף אצל ${storeName}</p>`;
+          if (data.error) html += `<p class="text-sm text-gray-400">${data.error}</p>`;
+        } else {
+          html += `<p class="text-gray-400">${data.message || 'אין נתוני קבלה לבדיקה'}</p>`;
+          if (data.platform) html += `<p class="text-xs text-gray-500">פלטפורמה: ${data.platform}</p>`;
+        }
+        html += `<p class="text-xs text-gray-500 pt-2">משתמש: ${data.userId || userId}</p>`;
+        html += '</div>';
+        content.innerHTML = html;
+      } catch (err) {
+        content.innerHTML = `<div class="p-4 text-red-400"><p class="font-semibold">שגיאה</p><p class="text-sm mt-2">${err.message}</p></div>`;
+      }
+      closeBtn.onclick = () => modal.classList.add('hidden');
     };
   </script>
   <style>
@@ -1483,6 +1541,17 @@
           <!-- Users List -->
           <div id="users-list" class="space-y-3">
             <div class="text-gray-400 text-center py-8">לחץ על הטאב כדי לטעון משתמשים</div>
+          </div>
+
+          <!-- Subscription status modal -->
+          <div id="subscription-status-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onclick="if (event.target === this) this.classList.add('hidden')">
+            <div class="bg-gray-800 rounded-xl border border-gray-600 shadow-xl max-w-md w-full" onclick="event.stopPropagation()">
+              <div class="flex items-center justify-between p-3 border-b border-gray-600">
+                <span class="text-white font-medium">בדיקת תקפות מנוי</span>
+                <button id="subscription-status-close" class="text-gray-400 hover:text-white p-1 rounded">✕</button>
+              </div>
+              <div id="subscription-status-content" class="min-h-[120px]"></div>
+            </div>
           </div>
         </div>
       </div>
