@@ -287,7 +287,7 @@ class PurchaseService {
             applicationUserName: userId,
             changeSubscriptionParam: ChangeSubscriptionParam(
               oldPurchaseDetails: _currentAndroidPurchase!,
-              replacementMode: ReplacementMode.withTimeProration,
+              replacementMode: ReplacementMode.chargeFullPrice,
             ),
           );
           debugPrint('🔄 Using upgrade purchase param with proration');
