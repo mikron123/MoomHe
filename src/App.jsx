@@ -561,10 +561,12 @@ function App() {
       const response = await fetch(imageUrl)
       const blob = await response.blob()
       const url = window.URL.createObjectURL(blob)
-      
+
+      // Use correct extension based on actual MIME type
+      const ext = blob.type === 'image/jpeg' ? 'jpg' : blob.type === 'image/webp' ? 'webp' : 'png'
       const link = document.createElement('a')
       link.href = url
-      link.download = `moomhe-design-${Date.now()}.png`
+      link.download = `moomhe-design-${Date.now()}.${ext}`
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
@@ -1450,21 +1452,23 @@ function App() {
         })
       }
       
-      // Submit request to server
+      // Submit request to server (preset design flow — isPreDesign = true)
       const requestId = await aiService.submitImageGenerationRequest(
-        currentUser, 
-        prompt, 
-        imageDataForServer, 
+        currentUser,
+        prompt,
+        imageDataForServer,
         objectImageData,
-        deviceId
+        deviceId,
+        null,
+        true
       )
-      
+
       // Wait for completion
       const result = await aiService.waitForRequestCompletion(requestId)
-      
+
       if (result && result.imageUrl) {
-        const imageDataUrl = result.imageUrl.startsWith('data:') 
-          ? result.imageUrl 
+        const imageDataUrl = result.imageUrl.startsWith('data:')
+          ? result.imageUrl
           : `data:image/png;base64,${result.imageUrl}`
         
         setMainImage(imageDataUrl)
@@ -2074,11 +2078,13 @@ function App() {
       // Submit request to server
       const deviceId = await getDeviceFingerprint()
       const requestId = await aiService.submitImageGenerationRequest(
-        currentUser, 
-        prompt, 
-        imageDataForServer, 
+        currentUser,
+        prompt,
+        imageDataForServer,
         objectImageData,
-        deviceId
+        deviceId,
+        null,
+        !!isPrebuiltObjectData
       )
       
       // Wait for completion

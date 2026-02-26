@@ -3,6 +3,15 @@ const { onRequest } = require('firebase-functions/v2/https');
 const { logger } = require('firebase-functions');
 const admin = require('firebase-admin');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+// @google/genai is ESM-only, use dynamic import
+let _vertexAI = null;
+async function getVertexAI() {
+  if (!_vertexAI) {
+    const { GoogleGenAI } = await import('@google/genai');
+    _vertexAI = new GoogleGenAI({ vertexai: true, project: 'moomhe-6de30', location: 'global' });
+  }
+  return _vertexAI;
+}
 const sharp = require('sharp');
 const FormData = require('form-data');
 const { Environment } = require('app-store-server-library');
@@ -14,7 +23,7 @@ admin.initializeApp();
 const db = admin.firestore();
 const storage = admin.storage();
 
-// Initialize Gemini AI
+// Initialize Gemini AI (for translation + speech-to-text)
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // Azure OpenAI GPT-image-1.5 Configuration (Experimental)
@@ -328,113 +337,149 @@ Hebrew text: ${hebrewPrompt}`;
   }
 }
 
-// Helper function to process image with Gemini
-async function processImageWithGemini(prompt, imageData, isObjectDetection = false, objectImageData = null, docId = null) {
-  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-image" });
-  
+// Helper function to process image with Vertex AI (Gemini 3.1 Flash Image)
+async function processImageWithGemini(prompt, imageData, isObjectDetection = false, objectImageData = null, docId = null, isPreDesign = false) {
+  const vertexAI = await getVertexAI();
+
+  // Config matching the Vertex AI console settings for fast generation
+  const imageGenerationConfig = {
+    temperature: 1,
+    topP: 0.95,
+    maxOutputTokens: 32768,
+    responseModalities: ['TEXT', 'IMAGE'],
+    safetySettings: [
+      { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'OFF' },
+      { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'OFF' },
+      { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'OFF' },
+      { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'OFF' },
+    ],
+    imageConfig: {
+      aspectRatio: 'auto',
+      imageSize: '512',//1K
+      outputMimeType: 'image/jpeg',
+    },
+    thinkingConfig: {
+      thinkingLevel: 'MINIMAL',
+    },
+  };
+
+  // For object detection, TEXT-only response
+  const objectDetectionConfig = {
+    temperature: 1,
+    topP: 0.95,
+    maxOutputTokens: 32768,
+    responseModalities: ['TEXT'],
+    safetySettings: [
+      { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'OFF' },
+      { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'OFF' },
+      { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'OFF' },
+      { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'OFF' },
+    ],
+    thinkingConfig: {
+      thinkingLevel: 'MINIMAL',
+    },
+  };
+
+  // Helper to extract image from Vertex AI response
+  function extractImageFromResponse(response) {
+    if (response && response.candidates && response.candidates[0]) {
+      const candidate = response.candidates[0];
+      if (candidate.content && candidate.content.parts) {
+        for (const part of candidate.content.parts) {
+          if (part.inlineData) {
+            return {
+              type: 'image',
+              content: `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`
+            };
+          }
+        }
+      }
+    }
+    return null;
+  }
+
   try {
-    // Log image data info for debugging
-    logger.info(`Processing image - isObjectDetection: ${isObjectDetection}, dataLength: ${imageData.inlineData.data.length}, mimeType: ${imageData.inlineData.mimeType}`);
+    logger.info(`Processing image via Vertex AI - isObjectDetection: ${isObjectDetection}, isPreDesign: ${isPreDesign}, dataLength: ${imageData.inlineData.data.length}, mimeType: ${imageData.inlineData.mimeType}`);
     if (objectImageData) {
       logger.info(`Object image provided - dataLength: ${objectImageData.inlineData.data.length}, mimeType: ${objectImageData.inlineData.mimeType}`);
     }
-    
+
     if (isObjectDetection) {
+      // --- Object Detection (returns TEXT) ---
       const objectDetectionPrompt = "make a very simple name list of the different objects (2-4 words each) that are in the image. include things like walls/sky etc. write the answer it in a json format only. write the names in Hebrew. if there are 2 similar named objects like \"window\" make it clear which window is which, e.g. \"small window\" and \"big window\"";
-      const result = await model.generateContent([objectDetectionPrompt, imageData]);
-      return { type: 'text', content: result.response.text() };
+
+      const response = await vertexAI.models.generateContent({
+        model: 'gemini-3.1-flash-image-preview',
+        contents: [{ role: 'user', parts: [{ text: objectDetectionPrompt }, imageData] }],
+        config: objectDetectionConfig,
+      });
+
+      return { type: 'text', content: response.text };
+
+    } else if (isPreDesign && objectImageData) {
+      // --- PreDesign gallery (returns IMAGE) ---
+      const preDesignPrompt = "apply the design of the 2nd image to the room on the 1st image, don't change the structure.\ndon't change the room size.\ndon't remove doors or windows.";
+      logger.info('Using preDesign prompt (isPreDesign flag set)');
+
+      if (docId) {
+        await db.collection('userHistory').doc(docId).update({
+          originalPrompt: prompt,
+          translatedPrompt: preDesignPrompt
+        });
+      }
+
+      const response = await vertexAI.models.generateContent({
+        model: 'gemini-3.1-flash-image-preview',
+        contents: [{ role: 'user', parts: [{ text: preDesignPrompt }, imageData, objectImageData] }],
+        config: imageGenerationConfig,
+      });
+
+      logger.info('Vertex AI preDesign response:', { candidatesLength: response?.candidates?.length || 0 });
+
+      const imageResult = extractImageFromResponse(response);
+      if (imageResult) return imageResult;
+
+      throw new Error('No image generated from preDesign prompt');
+
     } else {
-      // Translate Hebrew prompt to English
+      // --- Standard Image Generation (returns IMAGE) ---
       const englishPrompt = await translatePromptToEnglish(prompt);
-      
-      // Save the original Hebrew prompt and translated English prompt for review
+
       if (docId) {
         logger.info(`Updating document ${docId} with translation data`);
         await db.collection('userHistory').doc(docId).update({
           originalPrompt: prompt,
           translatedPrompt: englishPrompt
         });
-        logger.info(`Successfully updated document ${docId} with translation data`);
-      } else {
-        logger.warn('No docId provided, skipping translation data update');
       }
-      
-      // Prepare content array with translated prompt and main image
-      const content = [englishPrompt, imageData];
-      
-      // Add object image if provided
+
+      const parts = [{ text: englishPrompt }, imageData];
       if (objectImageData) {
-        content.push(objectImageData);
-        logger.info('Added object image to Gemini request');
+        parts.push(objectImageData);
+        logger.info('Added object image to Vertex AI request');
       }
-      
-      const result = await model.generateContent(content);
-      
-      // Debug: Log the response structure
-      logger.info('Gemini response structure:', {
-        hasResponse: !!result.response,
-        hasCandidates: !!(result.response && result.response.candidates),
-        candidatesLength: result.response?.candidates?.length || 0,
-        responseKeys: result.response ? Object.keys(result.response) : [],
-        firstCandidateKeys: result.response?.candidates?.[0] ? Object.keys(result.response.candidates[0]) : []
+
+      const response = await vertexAI.models.generateContent({
+        model: 'gemini-3.1-flash-image-preview',
+        contents: [{ role: 'user', parts }],
+        config: imageGenerationConfig,
       });
-      
-      // Log the full response for debugging
-      logger.info('Full Gemini response:', JSON.stringify(result.response, null, 2));
-      
-      // Check if the response has inline data parts
-      if (result.response && result.response.candidates && result.response.candidates[0]) {
-        const candidate = result.response.candidates[0];
-        
-        // Check for inline data in the response
-        if (candidate.content && candidate.content.parts) {
-          logger.info('Found content parts:', candidate.content.parts.length);
-          for (const part of candidate.content.parts) {
-            if (part.inlineData) {
-              logger.info('Found inline data part');
-              return { 
-                type: 'image', 
-                content: `data:${part.inlineData.mimeType};base64,${part.inlineData.data}` 
-              };
-            }
-          }
-        }
+
+      logger.info('Vertex AI response:', { candidatesLength: response?.candidates?.length || 0 });
+
+      const imageResult = extractImageFromResponse(response);
+      if (imageResult) return imageResult;
+
+      // Check if we got text instead of image
+      if (response.text) {
+        logger.info('Got text response instead of image:', response.text);
+        throw new Error(`Vertex AI returned text instead of image: ${response.text.substring(0, 100)}...`);
       }
-      
-      // Fallback: try the old method if it exists
-      try {
-        if (typeof result.response.inlineDataParts === 'function') {
-          const inlineDataParts = result.response.inlineDataParts();
-          if (inlineDataParts && inlineDataParts[0]) {
-            const image = inlineDataParts[0].inlineData;
-            return { 
-              type: 'image', 
-              content: `data:${image.mimeType};base64,${image.data}` 
-            };
-          }
-        }
-      } catch (error) {
-        logger.warn('inlineDataParts method not available:', error.message);
-      }
-      
-      // Log the full response for debugging
-      logger.error('Full response structure:', JSON.stringify(result, null, 2));
-      
-      // Check if we got text response instead of image
-      try {
-        const textResponse = result.response.text();
-        if (textResponse) {
-          logger.info('Got text response instead of image:', textResponse);
-          throw new Error(`Gemini returned text instead of image: ${textResponse.substring(0, 100)}...`);
-        }
-      } catch (textError) {
-        logger.info('Could not get text response:', textError.message);
-      }
-      
+
       throw new Error('No image generated - no inline data found in response');
     }
   } catch (error) {
-    logger.error('Gemini API error:', error);
+    logger.error('Vertex AI error:', error);
     logger.error('Image data details:', {
       dataLength: imageData.inlineData.data.length,
       mimeType: imageData.inlineData.mimeType,
@@ -636,7 +681,11 @@ exports.onUserCreated = onDocumentCreated('users/{userId}', async (event) => {
 });
 
 // Cloud function triggered when a new userHistory document is created
-exports.processImageRequest = onDocumentCreated('userHistory/{docId}', async (event) => {
+exports.processImageRequest = onDocumentCreated({
+  document: 'userHistory/{docId}',
+  timeoutSeconds: 360,
+  memory: '4GiB',
+}, async (event) => {
   const docId = event.params.docId;
   const docData = event.data.data();
   
@@ -831,7 +880,7 @@ exports.processImageRequest = onDocumentCreated('userHistory/{docId}', async (ev
         objectImageData = docData.objectImageData;
       }
       
-      result = await processImageWithGemini(docData.prompt, imageData, false, objectImageData, docId);
+      result = await processImageWithGemini(docData.prompt, imageData, false, objectImageData, docId, docData.isPreDesign);
       
       if (result.type === 'image') {
         // Convert base64 to buffer

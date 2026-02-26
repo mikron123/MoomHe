@@ -1062,7 +1062,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
 
   // Flag to use new paywall UI (v2 with monthly/yearly toggle)
   // Set to true to test the new paywall, false to use the original
-  static const bool _usePaywallV2 = true;
+  static const bool _usePaywallV2 = false;
 
   void _showSubscriptionModal() {
     // Track subscription modal opened

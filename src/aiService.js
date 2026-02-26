@@ -7,7 +7,7 @@ class AIService {
     this.activeRequests = new Map(); // Track active requests
     // EXPERIMENTAL: Flag to use GPT-image-1.5 instead of Gemini
     // Set to true to test the experimental Azure GPT-image-1.5 model
-    this.useExperimentalModel = true;
+    this.useExperimentalModel = false;
   }
 
   // Enable or disable experimental model
@@ -23,7 +23,7 @@ class AIService {
 
   // Submit a request for image generation
   // Now supports experimental GPT-image-1.5 model via useExperimentalModel flag
-  async submitImageGenerationRequest(user, prompt, imageData, objectImageData = null, deviceId = null, forceExperimental = null) {
+  async submitImageGenerationRequest(user, prompt, imageData, objectImageData = null, deviceId = null, forceExperimental = null, isPreDesign = false) {
     try {
       // Get user's auth token
       const authToken = await user.getIdToken();
@@ -51,7 +51,8 @@ class AIService {
         isError: false,
         createdAt: new Date(),
         // EXPERIMENTAL: Flag for using GPT-image-1.5 model
-        useExperimentalModel: shouldUseExperimental
+        useExperimentalModel: shouldUseExperimental,
+        isPreDesign: isPreDesign
       };
 
       // Create document reference
@@ -105,7 +106,7 @@ class AIService {
   }
 
   // Wait for request completion
-  waitForRequestCompletion = async (docId, timeout = 60000) => {
+  waitForRequestCompletion = async (docId, timeout = 360000) => {
     return new Promise((resolve, reject) => {
       const timeoutId = setTimeout(() => {
         this.activeRequests.delete(docId);

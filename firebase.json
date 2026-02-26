@@ -6,10 +6,29 @@
       "**/.*",
       "**/node_modules/**"
     ],
+    "redirects": [
+      {
+        "source": "/home-en.html",
+        "destination": "/",
+        "type": 301
+      }
+    ],
     "rewrites": [
       {
-        "source": "**",
-        "destination": "/index.html"
+        "source": "/test/**",
+        "destination": "/app.html"
+      },
+      {
+        "source": "/test",
+        "destination": "/app.html"
+      },
+      {
+        "source": "/app/**",
+        "destination": "/app.html"
+      },
+      {
+        "source": "/app",
+        "destination": "/app.html"
       }
     ]
   },
